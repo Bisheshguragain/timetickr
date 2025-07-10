@@ -43,14 +43,26 @@ function LiveMessagingCard() {
     const { toast } = useToast();
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
-    const handleSend = async () => {
-        if (!message.trim()) return;
+
+    const presetMessages = [
+        "5 minutes remaining",
+        "2 minutes remaining",
+        "Please wrap up",
+        "Time is up!",
+        "Great job!",
+        "Q&A starting now",
+    ];
+
+    const handleSend = async (messageToSend: string) => {
+        if (!messageToSend) return;
         setIsLoading(true);
+        setLoadingMessage(messageToSend);
         try {
-            const moderationResult = await moderateMessage({ message: message.trim() });
+            const moderationResult = await moderateMessage({ message: messageToSend });
             if (moderationResult.isSafe) {
-                sendMessage(message.trim());
+                sendMessage(messageToSend);
                 setMessage("");
             } else {
                 toast({
@@ -68,6 +80,7 @@ function LiveMessagingCard() {
             });
         } finally {
             setIsLoading(false);
+            setLoadingMessage(null);
         }
     }
 
@@ -82,24 +95,44 @@ function LiveMessagingCard() {
                     Send messages directly to the speaker's display. Messages are moderated by AI.
                 </CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
+            <CardContent className="space-y-6">
+                <div className="space-y-2">
                     <Textarea 
-                        placeholder="Type your message here..."
+                        placeholder="Type your custom message here..."
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
-                                handleSend();
+                                handleSend(message.trim());
                             }
                         }}
                         disabled={isLoading}
                     />
-                    <Button onClick={handleSend} className="w-full" disabled={isLoading}>
-                        {isLoading ? <Loader className="mr-2 animate-spin" /> : <Send className="mr-2" />}
-                        {isLoading ? "Analyzing..." : "Send Message"}
+                    <Button onClick={() => handleSend(message.trim())} className="w-full" disabled={isLoading || !message.trim()}>
+                        {isLoading && loadingMessage === message.trim() ? <Loader className="mr-2 animate-spin" /> : <Send className="mr-2" />}
+                        {isLoading && loadingMessage === message.trim() ? "Analyzing..." : "Send Custom Message"}
                     </Button>
+                </div>
+                 <div className="space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">
+                        Quick Messages
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {presetMessages.map((msg) => (
+                            <Button
+                                key={msg}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSend(msg)}
+                                disabled={isLoading}
+                                className="flex-grow"
+                            >
+                                {isLoading && loadingMessage === msg ? <Loader className="mr-2 animate-spin" /> : null}
+                                {msg}
+                            </Button>
+                        ))}
+                    </div>
                 </div>
             </CardContent>
         </Card>
