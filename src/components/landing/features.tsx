@@ -34,17 +34,6 @@ const features = [
     ]
   },
   {
-    icon: <ShieldCheck className="h-8 w-8 text-primary" />,
-    title: "AI-Powered Moderation",
-    description: "Ensure all on-screen messages are professional with our built-in AI content moderator.",
-     subFeatures: [
-        "Automatic message screening",
-        "Blocks offensive language",
-        "Prevents inappropriate content",
-        "Maintains event professionalism"
-    ]
-  },
-  {
     icon: <Users className="h-8 w-8 text-primary" />,
     title: "Team & Role Management",
     description: "Invite team members and assign specific roles and permissions for collaborative event management.",
@@ -75,6 +64,17 @@ const features = [
         "Minimal distraction interface",
         "Auto-scaling for any screen",
         "Works from phones to jumbo screens"
+    ]
+  },
+  {
+    icon: <ShieldCheck className="h-8 w-8 text-primary" />,
+    title: "AI-Powered Moderation",
+    description: "Ensure all on-screen messages are professional with our built-in AI content moderator.",
+     subFeatures: [
+        "Automatic message screening",
+        "Blocks offensive language",
+        "Prevents inappropriate content",
+        "Maintains event professionalism"
     ]
   },
   {
