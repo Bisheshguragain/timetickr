@@ -23,9 +23,12 @@ import {
   MonitorPlay,
   MessageSquare,
   Send,
+  Loader,
 } from "lucide-react";
 import { useTimer } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
+import { moderateMessage } from "@/ai/flows/moderate-message";
+import { useToast } from "@/hooks/use-toast";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -37,12 +40,34 @@ const formatTime = (seconds: number) => {
 
 function LiveMessagingCard() {
     const { sendMessage } = useTimer();
+    const { toast } = useToast();
     const [message, setMessage] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleSend = () => {
-        if (message.trim()) {
-            sendMessage(message.trim());
-            setMessage("");
+    const handleSend = async () => {
+        if (!message.trim()) return;
+        setIsLoading(true);
+        try {
+            const moderationResult = await moderateMessage({ message: message.trim() });
+            if (moderationResult.isSafe) {
+                sendMessage(message.trim());
+                setMessage("");
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Message Blocked",
+                    description: `Reason: ${moderationResult.reason}`,
+                });
+            }
+        } catch (error) {
+            console.error("Error moderating message:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not send message. Please try again.",
+            });
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -54,7 +79,7 @@ function LiveMessagingCard() {
                     Live Messaging
                 </CardTitle>
                 <CardDescription>
-                    Send messages directly to the speaker's display.
+                    Send messages directly to the speaker's display. Messages are moderated by AI.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -69,10 +94,11 @@ function LiveMessagingCard() {
                                 handleSend();
                             }
                         }}
+                        disabled={isLoading}
                     />
-                    <Button onClick={handleSend} className="w-full">
-                        <Send className="mr-2" />
-                        Send Message
+                    <Button onClick={handleSend} className="w-full" disabled={isLoading}>
+                        {isLoading ? <Loader className="mr-2 animate-spin" /> : <Send className="mr-2" />}
+                        {isLoading ? "Analyzing..." : "Send Message"}
                     </Button>
                 </div>
             </CardContent>
