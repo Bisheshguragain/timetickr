@@ -43,7 +43,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
-  const [message, setMessage] = useState<Message | null>(null);
+  const [message, setMessage] = useState<Message | null>({ id: 1, text: "This is a sample message in Classic theme." });
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
   const [plan, setPlanState] = useState<SubscriptionPlan>("Professional"); // Default plan for demo
   const isFinished = time === 0;
