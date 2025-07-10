@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -11,7 +12,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const GenerateAlertsInputSchema = z.object({
+const GenerateAlertsInputSchema = z.object({
   durationInMinutes: z
     .number()
     .positive()
@@ -25,7 +26,7 @@ const AlertSchema = z.object({
     type: z.enum(["encouragement", "warning", "info"]).describe("The type of alert.")
 });
 
-export const GenerateAlertsOutputSchema = z.object({
+const GenerateAlertsOutputSchema = z.object({
   alerts: z.array(AlertSchema).describe('A list of scheduled alerts.'),
 });
 export type GenerateAlertsOutput = z.infer<typeof GenerateAlertsOutputSchema>;
