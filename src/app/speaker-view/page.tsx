@@ -42,13 +42,13 @@ export default function SpeakerViewPage() {
     },
     Minimalist: {
       bg: "bg-gray-100 text-gray-800",
-      time: "font-sans font-light",
-      warningBg: "bg-yellow-200",
-      urgentBg: "bg-orange-200",
-      finishedBg: "bg-red-200",
+      time: "font-sans font-light border-4 border-gray-200 p-8 rounded-lg",
+      warningBg: "bg-yellow-200 border-yellow-300",
+      urgentBg: "bg-orange-200 border-orange-300",
+      finishedBg: "bg-red-200 border-red-300",
     },
     Industrial: {
-      bg: "bg-gray-800 text-gray-200",
+      bg: "bg-gray-800 text-amber-400",
       time: "font-mono uppercase",
       warningBg: "bg-yellow-800/50",
       urgentBg: "bg-orange-800/60",
@@ -99,5 +99,3 @@ export default function SpeakerViewPage() {
     </div>
   );
 }
-
-    

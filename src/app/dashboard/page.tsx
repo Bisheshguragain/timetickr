@@ -149,7 +149,7 @@ function ThemeSelectorCard() {
     { name: "Classic", bg: "bg-black", text: "text-white", time: "font-mono" },
     { name: "Modern", bg: "bg-gray-900", text: "text-white", time: "font-headline tracking-wide" },
     { name: "Minimalist", bg: "bg-gray-100", text: "text-gray-800", time: "font-sans font-light border-2 border-gray-200" },
-    { name: "Industrial", bg: "bg-gray-800", text: "text-gray-200", time: "font-mono uppercase" },
+    { name: "Industrial", bg: "bg-gray-800", text: "text-amber-400", time: "font-mono uppercase" },
   ];
 
   return (
@@ -177,7 +177,7 @@ function ThemeSelectorCard() {
             <div className={cn("text-2xl font-bold", t.time, t.text)}>
               01:23
             </div>
-            <div className={cn("text-xs mt-1", t.text)}>
+            <div className={cn("text-xs mt-1", t.text === 'text-white' || t.text === 'text-amber-400' ? t.text : 'text-gray-500')}>
               {t.name}
             </div>
             {theme === t.name && (
@@ -212,10 +212,10 @@ export default function DashboardPage() {
   const presetDurations = [300, 600, 900, 1800, 3600];
 
   const themeClasses = {
-    Classic: "font-mono",
-    Modern: "font-headline tracking-wide",
-    Minimalist: "font-sans font-light",
-    Industrial: "font-mono uppercase",
+    Classic: "font-mono text-foreground",
+    Modern: "font-headline tracking-wide text-foreground",
+    Minimalist: "font-sans font-light text-foreground",
+    Industrial: "font-mono uppercase text-amber-400",
   };
 
   const currentThemeClass = themeClasses[theme] || themeClasses.Classic;
