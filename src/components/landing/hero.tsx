@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 export function Hero() {
   const [time, setTime] = useState(900); // 15 minutes in seconds
   const [isActive, setIsActive] = useState(false);
+  const [theme, setTheme] = useState<'Classic' | 'Modern' | 'Minimalist' | 'Industrial'>('Classic');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -44,6 +45,8 @@ export function Hero() {
     return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
+  const themes = ['Classic', 'Modern', 'Minimalist', 'Industrial'] as const;
+
   return (
     <section className="relative overflow-hidden py-20 md:py-32">
       <div
@@ -68,13 +71,36 @@ export function Hero() {
               </div>
             </div>
             <div className="flex justify-center">
-              <div className="w-full max-w-md rounded-2xl border bg-card/50 backdrop-blur-sm p-8 shadow-2xl shadow-primary/10">
-                <p className="text-center font-medium text-foreground/80">Live Timer Demo</p>
+              <div className={cn(
+                "w-full max-w-md rounded-2xl p-8 transition-all duration-300",
+                {
+                  'Classic': "border bg-card/50 backdrop-blur-sm shadow-2xl shadow-primary/10",
+                  'Modern': "border-2 border-primary/50 bg-card shadow-2xl shadow-primary/20",
+                  'Minimalist': "bg-transparent",
+                  'Industrial': "bg-secondary/40 border-2 border-muted"
+                }
+              )}>
+                <p className={cn(
+                  "text-center font-medium",
+                  {
+                    'Classic': 'text-foreground/80',
+                    'Modern': 'text-primary font-semibold',
+                    'Minimalist': 'text-foreground/60',
+                    'Industrial': 'text-foreground/90 font-bold tracking-wider uppercase'
+                  }
+                )}>Live Timer Demo</p>
                 <div className="flex items-center justify-center gap-4 mt-4">
                   <Button variant="ghost" size="icon" onClick={() => changeTime(-60)} disabled={isActive}>
                     <Minus />
                   </Button>
-                  <div className={cn("font-mono text-center text-6xl md:text-7xl font-bold tracking-tighter", time < 60 && time > 0 ? "text-destructive" : "text-foreground")}>
+                  <div className={cn(
+                    "font-mono text-center text-6xl md:text-7xl font-bold tracking-tighter transition-colors", 
+                    time < 60 && time > 0 ? "text-destructive" : "text-foreground",
+                    {
+                      'Modern': 'text-primary',
+                      'Industrial': 'font-code'
+                    }
+                  )}>
                     {formatTime(time)}
                   </div>
                    <Button variant="ghost" size="icon" onClick={() => changeTime(60)} disabled={isActive}>
@@ -92,10 +118,21 @@ export function Hero() {
                   </Button>
                 </div>
                 <div className="mt-6 flex justify-center flex-wrap gap-2">
-                    <Button variant="outline" size="sm" className="bg-secondary/50">Classic</Button>
-                    <Button variant="outline" size="sm">Modern</Button>
-                    <Button variant="outline" size="sm">Minimalist</Button>
-                    <Button variant="outline" size="sm">Industrial</Button>
+                    {themes.map((t) => (
+                         <Button 
+                            key={t}
+                            variant={theme === t ? "default" : "outline"}
+                            size="sm" 
+                            onClick={() => setTheme(t)}
+                            className={cn(
+                                "transition-all",
+                                theme === t ? "shadow-md" : "bg-secondary/50",
+                                {'Industrial': theme === t ? 'bg-foreground text-background' : 'border-muted'}
+                            )}
+                         >
+                            {t}
+                         </Button>
+                    ))}
                 </div>
               </div>
             </div>
