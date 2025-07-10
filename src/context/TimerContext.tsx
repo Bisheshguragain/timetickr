@@ -25,6 +25,19 @@ const PLAN_LIMITS: Record<SubscriptionPlan, number> = {
     Enterprise: -1, // -1 for unlimited
 };
 
+interface AnalyticsData {
+  totalTimers: number;
+  avgDuration: number;
+  messagesSent: number;
+  durationBrackets: {
+    "0-5": number;
+    "5-15": number;
+    "15-30": number;
+    "30-60": number;
+    "60+": number;
+  };
+}
+
 interface TimerContextProps {
   time: number;
   setTime: (time: number) => void;
@@ -46,11 +59,20 @@ interface TimerContextProps {
   consumeTimerCredit: () => void;
   resetUsage: () => void;
   addTimers: (quantity: number) => void;
+  analytics: AnalyticsData;
+  resetAnalytics: () => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
 
 const BROADCAST_CHANNEL_NAME = "timer_channel";
+
+const initialAnalytics: AnalyticsData = {
+    totalTimers: 0,
+    avgDuration: 0,
+    messagesSent: 0,
+    durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
+};
 
 export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
@@ -62,6 +84,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [connectedDevices, setConnectedDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
   const [extraTimers, setExtraTimers] = useState(0);
+  const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const isFinished = time === 0;
 
   const baseTimerLimit = PLAN_LIMITS[plan];
@@ -73,37 +96,41 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectedClients = useRef(new Set<string>());
 
-  const getUsageFromStorage = () => {
-    if (typeof window === 'undefined') return { used: 0, extra: 0, month: new Date().getMonth() };
-    const savedUsage = localStorage.getItem('timerUsage');
-    const currentMonth = new Date().getMonth();
-    if (savedUsage) {
-      const { used, extra, month } = JSON.parse(savedUsage);
-      if (month === currentMonth) {
-        return { used, extra, month };
-      }
-    }
-    // New month or no data, reset usage
-    localStorage.setItem('timerUsage', JSON.stringify({ used: 0, extra: 0, month: currentMonth }));
-    return { used: 0, extra: 0, month: currentMonth };
-  };
+  const getFromStorage = (key: string, defaultValue: any) => {
+    if (typeof window === 'undefined') return defaultValue;
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  }
   
-  const setUsageInStorage = (usage: { used: number, extra: number }) => {
-      if (typeof window === 'undefined') return;
-      const currentMonth = new Date().getMonth();
-      localStorage.setItem('timerUsage', JSON.stringify({ ...usage, month: currentMonth }));
+  const setInStorage = (key: string, value: any) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+  
+  const getUsageFromStorage = () => {
+    const usage = getFromStorage('timerUsage', { used: 0, extra: 0, month: new Date().getMonth() });
+    const currentMonth = new Date().getMonth();
+    if (usage.month === currentMonth) {
+      return usage;
+    }
+    // New month, reset usage but keep extra timers purchased? For now, we reset all.
+    const newUsage = { used: 0, extra: 0, month: currentMonth };
+    setInStorage('timerUsage', newUsage);
+    return newUsage;
   };
 
   useEffect(() => {
     const { used, extra } = getUsageFromStorage();
     setTimersUsed(used);
     setExtraTimers(extra);
+    const savedAnalytics = getFromStorage('timerAnalytics', initialAnalytics);
+    setAnalytics(savedAnalytics);
   }, []);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
     setExtraTimers(newExtraTimers);
-    setUsageInStorage({ used: timersUsed, extra: newExtraTimers });
+    setInStorage('timerUsage', { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
   };
   
   const consumeTimerCredit = () => {
@@ -113,14 +140,41 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
     const newUsage = timersUsed + 1;
     setTimersUsed(newUsage);
-    setUsageInStorage({ used: newUsage, extra: extraTimers });
+    setInStorage('timerUsage', { used: newUsage, extra: extraTimers, month: new Date().getMonth() });
+    
+    // Analytics update
+    const newTotalTimers = analytics.totalTimers + 1;
+    const totalDuration = (analytics.avgDuration * analytics.totalTimers) + initialDuration;
+    const newAvgDuration = totalDuration / newTotalTimers;
+
+    const newBrackets = { ...analytics.durationBrackets };
+    const durationMins = initialDuration / 60;
+    if (durationMins <= 5) newBrackets["0-5"]++;
+    else if (durationMins <= 15) newBrackets["5-15"]++;
+    else if (durationMins <= 30) newBrackets["15-30"]++;
+    else if (durationMins <= 60) newBrackets["30-60"]++;
+    else newBrackets["60+"]++;
+
+    const newAnalytics = {
+      ...analytics,
+      totalTimers: newTotalTimers,
+      avgDuration: newAvgDuration,
+      durationBrackets: newBrackets,
+    }
+    setAnalytics(newAnalytics);
+    setInStorage('timerAnalytics', newAnalytics);
   };
 
   const resetUsage = () => {
     setTimersUsed(0);
     setExtraTimers(0);
-    setUsageInStorage({ used: 0, extra: 0 });
+    setInStorage('timerUsage', { used: 0, extra: 0, month: new Date().getMonth() });
   };
+  
+  const resetAnalytics = () => {
+    setAnalytics(initialAnalytics);
+    setInStorage('timerAnalytics', initialAnalytics);
+  }
 
   // Initialize Broadcast Channel and Client ID
   useEffect(() => {
@@ -268,6 +322,13 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const newMessage = { id: Date.now(), text };
     broadcastAction({ type: "SEND_MESSAGE", payload: { message: newMessage }});
     setMessage(newMessage);
+
+    const newAnalytics = {
+      ...analytics,
+      messagesSent: analytics.messagesSent + 1,
+    };
+    setAnalytics(newAnalytics);
+    setInStorage('timerAnalytics', newAnalytics);
   };
 
   const dismissMessage = () => {
@@ -307,6 +368,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     consumeTimerCredit,
     resetUsage,
     addTimers,
+    analytics,
+    resetAnalytics,
   };
 
   return (

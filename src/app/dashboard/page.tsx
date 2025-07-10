@@ -43,6 +43,7 @@ import {
   ArrowRight,
   RefreshCcw,
   ShoppingCart,
+  BarChartHorizontal,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -50,6 +51,8 @@ import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -60,7 +63,7 @@ const formatTime = (seconds: number) => {
 };
 
 function LiveMessagingCard() {
-    const { sendMessage } = useTimer();
+    const { sendMessage, analytics } = useTimer();
     const { toast } = useToast();
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -337,7 +340,7 @@ function PurchaseTimersDialog({
   onOpenChange,
 }: {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpencha: (open: boolean) => void;
 }) {
   const { addTimers } = useTimer();
   const { toast } = useToast();
@@ -400,6 +403,84 @@ function PurchaseTimersDialog({
   );
 }
 
+function AnalyticsCard() {
+    const { analytics, resetAnalytics } = useTimer();
+
+    const { totalTimers, avgDuration, messagesSent, durationBrackets } = analytics;
+
+    const chartData = [
+        { name: "0-5m", count: durationBrackets["0-5"] },
+        { name: "5-15m", count: durationBrackets["5-15"] },
+        { name: "15-30m", count: durationBrackets["15-30"] },
+        { name: "30-60m", count: durationBrackets["30-60"] },
+        { name: "60m+", count: durationBrackets["60+"] },
+    ];
+
+    const chartConfig = {
+      count: {
+        label: "Count",
+        color: "hsl(var(--primary))",
+      },
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <BarChartHorizontal />
+                    Event Analytics
+                </CardTitle>
+                <CardDescription>
+                    Summary of timer and message usage for this event.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p className="text-2xl font-bold">{totalTimers}</p>
+                        <p className="text-xs text-muted-foreground">Timers Used</p>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold">{formatTime(avgDuration)}</p>
+                        <p className="text-xs text-muted-foreground">Avg. Duration</p>
+                    </div>
+                    <div>
+                        <p className="text-2xl font-bold">{messagesSent}</p>
+                        <p className="text-xs text-muted-foreground">Messages Sent</p>
+                    </div>
+                </div>
+
+                <div>
+                    <p className="mb-2 text-sm font-medium text-muted-foreground">
+                        Duration Breakdown
+                    </p>
+                    <ChartContainer config={chartConfig} className="h-40 w-full">
+                      <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: -10 }}>
+                        <XAxis type="number" dataKey="count" hide />
+                        <YAxis 
+                          dataKey="name" 
+                          type="category"
+                          tickLine={false}
+                          axisLine={false}
+                          tickMargin={10}
+                          width={50}
+                        />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                      </BarChart>
+                    </ChartContainer>
+                </div>
+                 <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
+                    <RefreshCcw className="mr-2" /> Reset analytics
+                </Button>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function DashboardPage() {
   const {
     time,
@@ -412,7 +493,6 @@ export default function DashboardPage() {
     timerLimit,
   } = useTimer();
   
-  const [justStarted, setJustStarted] = useState(false);
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const { toast } = useToast();
 
@@ -431,18 +511,9 @@ export default function DashboardPage() {
             });
             return;
         }
-        setJustStarted(true); // Flag that we've just started
     }
     toggleTimer();
   }
-
-  // This effect will run after the state has updated
-  useEffect(() => {
-    if (justStarted) {
-      // The toggleTimer function in the context handles credit consumption
-      setJustStarted(false);
-    }
-  }, [justStarted]);
 
   const handleSetTime = (newTime: number) => {
     const clampedTime = Math.max(0, newTime);
@@ -598,6 +669,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
+                <AnalyticsCard />
                 <ThemeSelectorCard />
                 <ConnectedDevicesCard />
             </div>
