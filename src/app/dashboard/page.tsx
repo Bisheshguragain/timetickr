@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -24,11 +25,14 @@ import {
   MessageSquare,
   Send,
   Loader,
+  Palette,
+  Check,
 } from "lucide-react";
-import { useTimer } from "@/context/TimerContext";
+import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -137,6 +141,55 @@ function LiveMessagingCard() {
             </CardContent>
         </Card>
     )
+}
+
+function ThemeSelectorCard() {
+  const { theme, setTheme } = useTimer();
+  const themes: { name: TimerTheme; bg: string; text: string; time: string; }[] = [
+    { name: "Classic", bg: "bg-black", text: "text-white", time: "font-mono" },
+    { name: "Modern", bg: "bg-gray-900", text: "text-white", time: "font-headline tracking-wide" },
+    { name: "Minimalist", bg: "bg-gray-100", text: "text-gray-800", time: "font-sans font-light" },
+    { name: "Industrial", bg: "bg-gray-800", text: "text-gray-200", time: "font-mono uppercase" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Palette />
+          Theme Selector
+        </CardTitle>
+        <CardDescription>
+          Choose a visual theme for the speaker's display.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid grid-cols-2 gap-4">
+        {themes.map((t) => (
+          <button
+            key={t.name}
+            className={cn(
+              "relative aspect-video rounded-lg p-3 flex flex-col justify-center items-center cursor-pointer transition-all duration-200 border-2",
+              t.bg,
+              theme === t.name ? "border-primary" : "border-transparent"
+            )}
+            onClick={() => setTheme(t.name)}
+          >
+            <div className={cn("text-2xl font-bold", t.time, t.text)}>
+              01:23
+            </div>
+            <div className={cn("text-xs mt-1", t.text)}>
+              {t.name}
+            </div>
+            {theme === t.name && (
+              <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Check className="h-4 w-4" />
+              </div>
+            )}
+          </button>
+        ))}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function DashboardPage() {
@@ -282,6 +335,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
+                <ThemeSelectorCard />
                 <LiveMessagingCard />
             </div>
           </div>
@@ -290,3 +344,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
