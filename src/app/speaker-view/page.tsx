@@ -6,6 +6,7 @@ import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MessageSquare, X } from "lucide-react";
+import { Logo } from "@/components/landing/logo";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -16,7 +17,7 @@ const formatTime = (seconds: number) => {
 };
 
 export default function SpeakerViewPage() {
-  const { time, isFinished, message, dismissMessage, theme } = useTimer();
+  const { time, isFinished, message, dismissMessage, theme, plan } = useTimer();
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -33,6 +34,7 @@ export default function SpeakerViewPage() {
       urgentBg: "bg-orange-700",
       finishedBg: "bg-red-800",
       alert: "bg-white/90 text-black border-gray-300",
+      logo: "text-white/50",
     },
     Modern: {
       bg: "bg-gray-900 text-white",
@@ -41,6 +43,7 @@ export default function SpeakerViewPage() {
       urgentBg: "bg-purple-800",
       finishedBg: "bg-red-900",
       alert: "bg-gray-800/90 text-white border-gray-600 backdrop-blur-sm",
+      logo: "text-white/40",
     },
     Minimalist: {
       bg: "bg-gray-100 text-gray-800",
@@ -49,6 +52,7 @@ export default function SpeakerViewPage() {
       urgentBg: "bg-orange-200 border-orange-300",
       finishedBg: "bg-red-200 border-red-300",
       alert: "bg-white/80 text-gray-800 border-gray-300 backdrop-blur-sm shadow-2xl",
+      logo: "text-gray-400",
     },
     Industrial: {
       bg: "bg-gray-800 text-amber-400",
@@ -57,6 +61,7 @@ export default function SpeakerViewPage() {
       urgentBg: "bg-orange-800/60",
       finishedBg: "bg-red-800/70",
       alert: "bg-gray-900/90 text-amber-300 border-amber-900/50 backdrop-blur-sm",
+      logo: "text-amber-400/30",
     },
   };
 
@@ -83,6 +88,12 @@ export default function SpeakerViewPage() {
       >
         {formatTime(time)}
       </div>
+
+      {plan !== "Enterprise" && (
+        <div className="absolute top-4 right-5 z-20">
+            <Logo className={currentTheme.logo}/>
+        </div>
+      )}
 
       {message && (
         <div className="absolute bottom-10 left-10 right-10 z-10 mx-auto max-w-4xl animate-in fade-in-50 slide-in-from-bottom-10 duration-500">

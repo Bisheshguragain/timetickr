@@ -16,6 +16,7 @@ interface Message {
 }
 
 export type TimerTheme = "Classic" | "Modern" | "Minimalist" | "Industrial";
+export type SubscriptionPlan = "Freemium" | "Starter" | "Professional" | "Enterprise";
 
 interface TimerContextProps {
   time: number;
@@ -30,6 +31,8 @@ interface TimerContextProps {
   dismissMessage: () => void;
   theme: TimerTheme;
   setTheme: (theme: TimerTheme) => void;
+  plan: SubscriptionPlan;
+  setPlan: (plan: SubscriptionPlan) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -42,6 +45,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [isActive, setIsActive] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
+  const [plan, setPlanState] = useState<SubscriptionPlan>("Professional"); // Default plan for demo
   const isFinished = time === 0;
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -61,6 +65,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
           setInitialDuration(payload.initialDuration);
           setMessage(payload.message);
           setThemeState(payload.theme);
+          setPlanState(payload.plan);
           break;
         case "TOGGLE":
           setIsActive((prev) => !prev);
@@ -84,6 +89,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         case "SET_THEME":
             setThemeState(payload.theme);
             break;
+        case "SET_PLAN":
+            setPlanState(payload.plan);
+            break;
         default:
           break;
       }
@@ -99,7 +107,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         if (event.data.type === 'REQUEST_STATE') {
             channelRef.current?.postMessage({
                 type: 'SET_STATE',
-                payload: { time, isActive, initialDuration, message, theme },
+                payload: { time, isActive, initialDuration, message, theme, plan },
             });
         }
     };
@@ -111,15 +119,15 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       channelRef.current?.removeEventListener('message', respondToStateRequest);
       channelRef.current?.close();
     };
-  }, [time, isActive, initialDuration, message, theme]);
+  }, [time, isActive, initialDuration, message, theme, plan]);
 
 
   const broadcastState = useCallback(() => {
     channelRef.current?.postMessage({
       type: "SET_STATE",
-      payload: { time, isActive, initialDuration, message, theme },
+      payload: { time, isActive, initialDuration, message, theme, plan },
     });
-  }, [time, isActive, initialDuration, message, theme]);
+  }, [time, isActive, initialDuration, message, theme, plan]);
 
   // Timer logic
   useEffect(() => {
@@ -138,7 +146,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   // Effect to broadcast state changes
   useEffect(() => {
     broadcastState();
-  }, [time, isActive, initialDuration, message, theme, broadcastState]);
+  }, [time, isActive, initialDuration, message, theme, plan, broadcastState]);
 
 
   const toggleTimer = () => {
@@ -176,6 +184,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setThemeState(newTheme);
   };
 
+  const setPlan = (newPlan: SubscriptionPlan) => {
+    channelRef.current?.postMessage({ type: "SET_PLAN", payload: { plan: newPlan } });
+    setPlanState(newPlan);
+  }
+
   const value = {
     time,
     setTime,
@@ -188,7 +201,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     sendMessage,
     dismissMessage,
     theme,
-    setTheme
+    setTheme,
+    plan,
+    setPlan,
   };
 
   return (
@@ -203,5 +218,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
-    
