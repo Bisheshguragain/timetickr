@@ -275,7 +275,7 @@ export default function DashboardPage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start">
             <div className="lg:col-span-2 space-y-8">
                 <Card>
                 <CardHeader>
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                 <LiveMessagingCard />
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-8 lg:col-span-1">
                 <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
