@@ -28,7 +28,7 @@ export default function SpeakerViewPage() {
 
   const themeClasses = {
     Classic: {
-      bg: "bg-black text-white",
+      bg: "bg-gray-900 text-white",
       time: "font-mono",
       warningBg: "bg-yellow-600",
       urgentBg: "bg-orange-700",
