@@ -78,7 +78,7 @@ export function Hero() {
                 {
                   'Classic': "border bg-card/50 backdrop-blur-sm shadow-2xl shadow-primary/10",
                   'Modern': "border-2 border-primary/20 bg-primary/5 shadow-2xl shadow-primary/20",
-                  'Minimalist': "bg-transparent",
+                  'Minimalist': "border border-dashed border-border/50",
                   'Industrial': "bg-secondary/40 border-2 border-muted"
                 }[theme]
               )}>
@@ -87,7 +87,7 @@ export function Hero() {
                   {
                     'Classic': 'text-foreground/80',
                     'Modern': 'text-primary font-semibold',
-                    'Minimalist': 'text-foreground/60',
+                    'Minimalist': 'text-muted-foreground',
                     'Industrial': 'text-foreground/90 font-bold tracking-wider uppercase'
                   }[theme]
                 )}>Live Timer Demo</p>
@@ -102,7 +102,7 @@ export function Hero() {
                       'Modern': 'text-primary',
                       'Industrial': 'font-code text-foreground',
                       'Classic': '',
-                      'Minimalist': ''
+                      'Minimalist': 'text-muted-foreground'
                     }[theme]
                   )}>
                     {formatTime(time)}
