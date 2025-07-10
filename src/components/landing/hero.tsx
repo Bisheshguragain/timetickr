@@ -55,7 +55,7 @@ export function Hero() {
         className="absolute inset-0 -z-10"
       >
         <div className="absolute inset-0 bg-background" />
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/10" />
+        <div className="absolute inset-x-0 top-0 h-[500px] bg-[radial-gradient(circle_500px_at_50%_200px,#3e4ff730,transparent)]"></div>
       </div>
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -97,11 +97,11 @@ export function Hero() {
                   </Button>
                   <div className={cn(
                     "font-mono text-center text-6xl md:text-7xl font-bold tracking-tighter transition-colors", 
-                    time < 60 && time > 0 ? "text-destructive" : "text-foreground",
+                    time < 60 && time > 0 ? "text-destructive" : "",
                     {
                       'Modern': 'text-primary',
                       'Industrial': 'font-code text-foreground',
-                      'Classic': '',
+                      'Classic': 'text-foreground',
                       'Minimalist': 'text-muted-foreground'
                     }[theme]
                   )}>
