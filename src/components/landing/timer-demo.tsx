@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { MessageSquareText } from "lucide-react";
 
 export function TimerDemo() {
   return (
@@ -15,14 +15,21 @@ export function TimerDemo() {
           </p>
         </div>
         <div className="rounded-xl border bg-card/50 p-4 shadow-lg">
-          <Image
-            src="https://placehold.co/1200x900.png"
-            alt="Timer Interface"
-            data-ai-hint="timer interface"
-            width={1200}
-            height={900}
-            className="rounded-lg"
-          />
+          <div className="aspect-[4/3] w-full rounded-lg bg-background flex flex-col justify-between p-8">
+            <div className="flex-grow flex items-center justify-center">
+                <h1 className="text-8xl md:text-9xl font-bold font-mono tracking-tighter text-foreground">
+                    14:32
+                </h1>
+            </div>
+            <div className="flex-shrink-0">
+                <div className="flex items-center gap-4 rounded-lg bg-primary/10 p-4 text-primary-foreground border border-primary/20">
+                    <MessageSquareText className="h-8 w-8 text-primary flex-shrink-0" />
+                    <p className="text-lg font-medium text-foreground">
+                        "Your presentation is going great! Keep up the excellent work."
+                    </p>
+                </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
