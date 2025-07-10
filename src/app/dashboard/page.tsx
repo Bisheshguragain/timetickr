@@ -52,11 +52,14 @@ function LiveMessagingCard() {
 
     const presetMessages = [
         "5 minutes remaining",
-        "2 minutes remaining",
-        "Please wrap up",
+        "3 minutes remaining",
+        "1 minute left",
         "Time is up!",
-        "Great job!",
         "Q&A starting now",
+        "Please wrap up",
+        "You're doing great!",
+        "Amazing energy!",
+        "The audience is loving this!",
     ];
 
     const handleSend = async (messageToSend: string) => {
