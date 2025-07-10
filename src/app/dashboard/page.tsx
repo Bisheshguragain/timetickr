@@ -78,6 +78,7 @@ function LiveMessagingCard() {
         "Amazing energy!",
         "The audience is loving this!",
         "Technical difficulties, please stand by.",
+        "Mic is off.",
         "Let's welcome our next speaker!",
         "Thank you for that insightful presentation!",
         "Incredible work!",
