@@ -78,7 +78,7 @@ export function Hero() {
                   'Modern': "border-2 border-primary/50 bg-card shadow-2xl shadow-primary/20",
                   'Minimalist': "bg-transparent",
                   'Industrial': "bg-secondary/40 border-2 border-muted"
-                }
+                }[theme]
               )}>
                 <p className={cn(
                   "text-center font-medium",
@@ -87,7 +87,7 @@ export function Hero() {
                     'Modern': 'text-primary font-semibold',
                     'Minimalist': 'text-foreground/60',
                     'Industrial': 'text-foreground/90 font-bold tracking-wider uppercase'
-                  }
+                  }[theme]
                 )}>Live Timer Demo</p>
                 <div className="flex items-center justify-center gap-4 mt-4">
                   <Button variant="ghost" size="icon" onClick={() => changeTime(-60)} disabled={isActive}>
@@ -99,7 +99,7 @@ export function Hero() {
                     {
                       'Modern': 'text-primary',
                       'Industrial': 'font-code'
-                    }
+                    }[theme]
                   )}>
                     {formatTime(time)}
                   </div>
@@ -127,7 +127,7 @@ export function Hero() {
                             className={cn(
                                 "transition-all",
                                 theme === t ? "shadow-md" : "bg-secondary/50",
-                                {'Industrial': theme === t ? 'bg-foreground text-background' : 'border-muted'}
+                                {'Industrial': theme === t ? 'bg-foreground text-background' : 'border-muted'}[theme === 'Industrial' ? 'Industrial' : '']
                             )}
                          >
                             {t}
