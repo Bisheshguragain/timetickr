@@ -9,23 +9,23 @@ import { AiDemo } from "@/components/landing/ai-demo";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex-1">
         <Hero />
-        <section id="features" className="py-12 md:py-24">
+        <section id="features" className="py-20 md:py-28">
           <Features />
         </section>
-        <section id="demo" className="py-12 md:py-24 bg-card">
+        <section id="demo" className="py-20 md:py-28 bg-secondary/30">
           <AiDemo />
         </section>
-        <section className="py-12 md:py-24">
+        <section className="py-20 md:py-28">
           <TimerDemo />
         </section>
-        <section id="pricing" className="py-12 md:py-24 bg-card">
+        <section id="pricing" className="py-20 md:py-28 bg-secondary/30">
           <Pricing />
         </section>
-        <section id="contact" className="py-12 md:py-24">
+        <section id="contact" className="py-20 md:py-28">
           <Contact />
         </section>
       </main>
