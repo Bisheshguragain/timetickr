@@ -12,11 +12,25 @@ export function Header() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
+    // Check for saved theme preference in localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        setIsDarkMode(savedTheme === 'dark');
+    } else {
+        // If no theme is saved, check system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        setIsDarkMode(prefersDark);
+    }
+  }, []);
+
+  useEffect(() => {
     const root = window.document.documentElement;
     if (isDarkMode) {
       root.classList.add("dark");
+      localStorage.setItem('theme', 'dark');
     } else {
       root.classList.remove("dark");
+      localStorage.setItem('theme', 'light');
     }
   }, [isDarkMode]);
 
