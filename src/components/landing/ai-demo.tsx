@@ -20,9 +20,15 @@ export function AiDemo() {
     setIsLoading(true);
     setResult(null);
 
-    const moderationResult = await moderateMessage({ message });
-    setResult(moderationResult);
-    setIsLoading(false);
+    try {
+      const moderationResult = await moderateMessage({ message });
+      setResult(moderationResult);
+    } catch (error) {
+      console.error("Error moderating message:", error);
+      // Handle error display to the user if needed
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

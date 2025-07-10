@@ -148,7 +148,7 @@ function ThemeSelectorCard() {
   const themes: { name: TimerTheme; bg: string; text: string; time: string; }[] = [
     { name: "Classic", bg: "bg-black", text: "text-white", time: "font-mono" },
     { name: "Modern", bg: "bg-gray-900", text: "text-white", time: "font-headline tracking-wide" },
-    { name: "Minimalist", bg: "bg-gray-100", text: "text-gray-800", time: "font-sans font-light" },
+    { name: "Minimalist", bg: "bg-gray-100", text: "text-gray-800", time: "font-sans font-light border-2 border-gray-200" },
     { name: "Industrial", bg: "bg-gray-800", text: "text-gray-200", time: "font-mono uppercase" },
   ];
 
@@ -344,5 +344,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
