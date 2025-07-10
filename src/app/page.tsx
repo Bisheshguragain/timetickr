@@ -6,30 +6,33 @@ import { Pricing } from "@/components/landing/pricing";
 import { Contact } from "@/components/landing/contact";
 import { Footer } from "@/components/landing/footer";
 import { AiDemo } from "@/components/landing/ai-demo";
+import { TimerProvider } from "@/context/TimerContext";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1">
-        <Hero />
-        <section id="features" className="py-20 md:py-28">
-          <Features />
-        </section>
-        <section id="demo" className="py-20 md:py-28 bg-secondary/30">
-          <TimerDemo />
-        </section>
-        <section className="py-20 md:py-28 ">
-           <AiDemo />
-        </section>
-        <section id="pricing" className="py-20 md:py-28 bg-secondary/30">
-          <Pricing />
-        </section>
-        <section id="contact" className="py-20 md:py-28">
-          <Contact />
-        </section>
-      </main>
-      <Footer />
-    </div>
+    <TimerProvider>
+      <div className="flex min-h-screen flex-col bg-background">
+        <Header />
+        <main className="flex-1">
+          <Hero />
+          <section id="features" className="py-20 md:py-28">
+            <Features />
+          </section>
+          <section id="demo" className="py-20 md:py-28 bg-secondary/30">
+            <TimerDemo />
+          </section>
+          <section className="py-20 md:py-28 ">
+            <AiDemo />
+          </section>
+          <section id="pricing" className="py-20 md:py-28 bg-secondary/30">
+            <Pricing />
+          </section>
+          <section id="contact" className="py-20 md:py-28">
+            <Contact />
+          </section>
+        </main>
+        <Footer />
+      </div>
+    </TimerProvider>
   );
 }

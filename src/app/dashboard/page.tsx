@@ -1,0 +1,182 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Plus,
+  Minus,
+  Timer,
+  Settings,
+  MonitorPlay,
+} from "lucide-react";
+import { useTimer } from "@/context/TimerContext";
+import { Header } from "@/components/landing/header";
+
+const formatTime = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+    .toString()
+    .padStart(2, "0")}`;
+};
+
+export default function DashboardPage() {
+  const {
+    time,
+    setTime,
+    isActive,
+    toggleTimer,
+    resetTimer,
+    setDuration,
+  } = useTimer();
+
+  const handleSetTime = (newTime: number) => {
+    if (!isActive) {
+      setDuration(newTime);
+    }
+  };
+
+  const presetDurations = [300, 600, 900, 1800, 3600];
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <Header />
+      <main className="flex-1 p-4 md:p-8">
+        <div className="container mx-auto">
+          <div className="mb-8 flex items-center justify-between">
+            <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
+            <Button asChild variant="outline">
+              <Link href="/speaker-view" target="_blank">
+                <MonitorPlay className="mr-2" />
+                Open Speaker View
+              </Link>
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Timer />
+                  Live Timer Control
+                </CardTitle>
+                <CardDescription>
+                  Manage the countdown timer that your speaker sees in real-time.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center space-y-6">
+                <div className="font-mono text-8xl font-bold tracking-tighter md:text-9xl">
+                  {formatTime(time)}
+                </div>
+                <div className="flex w-full max-w-sm items-center justify-center space-x-4">
+                  <Button
+                    onClick={toggleTimer}
+                    size="lg"
+                    className="w-full"
+                  >
+                    {isActive ? (
+                      <Pause className="mr-2" />
+                    ) : (
+                      <Play className="mr-2" />
+                    )}
+                    {isActive ? "Pause" : "Start"}
+                  </Button>
+                  <Button
+                    onClick={() => resetTimer()}
+                    size="lg"
+                    variant="secondary"
+                    className="w-full"
+                  >
+                    <RotateCcw className="mr-2" />
+                    Reset
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings />
+                  Timer Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure the timer duration before starting.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <label
+                    htmlFor="custom-time"
+                    className="mb-2 block text-sm font-medium text-muted-foreground"
+                  >
+                    Custom Duration (in minutes)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleSetTime(time - 60)}
+                      disabled={isActive}
+                    >
+                      <Minus />
+                    </Button>
+                    <Input
+                      id="custom-time"
+                      type="number"
+                      className="text-center"
+                      value={Math.floor(time / 60)}
+                      onChange={(e) =>
+                        handleSetTime(parseInt(e.target.value) * 60)
+                      }
+                      onFocus={(e) => e.target.select()}
+                      disabled={isActive}
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleSetTime(time + 60)}
+                      disabled={isActive}
+                    >
+                      <Plus />
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-sm font-medium text-muted-foreground">
+                    Preset Durations
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {presetDurations.map((duration) => (
+                      <Button
+                        key={duration}
+                        variant="outline"
+                        onClick={() => handleSetTime(duration)}
+                        disabled={isActive}
+                      >
+                        {duration / 60} min
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
