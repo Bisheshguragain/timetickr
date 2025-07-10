@@ -15,6 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Play,
   Pause,
   RotateCcw,
@@ -32,6 +42,7 @@ import {
   Star,
   ArrowRight,
   RefreshCcw,
+  ShoppingCart,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -299,6 +310,74 @@ function CurrentPlanCard() {
   );
 }
 
+function PurchaseTimersDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { addTimers } = useTimer();
+  const { toast } = useToast();
+  const [quantity, setQuantity] = useState(1);
+  const pricePerTimer = 2;
+  const totalCost = quantity * pricePerTimer;
+
+  const handlePurchase = () => {
+    addTimers(quantity);
+    toast({
+      title: "Purchase Successful!",
+      description: `You've successfully added ${quantity} timer(s) to your account.`,
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <ShoppingCart />
+            Need More Timers?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            You've reached your monthly limit. Purchase additional timers to
+            continue. Each timer costs £{pricePerTimer}.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4 space-y-4">
+          <div className="flex items-center justify-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+            >
+              <Minus />
+            </Button>
+            <span className="text-4xl font-bold w-20 text-center">{quantity}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setQuantity(quantity + 1)}
+            >
+              <Plus />
+            </Button>
+          </div>
+          <p className="text-center text-lg font-semibold">
+            Total Cost: £{totalCost}
+          </p>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handlePurchase}>
+            Complete Purchase
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function DashboardPage() {
   const {
     time,
@@ -312,6 +391,7 @@ export default function DashboardPage() {
   } = useTimer();
   
   const [justStarted, setJustStarted] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const { toast } = useToast();
 
   const handleToggleTimer = () => {
@@ -320,7 +400,12 @@ export default function DashboardPage() {
             toast({
                 variant: 'destructive',
                 title: 'Usage Limit Reached',
-                description: `You have used all ${timerLimit} timers for this month. Please upgrade your plan.`,
+                description: 'You have used all your timers for this month. Please upgrade or buy more.',
+                action: (
+                    <Button variant="secondary" onClick={() => setShowPurchaseDialog(true)}>
+                        Buy More Timers
+                    </Button>
+                )
             });
             return;
         }
@@ -497,8 +582,10 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+      <PurchaseTimersDialog
+        open={showPurchaseDialog}
+        onOpenChange={setShowPurchaseDialog}
+      />
     </div>
   );
 }
-
-    

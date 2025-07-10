@@ -45,6 +45,7 @@ interface TimerContextProps {
   timerLimit: number;
   consumeTimerCredit: () => void;
   resetUsage: () => void;
+  addTimers: (quantity: number) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -60,8 +61,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [plan, setPlanState] = useState<SubscriptionPlan>("Professional");
   const [connectedDevices, setConnectedDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
+  const [extraTimers, setExtraTimers] = useState(0);
   const isFinished = time === 0;
-  const timerLimit = PLAN_LIMITS[plan];
+
+  const baseTimerLimit = PLAN_LIMITS[plan];
+  const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
@@ -69,26 +73,39 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectedClients = useRef(new Set<string>());
 
-  // Usage tracking logic
-  useEffect(() => {
-    if(typeof window !== 'undefined') {
-        const savedUsage = localStorage.getItem('timerUsage');
-        const currentMonth = new Date().getMonth();
-
-        if (savedUsage) {
-            const { used, month } = JSON.parse(savedUsage);
-            if (month === currentMonth) {
-                setTimersUsed(used);
-            } else {
-                // New month, reset usage
-                localStorage.setItem('timerUsage', JSON.stringify({ used: 0, month: currentMonth }));
-            }
-        } else {
-             localStorage.setItem('timerUsage', JSON.stringify({ used: 0, month: currentMonth }));
-        }
+  const getUsageFromStorage = () => {
+    if (typeof window === 'undefined') return { used: 0, extra: 0, month: new Date().getMonth() };
+    const savedUsage = localStorage.getItem('timerUsage');
+    const currentMonth = new Date().getMonth();
+    if (savedUsage) {
+      const { used, extra, month } = JSON.parse(savedUsage);
+      if (month === currentMonth) {
+        return { used, extra, month };
+      }
     }
+    // New month or no data, reset usage
+    localStorage.setItem('timerUsage', JSON.stringify({ used: 0, extra: 0, month: currentMonth }));
+    return { used: 0, extra: 0, month: currentMonth };
+  };
+  
+  const setUsageInStorage = (usage: { used: number, extra: number }) => {
+      if (typeof window === 'undefined') return;
+      const currentMonth = new Date().getMonth();
+      localStorage.setItem('timerUsage', JSON.stringify({ ...usage, month: currentMonth }));
+  };
+
+  useEffect(() => {
+    const { used, extra } = getUsageFromStorage();
+    setTimersUsed(used);
+    setExtraTimers(extra);
   }, []);
 
+  const addTimers = (quantity: number) => {
+    const newExtraTimers = extraTimers + quantity;
+    setExtraTimers(newExtraTimers);
+    setUsageInStorage({ used: timersUsed, extra: newExtraTimers });
+  };
+  
   const consumeTimerCredit = () => {
     if (timerLimit !== -1 && timersUsed >= timerLimit) {
         console.warn("Timer usage limit reached.");
@@ -96,18 +113,13 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
     const newUsage = timersUsed + 1;
     setTimersUsed(newUsage);
-    if(typeof window !== 'undefined') {
-        const currentMonth = new Date().getMonth();
-        localStorage.setItem('timerUsage', JSON.stringify({ used: newUsage, month: currentMonth }));
-    }
+    setUsageInStorage({ used: newUsage, extra: extraTimers });
   };
 
   const resetUsage = () => {
     setTimersUsed(0);
-    if(typeof window !== 'undefined') {
-        const currentMonth = new Date().getMonth();
-        localStorage.setItem('timerUsage', JSON.stringify({ used: 0, month: currentMonth }));
-    }
+    setExtraTimers(0);
+    setUsageInStorage({ used: 0, extra: 0 });
   };
 
   // Initialize Broadcast Channel and Client ID
@@ -270,7 +282,6 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     broadcastAction({ type: "SET_PLAN", payload: { plan: newPlan } });
-    setPlanState(newPlan);
     // When plan changes, we might want to reset usage if it's a new month or handle it differently
     // For now, we'll just update the limit.
   }
@@ -295,6 +306,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     timerLimit,
     consumeTimerCredit,
     resetUsage,
+    addTimers,
   };
 
   return (
@@ -309,5 +321,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
-    
