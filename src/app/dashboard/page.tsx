@@ -146,7 +146,7 @@ function LiveMessagingCard() {
 function ThemeSelectorCard() {
   const { theme, setTheme } = useTimer();
   const themes: { name: TimerTheme; bg: string; text: string; time: string; }[] = [
-    { name: "Classic", bg: "bg-black", text: "text-white", time: "font-mono" },
+    { name: "Classic", bg: "bg-gray-900", text: "text-white", time: "font-mono" },
     { name: "Modern", bg: "bg-gray-900", text: "text-white", time: "font-headline tracking-wide" },
     { name: "Minimalist", bg: "bg-gray-100", text: "text-gray-800", time: "font-sans font-light border-2 border-gray-200" },
     { name: "Industrial", bg: "bg-gray-800", text: "text-amber-400", time: "font-mono uppercase" },
