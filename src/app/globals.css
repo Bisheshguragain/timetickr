@@ -14,7 +14,7 @@ body {
     --card-foreground: 222.2 47.4% 11.2%;
     --popover: 210 40% 98%;
     --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 221 44% 48%; /* Muted Blue */
+    --primary: 260 60% 55%; /* Vibrant Violet */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -41,7 +41,7 @@ body {
     --card-foreground: 210 40% 98%;
     --popover: 220 13% 18%;
     --popover-foreground: 210 40% 98%;
-    --primary: 221 44% 48%;
+    --primary: 260 60% 65%; /* Lighter Vibrant Violet */
     --primary-foreground: 210 40% 98%;
     --secondary: 220 13% 22%;
     --secondary-foreground: 210 40% 98%;
@@ -53,7 +53,7 @@ body {
     --destructive-foreground: 210 40% 98%;
     --border: 220 13% 26%;
     --input: 220 13% 26%;
-    --ring: 221 44% 48%;
+    --ring: 260 60% 65%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
