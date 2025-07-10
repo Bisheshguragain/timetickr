@@ -597,6 +597,7 @@ export default function DashboardPage() {
                 </CardContent>
                 </Card>
                 <LiveMessagingCard />
+                <AnalyticsCard />
             </div>
 
             <div className="space-y-8 lg:col-span-1">
@@ -669,7 +670,6 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
-                <AnalyticsCard />
                 <ThemeSelectorCard />
                 <ConnectedDevicesCard />
             </div>
