@@ -1,13 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, TimerIcon, Moon } from "lucide-react";
+import { Menu, TimerIcon, Moon, Sun } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (isDarkMode) {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+  }, [isDarkMode]);
 
   const navLinks = [
     { href: "#features", label: "Features" },
@@ -38,14 +49,19 @@ export function Header() {
                 </Link>
             ))}
             </nav>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-foreground/60">
                 Login
             </Button>
-            <Button variant="ghost" size="icon" className="text-foreground/60">
-                <Moon className="h-5 w-5" />
-                <span className="sr-only">Toggle theme</span>
-            </Button>
+            <div className="flex items-center gap-2">
+                <Sun className="h-5 w-5 text-foreground/60" />
+                <Switch
+                    checked={isDarkMode}
+                    onCheckedChange={setIsDarkMode}
+                    aria-label="Toggle theme"
+                />
+                <Moon className="h-5 w-5 text-foreground/60" />
+            </div>
             <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>
                 <Button
