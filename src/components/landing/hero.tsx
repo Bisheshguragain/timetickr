@@ -54,7 +54,8 @@ export function Hero() {
         aria-hidden="true"
         className="absolute inset-0 -z-10"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/20" />
+        <div className="absolute inset-0 bg-background" />
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-primary/10" />
       </div>
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -76,7 +77,7 @@ export function Hero() {
                 "w-full max-w-md rounded-2xl p-8 transition-all duration-300",
                 {
                   'Classic': "border bg-card/50 backdrop-blur-sm shadow-2xl shadow-primary/10",
-                  'Modern': "border-2 border-primary/50 bg-primary/5 shadow-2xl shadow-primary/20",
+                  'Modern': "border-2 border-primary/20 bg-primary/5 shadow-2xl shadow-primary/20",
                   'Minimalist': "bg-transparent",
                   'Industrial': "bg-secondary/40 border-2 border-muted"
                 }[theme]
@@ -124,7 +125,7 @@ export function Hero() {
                     {themes.map((t) => (
                          <Button 
                             key={t}
-                            variant={theme === t ? "default" : "outline"}
+                            variant={theme === t ? "default" : "secondary"}
                             size="sm" 
                             onClick={() => setTheme(t)}
                             className={cn(

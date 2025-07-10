@@ -17,7 +17,7 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
         <div className="mr-8 flex items-center">
           <Link href="/" className="flex items-center gap-2 font-bold">
@@ -30,17 +30,17 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="font-medium transition-colors hover:text-foreground/80 text-foreground/80"
+              className="font-medium transition-colors hover:text-foreground/80 text-foreground/60"
             >
               {link.label}
             </Link>
           ))}
         </nav>
-        <div className="flex flex-1 items-center justify-end gap-4">
-          <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-foreground/60">
             Login
           </Button>
-          <Button variant="ghost" size="icon" className="text-foreground/80">
+          <Button variant="ghost" size="icon" className="text-foreground/60">
             <Moon className="h-5 w-5" />
             <span className="sr-only">Toggle theme</span>
           </Button>
