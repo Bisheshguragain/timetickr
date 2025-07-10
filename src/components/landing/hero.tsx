@@ -55,7 +55,7 @@ export function Hero() {
         className="absolute inset-0 -z-10"
       >
         <div className="absolute inset-0 bg-background" />
-        <div className="absolute inset-x-0 top-0 h-[500px] bg-[radial-gradient(circle_500px_at_50%_200px,#3e4ff730,transparent)]"></div>
+        <div className="absolute inset-x-0 top-0 h-[500px] bg-[radial-gradient(circle_500px_at_50%_200px,#c7158540,#8a2be230,transparent)]"></div>
       </div>
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -74,12 +74,12 @@ export function Hero() {
             </div>
             <div className="flex justify-center">
               <div className={cn(
-                "w-full max-w-md rounded-2xl p-8 transition-all duration-300",
+                "w-full max-w-md rounded-2xl p-8 transition-all duration-300 border shadow-2xl shadow-primary/10",
                 {
-                  'Classic': "border bg-card/50 backdrop-blur-sm shadow-2xl shadow-primary/10",
-                  'Modern': "border-2 border-primary/20 bg-primary/5 shadow-2xl shadow-primary/20",
-                  'Minimalist': "border border-dashed border-border/50",
-                  'Industrial': "bg-secondary/40 border-2 border-muted"
+                  'Classic': "bg-card/50 backdrop-blur-sm",
+                  'Modern': "border-primary/20 bg-primary/5 shadow-primary/20",
+                  'Minimalist': "border-dashed border-border/50 bg-background/50",
+                  'Industrial': "bg-secondary/40 border-muted"
                 }[theme]
               )}>
                 <p className={cn(
@@ -102,7 +102,7 @@ export function Hero() {
                       'Modern': 'text-primary',
                       'Industrial': 'font-code text-foreground',
                       'Classic': 'text-foreground',
-                      'Minimalist': 'text-muted-foreground'
+                      'Minimalist': 'text-foreground/80'
                     }[theme]
                   )}>
                     {formatTime(time)}
