@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -45,6 +45,7 @@ import {
   ShoppingCart,
   BarChartHorizontal,
   FileClock,
+  Copy,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -247,37 +248,82 @@ function ThemeSelectorCard() {
   );
 }
 
-function ConnectedDevicesCard() {
-  const { connectedDevices } = useTimer();
+function DeviceConnectionCard() {
+  const { connectedDevices, pairingCode } = useTimer();
+  const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${pairingCode}` : '';
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: 'Copied to clipboard!', description: text });
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Signal />
-          Connected Devices
+          Connect a Device
         </CardTitle>
         <CardDescription>
-          Number of speaker displays currently active.
+          Pair speaker displays using the code or link below.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex items-center justify-center gap-4">
-        <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-secondary">
-          <span className="text-4xl font-bold text-primary">{connectedDevices}</span>
-          <svg className="absolute h-full w-full" viewBox="0 0 36 36">
-              <circle
-              className="text-primary/20"
-              stroke="currentColor"
-              strokeWidth="3"
-              fill="none"
-              cx="18"
-              cy="18"
-              r="16"
-              />
-          </svg>
+      <CardContent className="space-y-6">
+        <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+                Pairing Code
+            </label>
+            <div className="flex items-center gap-2">
+                 <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
+                    {pairingCode}
+                 </div>
+                 <Button variant="outline" size="icon" onClick={() => copyToClipboard(pairingCode)}>
+                    <Copy />
+                 </Button>
+            </div>
         </div>
-        <p className="text-lg font-medium text-muted-foreground">{connectedDevices === 1 ? 'Device' : 'Devices'} Online</p>
+         <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+                Pairing Link
+            </label>
+             <div className="flex items-center gap-2">
+                <Input
+                    value={speakerViewUrl}
+                    readOnly
+                    className="truncate"
+                />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)}>
+                    <Copy />
+                </Button>
+            </div>
+        </div>
+        <div>
+            <p className="text-sm font-medium text-muted-foreground">
+                Connected Devices
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                    <span className="font-bold text-primary">{connectedDevices}</span>
+                </div>
+                 <p className="text-sm text-muted-foreground">{connectedDevices === 1 ? 'Device' : 'Devices'} Online</p>
+            </div>
+        </div>
       </CardContent>
+      <CardFooter>
+          <Button asChild className="w-full">
+              <Link href={`/speaker-view?code=${pairingCode}`} target="_blank">
+                <MonitorPlay className="mr-2" />
+                Open New Speaker View
+              </Link>
+            </Button>
+      </CardFooter>
     </Card>
   );
 }
@@ -343,7 +389,7 @@ function PurchaseTimersDialog({
   onOpenChange,
 }: {
   open: boolean;
-  onOpencha: (open: boolean) => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const { addTimers } = useTimer();
   const { toast } = useToast();
@@ -485,10 +531,10 @@ function AnalyticsCard() {
 }
 
 function SmartAlertsCard() {
+  const { toast } = useToast();
   const [duration, setDuration] = useState(15);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput | null>(null);
-  const { toast } = useToast();
 
   const handleGenerateAlerts = async () => {
     if (duration <= 0) {
@@ -589,6 +635,7 @@ export default function DashboardPage() {
     theme,
     timersUsed,
     timerLimit,
+    pairingCode,
   } = useTimer();
   
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
@@ -639,10 +686,10 @@ export default function DashboardPage() {
       <Header />
       <main className="flex-1 p-4 md:p-8">
         <div className="container mx-auto">
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
             <Button asChild variant="outline">
-              <Link href="/speaker-view" target="_blank">
+              <Link href={`/speaker-view?code=${pairingCode}`} target="_blank">
                 <MonitorPlay className="mr-2" />
                 Open Speaker View
               </Link>
@@ -770,7 +817,7 @@ export default function DashboardPage() {
                 </Card>
                 <SmartAlertsCard />
                 <ThemeSelectorCard />
-                <ConnectedDevicesCard />
+                <DeviceConnectionCard />
             </div>
           </div>
         </div>

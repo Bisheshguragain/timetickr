@@ -1,12 +1,16 @@
 
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { MessageSquare, X } from "lucide-react";
+import { MessageSquare, X, MonitorPlay, Loader } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -16,7 +20,77 @@ const formatTime = (seconds: number) => {
     .padStart(2, "0")}`;
 };
 
-export default function SpeakerViewPage() {
+function PairingGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { pairingCode: validPairingCode } = useTimer();
+
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const urlCode = searchParams.get('code');
+  const isPaired = urlCode === validPairingCode;
+
+  if (!isClient) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
+            <Loader className="h-12 w-12 animate-spin text-white" />
+        </div>
+    );
+  }
+
+  if (isPaired) {
+    return <>{children}</>;
+  }
+
+  const handlePair = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code === validPairingCode) {
+        setError('');
+        router.push(`/speaker-view?code=${code}`);
+    } else {
+        setError('Invalid pairing code. Please try again.');
+    }
+  }
+
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-gray-900 p-4">
+        <Card className="w-full max-w-sm">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <MonitorPlay />
+                    Pair Speaker View
+                </CardTitle>
+                <CardDescription>
+                    Enter the pairing code from your admin dashboard to connect this display.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handlePair} className="space-y-4">
+                    <Input 
+                        placeholder="Enter pairing code..."
+                        value={code}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        className="text-center text-lg font-mono tracking-widest"
+                    />
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    <Button type="submit" className="w-full">
+                        Connect Display
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    </div>
+  )
+}
+
+
+function SpeakerDisplay() {
   const { time, isFinished, message, dismissMessage, theme, plan } = useTimer();
 
   useEffect(() => {
@@ -113,4 +187,15 @@ export default function SpeakerViewPage() {
       )}
     </div>
   );
+}
+
+
+export default function SpeakerViewPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <PairingGate>
+                <SpeakerDisplay />
+            </PairingGate>
+        </Suspense>
+    )
 }

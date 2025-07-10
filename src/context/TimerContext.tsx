@@ -8,6 +8,7 @@ import React, {
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from "react";
 
 interface Message {
@@ -61,6 +62,7 @@ interface TimerContextProps {
   addTimers: (quantity: number) => void;
   analytics: AnalyticsData;
   resetAnalytics: () => void;
+  pairingCode: string;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -74,6 +76,10 @@ const initialAnalytics: AnalyticsData = {
     durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
 };
 
+const generatePairingCode = () => {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
@@ -86,6 +92,16 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const isFinished = time === 0;
+
+  const pairingCode = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    let code = localStorage.getItem('pairingCode');
+    if (!code) {
+        code = generatePairingCode();
+        localStorage.setItem('pairingCode', code);
+    }
+    return code;
+  }, []);
 
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
@@ -179,6 +195,13 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   // Initialize Broadcast Channel and Client ID
   useEffect(() => {
     if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        // Only initialize client and channel if pairing code is valid
+        if(code !== pairingCode && window.location.pathname.includes('/speaker-view')) {
+            return;
+        }
+
         clientId.current = Math.random().toString(36).substring(7);
         channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
     
@@ -265,7 +288,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
           if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
         };
     }
-  }, [time, isActive, initialDuration, message, theme, plan]);
+  }, [time, isActive, initialDuration, message, theme, plan, pairingCode]);
 
 
   const broadcastAction = useCallback((action: any) => {
@@ -370,6 +393,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     addTimers,
     analytics,
     resetAnalytics,
+    pairingCode,
   };
 
   return (
