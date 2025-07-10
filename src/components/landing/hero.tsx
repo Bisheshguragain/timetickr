@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
-import { Play, Pause, RotateCcw } from "lucide-react";
+import { Play, Pause, RotateCcw, ArrowRight, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Hero() {
-  const [time, setTime] = useState(300); // 5 minutes in seconds
+  const [time, setTime] = useState(900); // 15 minutes in seconds
   const [isActive, setIsActive] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -30,8 +29,14 @@ export function Hero() {
 
   const resetTimer = () => {
     setIsActive(false);
-    setTime(300);
+    setTime(900);
   };
+
+  const changeTime = (amount: number) => {
+    if (!isActive) {
+      setTime(prevTime => Math.max(0, prevTime + amount));
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -45,42 +50,55 @@ export function Hero() {
         aria-hidden="true"
         className="absolute inset-0 -z-10"
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-background to-secondary/30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-secondary/20" />
       </div>
       <div className="container">
-        <div className="mx-auto max-w-4xl text-center">
-          <p className="font-headline text-primary">
-            Never miss a cue again
-          </p>
-          <h1 className="mt-2 font-headline text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-            The Ultimate Stage Timer for Flawless Presentations
-          </h1>
-          <p className="mt-6 text-lg text-foreground/80">
-            Control countdown timers from any device while your speakers see a clean, distraction-free display.
-          </p>
-          <div className="mt-10 flex items-center justify-center gap-x-4">
-            <Button asChild size="lg">
-              <Link href="#pricing">Get Started Free</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="#contact">Request a Demo</Link>
-            </Button>
-          </div>
-        </div>
-        <div className="mt-16 mx-auto max-w-3xl rounded-lg border bg-card/50 backdrop-blur-sm p-8 shadow-2xl shadow-primary/10">
-          <div className={cn("font-mono text-center text-7xl md:text-8xl font-bold tracking-tighter", time < 60 && time > 0 ? "text-destructive" : "text-foreground")}>
-            {formatTime(time)}
-          </div>
-          <div className="mt-8 flex justify-center gap-4">
-            <Button onClick={toggleTimer} size="lg" className="w-36">
-              {isActive ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
-              {isActive ? "Pause" : "Start"}
-            </Button>
-            <Button onClick={resetTimer} size="lg" variant="secondary" className="w-36">
-              <RotateCcw className="mr-2 h-5 w-5" />
-              Reset
-            </Button>
-          </div>
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="max-w-xl">
+              <h1 className="mt-2 font-headline text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+                Professional Event Timers for Flawless Presentations
+              </h1>
+              <p className="mt-6 text-lg text-foreground/80">
+                TimeTickR helps event professionals manage time effectively with beautiful, customizable countdown timers that work seamlessly across all devices.
+              </p>
+              <div className="mt-10 flex items-center gap-x-4">
+                <Button asChild size="lg">
+                  <Link href="#pricing">Get Started for Free <ArrowRight className="ml-2 h-5 w-5" /></Link>
+                </Button>
+              </div>
+            </div>
+            <div className="flex justify-center">
+              <div className="w-full max-w-md rounded-2xl border bg-card/50 backdrop-blur-sm p-8 shadow-2xl shadow-primary/10">
+                <p className="text-center font-medium text-foreground/80">Live Timer Demo</p>
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <Button variant="ghost" size="icon" onClick={() => changeTime(-60)} disabled={isActive}>
+                    <Minus />
+                  </Button>
+                  <div className={cn("font-mono text-center text-6xl md:text-7xl font-bold tracking-tighter", time < 60 && time > 0 ? "text-destructive" : "text-foreground")}>
+                    {formatTime(time)}
+                  </div>
+                   <Button variant="ghost" size="icon" onClick={() => changeTime(60)} disabled={isActive}>
+                    <Plus />
+                  </Button>
+                </div>
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <Button onClick={toggleTimer} size="lg">
+                    {isActive ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+                    {isActive ? "Pause" : "Start"}
+                  </Button>
+                  <Button onClick={resetTimer} size="lg" variant="secondary">
+                    <RotateCcw className="mr-2 h-5 w-5" />
+                    Reset
+                  </Button>
+                </div>
+                <div className="mt-6 flex justify-center flex-wrap gap-2">
+                    <Button variant="outline" size="sm" className="bg-secondary/50">Classic</Button>
+                    <Button variant="outline" size="sm">Modern</Button>
+                    <Button variant="outline" size="sm">Minimalist</Button>
+                    <Button variant="outline" size="sm">Industrial</Button>
+                </div>
+              </div>
+            </div>
         </div>
       </div>
     </section>

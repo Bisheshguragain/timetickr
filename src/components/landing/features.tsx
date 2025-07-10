@@ -52,15 +52,15 @@ export function Features() {
     <div className="container">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          All-in-One Platform for Flawless Events
+          Core Features
         </h2>
         <p className="mt-4 text-lg text-foreground/80">
-          TimeTickR provides all the tools you need to run your events smoothly and professionally.
+          Everything you need for flawless event timing and presentation management
         </p>
       </div>
       <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
         {features.slice(0, 3).map((feature) => (
-          <Card key={feature.title} className="lg:col-span-1">
+          <Card key={feature.title} className="lg:col-span-1 bg-secondary/30 border-secondary">
             <CardHeader className="flex flex-row items-center gap-4 pb-4">
               {feature.icon}
               <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>

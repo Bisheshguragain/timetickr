@@ -4,22 +4,22 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, TimerIcon } from "lucide-react";
+import { Menu, TimerIcon, Moon } from "lucide-react";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
 
   const navLinks = [
     { href: "#features", label: "Features" },
-    { href: "#demo", label: "Demo" },
     { href: "#pricing", label: "Pricing" },
+    { href: "#", label: "Company" },
     { href: "#contact", label: "Contact" },
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-14 items-center">
-        <div className="mr-4 flex items-center">
+    <header className="sticky top-0 z-50 w-full border-b border-transparent bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center">
+        <div className="mr-8 flex items-center">
           <Link href="/" className="flex items-center gap-2 font-bold">
             <TimerIcon className="h-6 w-6 text-primary" />
             <span className="font-headline text-xl">TimeTickR</span>
@@ -30,15 +30,19 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="font-medium transition-colors hover:text-foreground/80 text-foreground/60"
+              className="font-medium transition-colors hover:text-foreground/80 text-foreground/80"
             >
               {link.label}
             </Link>
           ))}
         </nav>
-        <div className="flex flex-1 items-center justify-end gap-2">
-          <Button className="hidden sm:inline-flex" asChild>
-            <Link href="#pricing">Get Started</Link>
+        <div className="flex flex-1 items-center justify-end gap-4">
+          <Button variant="outline" size="sm" className="hidden sm:inline-flex">
+            Login
+          </Button>
+          <Button variant="ghost" size="icon" className="text-foreground/80">
+            <Moon className="h-5 w-5" />
+            <span className="sr-only">Toggle theme</span>
           </Button>
           <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
             <SheetTrigger asChild>
@@ -67,12 +71,8 @@ export function Header() {
                       {link.label}
                     </Link>
                   ))}
+                   <Link href="#" className="text-foreground" onClick={() => setMenuOpen(false)}>Login</Link>
                 </div>
-              </div>
-              <div className="pl-6">
-                <Button asChild>
-                  <Link href="#pricing" onClick={() => setMenuOpen(false)}>Get Started</Link>
-                </Button>
               </div>
             </SheetContent>
           </Sheet>

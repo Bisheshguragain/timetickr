@@ -17,10 +17,10 @@ export default function Home() {
           <Features />
         </section>
         <section id="demo" className="py-20 md:py-28 bg-secondary/30">
-          <AiDemo />
-        </section>
-        <section className="py-20 md:py-28">
           <TimerDemo />
+        </section>
+        <section className="py-20 md:py-28 ">
+           <AiDemo />
         </section>
         <section id="pricing" className="py-20 md:py-28 bg-secondary/30">
           <Pricing />

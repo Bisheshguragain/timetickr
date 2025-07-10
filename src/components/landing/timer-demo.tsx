@@ -17,7 +17,7 @@ export function TimerDemo() {
         <div className="rounded-xl border bg-card/50 p-4 shadow-lg">
           <Image
             src="https://placehold.co/1200x900.png"
-            alt="Timer Demo"
+            alt="Timer Interface"
             data-ai-hint="timer interface"
             width={1200}
             height={900}

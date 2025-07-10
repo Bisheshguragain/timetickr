@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'TimeTickR - Your Ultimate Stage Timer',
-  description: 'Control countdown timers from any device while your speakers see a clean, distraction-free display. Perfect for events, conferences, and presentations.',
+  title: 'TimeTickR - Professional Event Timers',
+  description: 'TimeTickR helps event professionals manage time effectively with beautiful, customizable countdown timers that work seamlessly across all devices.',
 };
 
 export default function RootLayout({
