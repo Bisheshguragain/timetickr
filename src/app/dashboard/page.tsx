@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Play,
   Pause,
@@ -20,6 +21,8 @@ import {
   Timer,
   Settings,
   MonitorPlay,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import { useTimer } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -32,10 +35,54 @@ const formatTime = (seconds: number) => {
     .padStart(2, "0")}`;
 };
 
+function LiveMessagingCard() {
+    const { sendMessage } = useTimer();
+    const [message, setMessage] = useState("");
+
+    const handleSend = () => {
+        if (message.trim()) {
+            sendMessage(message.trim());
+            setMessage("");
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <MessageSquare />
+                    Live Messaging
+                </CardTitle>
+                <CardDescription>
+                    Send messages directly to the speaker's display.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <Textarea 
+                        placeholder="Type your message here..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
+                    />
+                    <Button onClick={handleSend} className="w-full">
+                        <Send className="mr-2" />
+                        Send Message
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 export default function DashboardPage() {
   const {
     time,
-    setTime,
     isActive,
     toggleTimer,
     resetTimer,
@@ -43,8 +90,9 @@ export default function DashboardPage() {
   } = useTimer();
 
   const handleSetTime = (newTime: number) => {
+    const clampedTime = Math.max(0, newTime);
     if (!isActive) {
-      setDuration(newTime);
+      setDuration(clampedTime);
     }
   };
 
@@ -76,7 +124,7 @@ export default function DashboardPage() {
                   Manage the countdown timer that your speaker sees in real-time.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center space-y-6">
+              <CardContent className="flex flex-col items-center justify-center space-y-6 pt-6">
                 <div className="font-mono text-8xl font-bold tracking-tighter md:text-9xl">
                   {formatTime(time)}
                 </div>
@@ -106,74 +154,77 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings />
-                  Timer Settings
-                </CardTitle>
-                <CardDescription>
-                  Configure the timer duration before starting.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <label
-                    htmlFor="custom-time"
-                    className="mb-2 block text-sm font-medium text-muted-foreground"
-                  >
-                    Custom Duration (in minutes)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSetTime(time - 60)}
-                      disabled={isActive}
+            <div className="space-y-8">
+                <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                    <Settings />
+                    Timer Settings
+                    </CardTitle>
+                    <CardDescription>
+                    Configure the timer duration before starting.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div>
+                    <label
+                        htmlFor="custom-time"
+                        className="mb-2 block text-sm font-medium text-muted-foreground"
                     >
-                      <Minus />
-                    </Button>
-                    <Input
-                      id="custom-time"
-                      type="number"
-                      className="text-center"
-                      value={Math.floor(time / 60)}
-                      onChange={(e) =>
-                        handleSetTime(parseInt(e.target.value) * 60)
-                      }
-                      onFocus={(e) => e.target.select()}
-                      disabled={isActive}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSetTime(time + 60)}
-                      disabled={isActive}
-                    >
-                      <Plus />
-                    </Button>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-sm font-medium text-muted-foreground">
-                    Preset Durations
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {presetDurations.map((duration) => (
-                      <Button
-                        key={duration}
+                        Custom Duration (in minutes)
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <Button
                         variant="outline"
-                        onClick={() => handleSetTime(duration)}
+                        size="icon"
+                        onClick={() => handleSetTime(time - 60)}
                         disabled={isActive}
-                      >
-                        {duration / 60} min
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                        >
+                        <Minus />
+                        </Button>
+                        <Input
+                        id="custom-time"
+                        type="number"
+                        className="text-center"
+                        value={Math.floor(time / 60)}
+                        onChange={(e) =>
+                            handleSetTime(parseInt(e.target.value) * 60)
+                        }
+                        onFocus={(e) => e.target.select()}
+                        disabled={isActive}
+                        />
+                        <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleSetTime(time + 60)}
+                        disabled={isActive}
+                        >
+                        <Plus />
+                        </Button>
+                    </div>
+                    </div>
+
+                    <div>
+                    <p className="mb-2 text-sm font-medium text-muted-foreground">
+                        Preset Durations
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {presetDurations.map((duration) => (
+                        <Button
+                            key={duration}
+                            variant="outline"
+                            onClick={() => handleSetTime(duration)}
+                            disabled={isActive}
+                        >
+                            {duration / 60} min
+                        </Button>
+                        ))}
+                    </div>
+                    </div>
+                </CardContent>
+                </Card>
+                <LiveMessagingCard />
+            </div>
           </div>
         </div>
       </main>

@@ -3,6 +3,8 @@
 import React, { useEffect } from "react";
 import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { MessageSquare, X } from "lucide-react";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -13,7 +15,7 @@ const formatTime = (seconds: number) => {
 };
 
 export default function SpeakerViewPage() {
-  const { time, isFinished } = useTimer();
+  const { time, isFinished, message, dismissMessage } = useTimer();
 
   useEffect(() => {
     // Attempt to enter fullscreen on component mount
@@ -33,7 +35,7 @@ export default function SpeakerViewPage() {
   return (
     <div
       className={cn(
-        "flex h-screen w-screen flex-col items-center justify-center bg-black text-white transition-colors duration-500",
+        "relative flex h-screen w-screen flex-col items-center justify-center bg-black text-white transition-colors duration-500",
         {
           "bg-red-800": isFinished,
           "bg-yellow-600": !isFinished && time <= 300 && time > 0, // 5 minute warning
@@ -46,6 +48,23 @@ export default function SpeakerViewPage() {
       >
         {formatTime(time)}
       </div>
+
+      {message && (
+        <div className="absolute bottom-10 left-10 right-10 z-10 mx-auto max-w-4xl animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
+           <Alert variant="default" className="bg-background/90 text-foreground shadow-2xl backdrop-blur-sm">
+             <MessageSquare className="h-6 w-6" />
+             <AlertTitle className="text-xl font-bold">
+                Message from Admin
+             </AlertTitle>
+             <AlertDescription className="text-lg">
+                {message.text}
+             </AlertDescription>
+             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted">
+                <X className="h-5 w-5"/>
+             </button>
+           </Alert>
+        </div>
+      )}
     </div>
   );
 }

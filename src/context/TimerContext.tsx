@@ -9,6 +9,11 @@ import React, {
   useCallback,
 } from "react";
 
+interface Message {
+  id: number;
+  text: string;
+}
+
 interface TimerContextProps {
   time: number;
   setTime: (time: number) => void;
@@ -17,6 +22,9 @@ interface TimerContextProps {
   toggleTimer: () => void;
   resetTimer: () => void;
   setDuration: (duration: number) => void;
+  message: Message | null;
+  sendMessage: (text: string) => void;
+  dismissMessage: () => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -27,6 +35,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
+  const [message, setMessage] = useState<Message | null>(null);
   const isFinished = time === 0;
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -44,6 +53,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
           setTime(payload.time);
           setIsActive(payload.isActive);
           setInitialDuration(payload.initialDuration);
+          setMessage(payload.message);
           break;
         case "TOGGLE":
           setIsActive((prev) => !prev);
@@ -58,6 +68,12 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
              setTime(payload.duration);
           }
           break;
+        case "SEND_MESSAGE":
+            setMessage(payload.message);
+            break;
+        case "DISMISS_MESSAGE":
+            setMessage(null);
+            break;
         default:
           break;
       }
@@ -73,7 +89,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         if (event.data.type === 'REQUEST_STATE') {
             channelRef.current?.postMessage({
                 type: 'SET_STATE',
-                payload: { time, isActive, initialDuration },
+                payload: { time, isActive, initialDuration, message },
             });
         }
     };
@@ -85,15 +101,15 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       channelRef.current?.removeEventListener('message', respondToStateRequest);
       channelRef.current?.close();
     };
-  }, [time, isActive, initialDuration]);
+  }, [time, isActive, initialDuration, message]);
 
 
   const broadcastState = useCallback(() => {
     channelRef.current?.postMessage({
       type: "SET_STATE",
-      payload: { time, isActive, initialDuration },
+      payload: { time, isActive, initialDuration, message },
     });
-  }, [time, isActive, initialDuration]);
+  }, [time, isActive, initialDuration, message]);
 
   // Timer logic
   useEffect(() => {
@@ -112,7 +128,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   // Effect to broadcast state changes
   useEffect(() => {
     broadcastState();
-  }, [time, isActive, initialDuration, broadcastState]);
+  }, [time, isActive, initialDuration, message, broadcastState]);
 
 
   const toggleTimer = () => {
@@ -134,6 +150,17 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const sendMessage = (text: string) => {
+    const newMessage = { id: Date.now(), text };
+    channelRef.current?.postMessage({ type: "SEND_MESSAGE", payload: { message: newMessage }});
+    setMessage(newMessage);
+  };
+
+  const dismissMessage = () => {
+    channelRef.current?.postMessage({ type: "DISMISS_MESSAGE" });
+    setMessage(null);
+  };
+
   const value = {
     time,
     setTime,
@@ -142,6 +169,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     toggleTimer,
     resetTimer,
     setDuration,
+    message,
+    sendMessage,
+    dismissMessage,
   };
 
   return (
