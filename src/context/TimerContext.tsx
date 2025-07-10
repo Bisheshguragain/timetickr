@@ -18,6 +18,13 @@ interface Message {
 export type TimerTheme = "Classic" | "Modern" | "Minimalist" | "Industrial";
 export type SubscriptionPlan = "Freemium" | "Starter" | "Professional" | "Enterprise";
 
+const PLAN_LIMITS: Record<SubscriptionPlan, number> = {
+    Freemium: 3,
+    Starter: 10,
+    Professional: 50,
+    Enterprise: -1, // -1 for unlimited
+};
+
 interface TimerContextProps {
   time: number;
   setTime: (time: number) => void;
@@ -34,6 +41,10 @@ interface TimerContextProps {
   plan: SubscriptionPlan;
   setPlan: (plan: SubscriptionPlan) => void;
   connectedDevices: number;
+  timersUsed: number;
+  timerLimit: number;
+  consumeTimerCredit: () => void;
+  resetUsage: () => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -46,15 +57,58 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [isActive, setIsActive] = useState(false);
   const [message, setMessage] = useState<Message | null>({ id: 1, text: "This is a sample message in Classic theme." });
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
-  const [plan, setPlanState] = useState<SubscriptionPlan>("Professional"); // Default plan for demo
+  const [plan, setPlanState] = useState<SubscriptionPlan>("Professional");
   const [connectedDevices, setConnectedDevices] = useState(0);
+  const [timersUsed, setTimersUsed] = useState(0);
   const isFinished = time === 0;
+  const timerLimit = PLAN_LIMITS[plan];
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const clientId = useRef<string | null>(null);
   const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const connectedClients = useRef(new Set<string>());
+
+  // Usage tracking logic
+  useEffect(() => {
+    if(typeof window !== 'undefined') {
+        const savedUsage = localStorage.getItem('timerUsage');
+        const currentMonth = new Date().getMonth();
+
+        if (savedUsage) {
+            const { used, month } = JSON.parse(savedUsage);
+            if (month === currentMonth) {
+                setTimersUsed(used);
+            } else {
+                // New month, reset usage
+                localStorage.setItem('timerUsage', JSON.stringify({ used: 0, month: currentMonth }));
+            }
+        } else {
+             localStorage.setItem('timerUsage', JSON.stringify({ used: 0, month: currentMonth }));
+        }
+    }
+  }, []);
+
+  const consumeTimerCredit = () => {
+    if (timerLimit !== -1 && timersUsed >= timerLimit) {
+        console.warn("Timer usage limit reached.");
+        return;
+    }
+    const newUsage = timersUsed + 1;
+    setTimersUsed(newUsage);
+    if(typeof window !== 'undefined') {
+        const currentMonth = new Date().getMonth();
+        localStorage.setItem('timerUsage', JSON.stringify({ used: newUsage, month: currentMonth }));
+    }
+  };
+
+  const resetUsage = () => {
+    setTimersUsed(0);
+    if(typeof window !== 'undefined') {
+        const currentMonth = new Date().getMonth();
+        localStorage.setItem('timerUsage', JSON.stringify({ used: 0, month: currentMonth }));
+    }
+  };
 
   // Initialize Broadcast Channel and Client ID
   useEffect(() => {
@@ -109,7 +163,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 setConnectedDevices(connectedClients.current.size);
                 break;
             case "REQUEST_STATE":
-                if (clientId.current) { // Only existing tabs should respond
+                if (clientId.current) { 
                     channelRef.current?.postMessage({
                         type: 'SET_STATE',
                         payload: { time, isActive, initialDuration, message, theme, plan },
@@ -121,26 +175,22 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         };
         
         channelRef.current.addEventListener("message", handleMessage);
-
-        // Announce presence and request state from other tabs when a new tab joins
         channelRef.current.postMessage({ type: "REQUEST_STATE", senderId: clientId.current });
         
-        // Ping to discover other clients
         const ping = () => {
             connectedClients.current.clear();
-            if(clientId.current) connectedClients.current.add(clientId.current); // Add self
+            if(clientId.current) connectedClients.current.add(clientId.current); 
             setConnectedDevices(connectedClients.current.size);
             channelRef.current?.postMessage({ type: "PING", senderId: clientId.current });
             
-            // After a short delay, update the count based on responses
             if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
             pingTimeoutRef.current = setTimeout(() => {
                 setConnectedDevices(connectedClients.current.size);
             }, 500);
         };
         
-        ping(); // Initial ping
-        const pingInterval = setInterval(ping, 5000); // Ping every 5 seconds
+        ping(); 
+        const pingInterval = setInterval(ping, 5000); 
 
         return () => {
           channelRef.current?.removeEventListener("message", handleMessage);
@@ -180,6 +230,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
 
   const toggleTimer = () => {
+    // Consume a credit only when starting the timer, not pausing/resuming
+    if (!isActive) {
+        consumeTimerCredit();
+    }
     broadcastAction({ type: "TOGGLE" });
     setIsActive(prev => !prev);
   };
@@ -217,6 +271,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const setPlan = (newPlan: SubscriptionPlan) => {
     broadcastAction({ type: "SET_PLAN", payload: { plan: newPlan } });
     setPlanState(newPlan);
+    // When plan changes, we might want to reset usage if it's a new month or handle it differently
+    // For now, we'll just update the limit.
   }
 
   const value = {
@@ -235,6 +291,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     plan,
     setPlan,
     connectedDevices,
+    timersUsed,
+    timerLimit,
+    consumeTimerCredit,
+    resetUsage,
   };
 
   return (
@@ -249,3 +309,5 @@ export const useTimer = () => {
   }
   return context;
 };
+
+    

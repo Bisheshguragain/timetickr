@@ -31,12 +31,14 @@ import {
   Signal,
   Star,
   ArrowRight,
+  RefreshCcw,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -68,6 +70,9 @@ function LiveMessagingCard() {
         "Let's welcome our next speaker!",
         "Thank you for that insightful presentation!",
         "Incredible work!",
+        "Fantastic point!",
+        "Keep the energy high!",
+        "Powerful message.",
     ];
 
     const handleSend = async (messageToSend: string) => {
@@ -157,7 +162,7 @@ function LiveMessagingCard() {
 function ThemeSelectorCard() {
   const { theme, setTheme } = useTimer();
   const themes: { name: TimerTheme; bg: string; text: string; time: string; }[] = [
-    { name: "Classic", bg: "bg-gray-900", text: "text-white", time: "font-mono" },
+    { name: "Classic", bg: "bg-gray-800", text: "text-white", time: "font-mono" },
     { name: "Modern", bg: "bg-gray-900", text: "text-white", time: "font-headline tracking-wide" },
     { name: "Minimalist", bg: "bg-gray-100", text: "text-gray-800", time: "font-sans font-light border-2 border-gray-200" },
     { name: "Industrial", bg: "bg-gray-800", text: "text-amber-400", time: "font-mono uppercase" },
@@ -239,7 +244,7 @@ function ConnectedDevicesCard() {
 }
 
 function CurrentPlanCard() {
-  const { plan } = useTimer();
+  const { plan, timersUsed, timerLimit, resetUsage } = useTimer();
 
   const planDetails = {
     Freemium: { name: "Freemium", description: "Get started with our basic features." },
@@ -249,20 +254,39 @@ function CurrentPlanCard() {
   };
 
   const currentPlanDetails = planDetails[plan];
+  const usagePercentage = timerLimit > 0 ? (timersUsed / timerLimit) * 100 : 100;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Star />
-          Current Plan
+        <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                <Star />
+                Current Plan
+            </div>
+             <span className="text-sm font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">{currentPlanDetails.name}</span>
         </CardTitle>
         <CardDescription>
-          You are on the <strong className="text-primary">{currentPlanDetails.name}</strong> plan.
+          {currentPlanDetails.description}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground min-h-[40px]">{currentPlanDetails.description}</p>
+      <CardContent className="space-y-4">
+         <div>
+            <div className="flex justify-between items-center mb-2 text-sm font-medium text-muted-foreground">
+                <span>Monthly Usage</span>
+                {plan === 'Enterprise' ? (
+                    <span>Unlimited Timers</span>
+                ) : (
+                    <span>
+                        <span className="text-foreground font-bold">{timersUsed}</span> / {timerLimit} Timers
+                    </span>
+                )}
+            </div>
+            <Progress value={usagePercentage} />
+         </div>
+         <Button onClick={resetUsage} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
+            <RefreshCcw className="mr-2" /> Reset usage for demo
+         </Button>
       </CardContent>
       {plan !== 'Enterprise' && (
         <CardFooter>
@@ -283,7 +307,35 @@ export default function DashboardPage() {
     resetTimer,
     setDuration,
     theme,
+    timersUsed,
+    timerLimit,
   } = useTimer();
+  
+  const [justStarted, setJustStarted] = useState(false);
+  const { toast } = useToast();
+
+  const handleToggleTimer = () => {
+    if(!isActive) { // Only when starting
+        if (timerLimit !== -1 && timersUsed >= timerLimit) {
+            toast({
+                variant: 'destructive',
+                title: 'Usage Limit Reached',
+                description: `You have used all ${timerLimit} timers for this month. Please upgrade your plan.`,
+            });
+            return;
+        }
+        setJustStarted(true); // Flag that we've just started
+    }
+    toggleTimer();
+  }
+
+  // This effect will run after the state has updated
+  useEffect(() => {
+    if (justStarted) {
+      // The toggleTimer function in the context handles credit consumption
+      setJustStarted(false);
+    }
+  }, [justStarted]);
 
   const handleSetTime = (newTime: number) => {
     const clampedTime = Math.max(0, newTime);
@@ -302,6 +354,8 @@ export default function DashboardPage() {
   };
 
   const currentThemeClass = themeClasses[theme] || themeClasses.Classic;
+
+  const isAtLimit = timerLimit !== -1 && timersUsed >= timerLimit;
 
 
   return (
@@ -340,9 +394,10 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex w-full max-w-sm items-center justify-center space-x-4">
                     <Button
-                        onClick={toggleTimer}
+                        onClick={handleToggleTimer}
                         size="lg"
                         className="w-full"
+                        disabled={isAtLimit && !isActive}
                     >
                         {isActive ? (
                         <Pause className="mr-2" />
@@ -445,3 +500,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
