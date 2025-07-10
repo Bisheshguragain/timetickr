@@ -99,7 +99,7 @@ export function Hero() {
                     time < 60 && time > 0 ? "text-destructive" : "text-foreground",
                     {
                       'Modern': 'text-primary',
-                      'Industrial': 'font-code text-accent-foreground',
+                      'Industrial': 'font-code text-foreground',
                       'Classic': '',
                       'Minimalist': ''
                     }[theme]
