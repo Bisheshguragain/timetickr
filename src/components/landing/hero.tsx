@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -75,7 +76,7 @@ export function Hero() {
                 "w-full max-w-md rounded-2xl p-8 transition-all duration-300",
                 {
                   'Classic': "border bg-card/50 backdrop-blur-sm shadow-2xl shadow-primary/10",
-                  'Modern': "border-2 border-primary/50 bg-card shadow-2xl shadow-primary/20",
+                  'Modern': "border-2 border-primary/50 bg-primary/5 shadow-2xl shadow-primary/20",
                   'Minimalist': "bg-transparent",
                   'Industrial': "bg-secondary/40 border-2 border-muted"
                 }[theme]
@@ -98,7 +99,9 @@ export function Hero() {
                     time < 60 && time > 0 ? "text-destructive" : "text-foreground",
                     {
                       'Modern': 'text-primary',
-                      'Industrial': 'font-code'
+                      'Industrial': 'font-code text-accent-foreground',
+                      'Classic': '',
+                      'Minimalist': ''
                     }[theme]
                   )}>
                     {formatTime(time)}
