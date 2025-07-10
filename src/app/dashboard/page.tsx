@@ -237,48 +237,51 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Timer />
-                  Live Timer Control
-                </CardTitle>
-                <CardDescription>
-                  Manage the countdown timer that your speaker sees in real-time.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center justify-center space-y-6 pt-6">
-                <div className={cn(
-                  "text-8xl font-bold tracking-tighter md:text-9xl",
-                  currentThemeClass
-                  )}>
-                  {formatTime(time)}
-                </div>
-                <div className="flex w-full max-w-sm items-center justify-center space-x-4">
-                  <Button
-                    onClick={toggleTimer}
-                    size="lg"
-                    className="w-full"
-                  >
-                    {isActive ? (
-                      <Pause className="mr-2" />
-                    ) : (
-                      <Play className="mr-2" />
-                    )}
-                    {isActive ? "Pause" : "Start"}
-                  </Button>
-                  <Button
-                    onClick={() => resetTimer()}
-                    size="lg"
-                    variant="secondary"
-                    className="w-full"
-                  >
-                    <RotateCcw className="mr-2" />
-                    Reset
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-2 space-y-8">
+                <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                    <Timer />
+                    Live Timer Control
+                    </CardTitle>
+                    <CardDescription>
+                    Manage the countdown timer that your speaker sees in real-time.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center space-y-6 pt-6">
+                    <div className={cn(
+                    "text-8xl font-bold tracking-tighter md:text-9xl",
+                    currentThemeClass
+                    )}>
+                    {formatTime(time)}
+                    </div>
+                    <div className="flex w-full max-w-sm items-center justify-center space-x-4">
+                    <Button
+                        onClick={toggleTimer}
+                        size="lg"
+                        className="w-full"
+                    >
+                        {isActive ? (
+                        <Pause className="mr-2" />
+                        ) : (
+                        <Play className="mr-2" />
+                        )}
+                        {isActive ? "Pause" : "Start"}
+                    </Button>
+                    <Button
+                        onClick={() => resetTimer()}
+                        size="lg"
+                        variant="secondary"
+                        className="w-full"
+                    >
+                        <RotateCcw className="mr-2" />
+                        Reset
+                    </Button>
+                    </div>
+                </CardContent>
+                </Card>
+                <LiveMessagingCard />
+            </div>
 
             <div className="space-y-8">
                 <Card>
@@ -350,7 +353,6 @@ export default function DashboardPage() {
                 </CardContent>
                 </Card>
                 <ThemeSelectorCard />
-                <LiveMessagingCard />
             </div>
           </div>
         </div>
