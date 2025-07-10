@@ -12,6 +12,7 @@ const plans = [
     features: [
       "3 Timers / Month",
       "Basic Timer Functionality",
+      "Smart Auto-Alerts",
       "TimeTickR Branding",
       "Single User",
       "Email Support",
