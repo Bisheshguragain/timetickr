@@ -32,6 +32,7 @@ export default function SpeakerViewPage() {
       warningBg: "bg-yellow-600",
       urgentBg: "bg-orange-700",
       finishedBg: "bg-red-800",
+      alert: "bg-white/90 text-black border-gray-300",
     },
     Modern: {
       bg: "bg-gray-900 text-white",
@@ -39,6 +40,7 @@ export default function SpeakerViewPage() {
       warningBg: "bg-blue-800",
       urgentBg: "bg-purple-800",
       finishedBg: "bg-red-900",
+      alert: "bg-gray-800/90 text-white border-gray-600 backdrop-blur-sm",
     },
     Minimalist: {
       bg: "bg-gray-100 text-gray-800",
@@ -46,6 +48,7 @@ export default function SpeakerViewPage() {
       warningBg: "bg-yellow-200 border-yellow-300",
       urgentBg: "bg-orange-200 border-orange-300",
       finishedBg: "bg-red-200 border-red-300",
+      alert: "bg-white/80 text-gray-800 border-gray-300 backdrop-blur-sm shadow-2xl",
     },
     Industrial: {
       bg: "bg-gray-800 text-amber-400",
@@ -53,6 +56,7 @@ export default function SpeakerViewPage() {
       warningBg: "bg-yellow-800/50",
       urgentBg: "bg-orange-800/60",
       finishedBg: "bg-red-800/70",
+      alert: "bg-gray-900/90 text-amber-300 border-amber-900/50 backdrop-blur-sm",
     },
   };
 
@@ -82,7 +86,7 @@ export default function SpeakerViewPage() {
 
       {message && (
         <div className="absolute bottom-10 left-10 right-10 z-10 mx-auto max-w-4xl animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
-           <Alert variant="default" className="bg-background/90 text-foreground shadow-2xl backdrop-blur-sm">
+           <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
              <MessageSquare className="h-6 w-6" />
              <AlertTitle className="text-xl font-bold">
                 Message from Admin
@@ -90,7 +94,7 @@ export default function SpeakerViewPage() {
              <AlertDescription className="text-lg">
                 {message.text}
              </AlertDescription>
-             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted">
+             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
              </button>
            </Alert>
