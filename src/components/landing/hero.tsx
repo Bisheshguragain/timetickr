@@ -11,7 +11,7 @@ export function Hero() {
         <div className="absolute bottom-auto left-auto right-0 top-0 h-[500px] w-[500px] -translate-x-[30%] translate-y-[20%] rounded-full bg-[rgba(37,99,235,0.5)] opacity-50 blur-[80px]"></div>
       </div>
       <div className="container text-center">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
             Never Miss a Cue.
             <br />

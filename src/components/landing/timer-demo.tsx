@@ -39,7 +39,7 @@ export function TimerDemo() {
 
   return (
     <div className="container">
-      <div className="text-center">
+      <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Experience the Timer
         </h2>
@@ -47,7 +47,7 @@ export function TimerDemo() {
           A glimpse of our clean, distraction-free speaker display.
         </p>
       </div>
-      <div className="mt-12 mx-auto max-w-2xl rounded-lg border bg-card p-8 shadow-2xl shadow-primary/10">
+      <div className="mt-16 mx-auto max-w-3xl rounded-lg border bg-card p-8 shadow-2xl shadow-primary/10">
         <div className={cn("font-mono text-center text-7xl md:text-9xl font-bold tracking-tighter", time < 60 && time > 0 ? "text-destructive" : "text-foreground")}>
           {formatTime(time)}
         </div>

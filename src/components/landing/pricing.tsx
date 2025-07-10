@@ -75,7 +75,7 @@ const plans = [
 export function Pricing() {
   return (
     <div className="container">
-      <div className="text-center">
+      <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Choose Your Plan
         </h2>
@@ -83,19 +83,19 @@ export function Pricing() {
           Simple, transparent pricing. No hidden fees.
         </p>
       </div>
-      <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
           <Card key={plan.name} className={`flex flex-col ${plan.popular ? "border-primary shadow-primary/20 shadow-lg" : ""}`}>
-            <CardHeader className="relative">
+            <CardHeader className="relative pb-4">
               {plan.popular && <div className="absolute top-0 -translate-y-1/2 w-full flex justify-center"><div className="bg-primary text-primary-foreground px-3 py-1 text-sm font-semibold rounded-full">Most Popular</div></div>}
               <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
               <CardDescription>
                 <span className="text-3xl font-bold text-foreground">{plan.price}</span>
                 <span className="text-muted-foreground">{plan.period}</span>
               </CardDescription>
-              <CardDescription>{plan.description}</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1">
+            <CardContent className="flex-1 space-y-4">
+              <p className="text-foreground/80">{plan.description}</p>
               <ul className="space-y-3">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-center">
@@ -106,7 +106,7 @@ export function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button asChild className="w-full" variant={plan.popular ? "default" : "secondary"}>
+              <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
                 <Link href={plan.href}>{plan.cta}</Link>
               </Button>
             </CardFooter>

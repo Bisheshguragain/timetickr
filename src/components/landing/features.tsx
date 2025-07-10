@@ -50,7 +50,7 @@ const features = [
 export function Features() {
   return (
     <div className="container">
-      <div className="text-center">
+      <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           All-in-One Platform for Flawless Events
         </h2>
@@ -58,10 +58,10 @@ export function Features() {
           TimeTickR provides all the tools you need to run your events smoothly and professionally.
         </p>
       </div>
-      <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
         {features.slice(0, 3).map((feature) => (
           <Card key={feature.title} className="lg:col-span-1">
-            <CardHeader className="flex flex-row items-center gap-4">
+            <CardHeader className="flex flex-row items-center gap-4 pb-4">
               {feature.icon}
               <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
             </CardHeader>
@@ -70,6 +70,8 @@ export function Features() {
             </CardContent>
           </Card>
         ))}
+        </div>
+        <div className="mt-12 grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-2 lg:grid-cols-2">
         {features.slice(3).map((feature, index) => (
           <div key={feature.title} className="flex gap-6">
             <div className="flex-shrink-0">{feature.icon}</div>
