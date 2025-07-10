@@ -7,6 +7,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -28,6 +29,8 @@ import {
   Palette,
   Check,
   Signal,
+  Star,
+  ArrowRight,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -61,6 +64,10 @@ function LiveMessagingCard() {
         "You're doing great!",
         "Amazing energy!",
         "The audience is loving this!",
+        "Technical difficulties, please stand by.",
+        "Let's welcome our next speaker!",
+        "Thank you for that insightful presentation!",
+        "Incredible work!",
     ];
 
     const handleSend = async (messageToSend: string) => {
@@ -231,6 +238,43 @@ function ConnectedDevicesCard() {
   );
 }
 
+function CurrentPlanCard() {
+  const { plan } = useTimer();
+
+  const planDetails = {
+    Freemium: { name: "Freemium", description: "Get started with our basic features." },
+    Starter: { name: "Starter", description: "Unlock more features for small teams." },
+    Professional: { name: "Professional", description: "Power features for growing businesses." },
+    Enterprise: { name: "Enterprise", description: "You have access to all our top-tier features." },
+  };
+
+  const currentPlanDetails = planDetails[plan];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Star />
+          Current Plan
+        </CardTitle>
+        <CardDescription>
+          You are on the <strong className="text-primary">{currentPlanDetails.name}</strong> plan.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground min-h-[40px]">{currentPlanDetails.description}</p>
+      </CardContent>
+      {plan !== 'Enterprise' && (
+        <CardFooter>
+          <Button asChild className="w-full">
+            <Link href="/#pricing">Upgrade Plan <ArrowRight className="ml-2" /></Link>
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const {
     time,
@@ -323,6 +367,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-8 lg:col-span-1">
+                <CurrentPlanCard />
                 <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
