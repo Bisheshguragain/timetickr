@@ -87,6 +87,8 @@ function LiveMessagingCard() {
         "Powerful message.",
     ];
 
+    const presetEmojis = ["👍", "❤️", "😂", "👏", "🤯", "🔥"];
+
     const handleSend = async (messageToSend: string) => {
         if (!messageToSend) return;
         setIsLoading(true);
@@ -162,6 +164,25 @@ function LiveMessagingCard() {
                             >
                                 {isLoading && loadingMessage === msg ? <Loader className="mr-2 animate-spin" /> : null}
                                 {msg}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+                <div className="space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">
+                        Quick Emojis
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {presetEmojis.map((emoji) => (
+                            <Button
+                                key={emoji}
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleSend(emoji)}
+                                disabled={isLoading}
+                                className="text-xl"
+                            >
+                                {isLoading && loadingMessage === emoji ? <Loader className="animate-spin" /> : emoji}
                             </Button>
                         ))}
                     </div>
