@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -27,6 +27,7 @@ import {
   Loader,
   Palette,
   Check,
+  Signal,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -195,6 +196,41 @@ function ThemeSelectorCard() {
   );
 }
 
+function ConnectedDevicesCard() {
+  const { connectedDevices } = useTimer();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Signal />
+          Connected Devices
+        </CardTitle>
+        <CardDescription>
+          Number of speaker displays currently active.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-center gap-4">
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-secondary">
+          <span className="text-4xl font-bold text-primary">{connectedDevices}</span>
+          <svg className="absolute h-full w-full" viewBox="0 0 36 36">
+              <circle
+              className="text-primary/20"
+              stroke="currentColor"
+              strokeWidth="3"
+              fill="none"
+              cx="18"
+              cy="18"
+              r="16"
+              />
+          </svg>
+        </div>
+        <p className="text-lg font-medium text-muted-foreground">{connectedDevices === 1 ? 'Device' : 'Devices'} Online</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function DashboardPage() {
   const {
     time,
@@ -356,6 +392,7 @@ export default function DashboardPage() {
                 </CardContent>
                 </Card>
                 <ThemeSelectorCard />
+                <ConnectedDevicesCard />
             </div>
           </div>
         </div>

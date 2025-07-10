@@ -33,6 +33,7 @@ interface TimerContextProps {
   setTheme: (theme: TimerTheme) => void;
   plan: SubscriptionPlan;
   setPlan: (plan: SubscriptionPlan) => void;
+  connectedDevices: number;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -46,88 +47,114 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [message, setMessage] = useState<Message | null>({ id: 1, text: "This is a sample message in Classic theme." });
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
   const [plan, setPlanState] = useState<SubscriptionPlan>("Professional"); // Default plan for demo
+  const [connectedDevices, setConnectedDevices] = useState(0);
   const isFinished = time === 0;
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const clientId = useRef<string | null>(null);
+  const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const connectedClients = useRef(new Set<string>());
 
-  // Initialize Broadcast Channel
+  // Initialize Broadcast Channel and Client ID
   useEffect(() => {
-    channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+    if (typeof window !== 'undefined') {
+        clientId.current = Math.random().toString(36).substring(7);
+        channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+    
+        const handleMessage = (event: MessageEvent) => {
+          const { type, payload, senderId } = event.data;
+          
+          if(senderId === clientId.current) return;
 
-    const handleMessage = (event: MessageEvent) => {
-      const { type, payload } = event.data;
-      
-      switch (type) {
-        case "SET_STATE":
-          setTime(payload.time);
-          setIsActive(payload.isActive);
-          setInitialDuration(payload.initialDuration);
-          setMessage(payload.message);
-          setThemeState(payload.theme);
-          setPlanState(payload.plan);
-          break;
-        case "TOGGLE":
-          setIsActive((prev) => !prev);
-          break;
-        case "RESET":
-          setIsActive(false);
-          setTime(payload.initialDuration);
-          break;
-        case "SET_DURATION":
-          if (!isActive) {
-             setInitialDuration(payload.duration);
-             setTime(payload.duration);
+          switch (type) {
+            case "SET_STATE":
+              setTime(payload.time);
+              setIsActive(payload.isActive);
+              setInitialDuration(payload.initialDuration);
+              setMessage(payload.message);
+              setThemeState(payload.theme);
+              setPlanState(payload.plan);
+              break;
+            case "TOGGLE":
+              setIsActive((prev) => !prev);
+              break;
+            case "RESET":
+              setIsActive(false);
+              setTime(payload.initialDuration);
+              break;
+            case "SET_DURATION":
+              if (!isActive) {
+                 setInitialDuration(payload.duration);
+                 setTime(payload.duration);
+              }
+              break;
+            case "SEND_MESSAGE":
+                setMessage(payload.message);
+                break;
+            case "DISMISS_MESSAGE":
+                setMessage(null);
+                break;
+            case "SET_THEME":
+                setThemeState(payload.theme);
+                break;
+            case "SET_PLAN":
+                setPlanState(payload.plan);
+                break;
+            case "PING":
+                channelRef.current?.postMessage({ type: "PONG", senderId: clientId.current });
+                break;
+            case "PONG":
+                connectedClients.current.add(senderId);
+                setConnectedDevices(connectedClients.current.size);
+                break;
+            case "REQUEST_STATE":
+                if (clientId.current) { // Only existing tabs should respond
+                    channelRef.current?.postMessage({
+                        type: 'SET_STATE',
+                        payload: { time, isActive, initialDuration, message, theme, plan },
+                        senderId: clientId.current
+                    });
+                }
+                break;
           }
-          break;
-        case "SEND_MESSAGE":
-            setMessage(payload.message);
-            break;
-        case "DISMISS_MESSAGE":
-            setMessage(null);
-            break;
-        case "SET_THEME":
-            setThemeState(payload.theme);
-            break;
-        case "SET_PLAN":
-            setPlanState(payload.plan);
-            break;
-        default:
-          break;
-      }
-    };
-    
-    channelRef.current.addEventListener("message", handleMessage);
+        };
+        
+        channelRef.current.addEventListener("message", handleMessage);
 
-    // Request initial state from other tabs when a new tab joins
-    channelRef.current.postMessage({ type: "REQUEST_STATE" });
-    
-    // Respond to state requests
-    const respondToStateRequest = (event: MessageEvent) => {
-        if (event.data.type === 'REQUEST_STATE') {
-            channelRef.current?.postMessage({
-                type: 'SET_STATE',
-                payload: { time, isActive, initialDuration, message, theme, plan },
-            });
-        }
-    };
-    channelRef.current.addEventListener('message', respondToStateRequest);
+        // Announce presence and request state from other tabs when a new tab joins
+        channelRef.current.postMessage({ type: "REQUEST_STATE", senderId: clientId.current });
+        
+        // Ping to discover other clients
+        const ping = () => {
+            connectedClients.current.clear();
+            if(clientId.current) connectedClients.current.add(clientId.current); // Add self
+            setConnectedDevices(connectedClients.current.size);
+            channelRef.current?.postMessage({ type: "PING", senderId: clientId.current });
+            
+            // After a short delay, update the count based on responses
+            if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+            pingTimeoutRef.current = setTimeout(() => {
+                setConnectedDevices(connectedClients.current.size);
+            }, 500);
+        };
+        
+        ping(); // Initial ping
+        const pingInterval = setInterval(ping, 5000); // Ping every 5 seconds
 
-
-    return () => {
-      channelRef.current?.removeEventListener("message", handleMessage);
-      channelRef.current?.removeEventListener('message', respondToStateRequest);
-      channelRef.current?.close();
-    };
+        return () => {
+          channelRef.current?.removeEventListener("message", handleMessage);
+          channelRef.current?.close();
+          clearInterval(pingInterval);
+          if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
+        };
+    }
   }, [time, isActive, initialDuration, message, theme, plan]);
 
 
-  const broadcastState = useCallback(() => {
-    channelRef.current?.postMessage({
-      type: "SET_STATE",
-      payload: { time, isActive, initialDuration, message, theme, plan },
-    });
-  }, [time, isActive, initialDuration, message, theme, plan]);
+  const broadcastAction = useCallback((action: any) => {
+    channelRef.current?.postMessage({ ...action, senderId: clientId.current });
+  }, []);
 
   // Timer logic
   useEffect(() => {
@@ -145,24 +172,27 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Effect to broadcast state changes
   useEffect(() => {
-    broadcastState();
-  }, [time, isActive, initialDuration, message, theme, plan, broadcastState]);
+    broadcastAction({
+      type: "SET_STATE",
+      payload: { time, isActive, initialDuration, message, theme, plan },
+    });
+  }, [time, isActive, initialDuration, message, theme, plan, broadcastAction]);
 
 
   const toggleTimer = () => {
-    channelRef.current?.postMessage({ type: "TOGGLE" });
+    broadcastAction({ type: "TOGGLE" });
     setIsActive(prev => !prev);
   };
 
   const resetTimer = () => {
-    channelRef.current?.postMessage({ type: "RESET", payload: { initialDuration } });
+    broadcastAction({ type: "RESET", payload: { initialDuration } });
     setIsActive(false);
     setTime(initialDuration);
   };
 
   const setDuration = (duration: number) => {
     if (!isActive) {
-      channelRef.current?.postMessage({ type: "SET_DURATION", payload: { duration } });
+      broadcastAction({ type: "SET_DURATION", payload: { duration } });
       setInitialDuration(duration);
       setTime(duration);
     }
@@ -170,22 +200,22 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const sendMessage = (text: string) => {
     const newMessage = { id: Date.now(), text };
-    channelRef.current?.postMessage({ type: "SEND_MESSAGE", payload: { message: newMessage }});
+    broadcastAction({ type: "SEND_MESSAGE", payload: { message: newMessage }});
     setMessage(newMessage);
   };
 
   const dismissMessage = () => {
-    channelRef.current?.postMessage({ type: "DISMISS_MESSAGE" });
+    broadcastAction({ type: "DISMISS_MESSAGE" });
     setMessage(null);
   };
   
   const setTheme = (newTheme: TimerTheme) => {
-    channelRef.current?.postMessage({ type: "SET_THEME", payload: { theme: newTheme } });
+    broadcastAction({ type: "SET_THEME", payload: { theme: newTheme } });
     setThemeState(newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
-    channelRef.current?.postMessage({ type: "SET_PLAN", payload: { plan: newPlan } });
+    broadcastAction({ type: "SET_PLAN", payload: { plan: newPlan } });
     setPlanState(newPlan);
   }
 
@@ -204,6 +234,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setTheme,
     plan,
     setPlan,
+    connectedDevices,
   };
 
   return (
