@@ -199,6 +199,7 @@ export default function DashboardPage() {
     toggleTimer,
     resetTimer,
     setDuration,
+    theme,
   } = useTimer();
 
   const handleSetTime = (newTime: number) => {
@@ -209,6 +210,16 @@ export default function DashboardPage() {
   };
 
   const presetDurations = [300, 600, 900, 1800, 3600];
+
+  const themeClasses = {
+    Classic: "font-mono",
+    Modern: "font-headline tracking-wide",
+    Minimalist: "font-sans font-light",
+    Industrial: "font-mono uppercase",
+  };
+
+  const currentThemeClass = themeClasses[theme] || themeClasses.Classic;
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -237,7 +248,10 @@ export default function DashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col items-center justify-center space-y-6 pt-6">
-                <div className="font-mono text-8xl font-bold tracking-tighter md:text-9xl">
+                <div className={cn(
+                  "text-8xl font-bold tracking-tighter md:text-9xl",
+                  currentThemeClass
+                  )}>
                   {formatTime(time)}
                 </div>
                 <div className="flex w-full max-w-sm items-center justify-center space-x-4">
