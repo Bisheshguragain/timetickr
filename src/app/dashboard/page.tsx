@@ -44,6 +44,7 @@ import {
   RefreshCcw,
   ShoppingCart,
   BarChartHorizontal,
+  FileClock,
 } from "lucide-react";
 import { useTimer, TimerTheme } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -53,6 +54,8 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { generateAlerts, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -481,6 +484,101 @@ function AnalyticsCard() {
     )
 }
 
+function SmartAlertsCard() {
+  const [duration, setDuration] = useState(15);
+  const [isLoading, setIsLoading] = useState(false);
+  const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput | null>(null);
+  const { toast } = useToast();
+
+  const handleGenerateAlerts = async () => {
+    if (duration <= 0) {
+        toast({ variant: 'destructive', title: 'Invalid Duration', description: 'Please enter a positive number for the duration.' });
+        return;
+    }
+    setIsLoading(true);
+    setGeneratedAlerts(null);
+    try {
+        const result = await generateAlerts({ durationInMinutes: duration });
+        setGeneratedAlerts(result);
+    } catch(error) {
+        console.error("Error generating smart alerts:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not generate alerts. Please try again.' });
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
+  const getIconForType = (type: string) => {
+    switch(type) {
+        case 'encouragement': return '😊';
+        case 'warning': return '⚠️';
+        case 'info': return 'ℹ️';
+        default: return '💬';
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+            <FileClock />
+            AI-Generated Smart Alerts
+        </CardTitle>
+        <CardDescription>
+            Automatically generate a schedule of timed alerts to keep speakers on track.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+            <label
+                htmlFor="alert-duration"
+                className="mb-2 block text-sm font-medium text-muted-foreground"
+            >
+                Presentation Duration (in minutes)
+            </label>
+            <div className="flex items-center gap-2">
+                <Input
+                    id="alert-duration"
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                    placeholder="e.g., 45"
+                />
+                <Button onClick={handleGenerateAlerts} disabled={isLoading}>
+                    {isLoading ? <Loader className="mr-2 animate-spin" /> : null}
+                    Generate
+                </Button>
+            </div>
+        </div>
+        {generatedAlerts && (
+            <div className="space-y-3 pt-4">
+                 <h4 className="text-sm font-medium text-muted-foreground">Generated Alert Schedule</h4>
+                 <div className="space-y-2 rounded-lg border p-3">
+                 {generatedAlerts.alerts.sort((a,b) => a.time - b.time).map((alert) => (
+                    <div key={alert.time} className="flex items-start gap-3">
+                        <div className="flex h-8 w-16 flex-shrink-0 items-center justify-center rounded-md bg-secondary text-sm font-mono">
+                           {formatTime(alert.time)}
+                        </div>
+                        <div className="flex-grow rounded-md bg-secondary/50 p-2 text-sm">
+                            <span className="mr-2">{getIconForType(alert.type)}</span>
+                            {alert.message}
+                        </div>
+                    </div>
+                 ))}
+                 </div>
+                 <Alert>
+                    <AlertTitle>This is a demonstration</AlertTitle>
+                    <AlertDescription>
+                        In a full implementation, these alerts would be automatically sent to the speaker at the specified times.
+                    </AlertDescription>
+                 </Alert>
+            </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function DashboardPage() {
   const {
     time,
@@ -670,6 +768,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
+                <SmartAlertsCard />
                 <ThemeSelectorCard />
                 <ConnectedDevicesCard />
             </div>
