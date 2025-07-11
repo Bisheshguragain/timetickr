@@ -37,7 +37,6 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const urlCode = searchParams.get('code');
   
   // Demo mode: if no code is in the URL, show the speaker view.
-  // The view will still be functional but won't be paired.
   const isDemoMode = urlCode === null;
   const isPaired = urlCode === validPairingCode;
 
@@ -101,10 +100,8 @@ function SpeakerDisplay() {
   const searchParams = useSearchParams();
   const isDemoMode = searchParams.get('code') === null;
   
-  // Local state for demo mode messages
   const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
 
-  // Use context message if not in demo mode, otherwise use local demo message
   const message = isDemoMode ? demoMessage : timerContext.message;
   const dismissMessage = isDemoMode ? () => setDemoMessage(null) : timerContext.dismissMessage;
   
@@ -187,6 +184,25 @@ function SpeakerDisplay() {
         }
       )}
     >
+      {/* Admin Message - Top Left */}
+      {message && !isQuestion && (
+        <div className="absolute top-10 left-10 z-10 max-w-lg animate-in fade-in-50 slide-in-from-top-10 duration-500">
+           <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
+             <MessageSquare className="h-6 w-6" />
+             <AlertTitle className="text-lg font-bold">
+                Message from Admin
+             </AlertTitle>
+             <AlertDescription className="text-md">
+                {message.text}
+             </AlertDescription>
+             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+                <X className="h-5 w-5"/>
+             </button>
+           </Alert>
+        </div>
+      )}
+
+      {/* Main Timer */}
       <div
         className={cn(
           "font-bold",
@@ -197,6 +213,7 @@ function SpeakerDisplay() {
         {formatTime(time)}
       </div>
 
+      {/* Audience Question - Below Timer */}
       {message && isQuestion && (
         <div className="z-10 mt-8 max-w-4xl w-full px-10 animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
            <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
@@ -214,12 +231,14 @@ function SpeakerDisplay() {
         </div>
       )}
 
+      {/* Branding Logo */}
       {plan !== "Enterprise" && (
         <div className="absolute top-4 right-5 z-20">
             <Logo className={currentTheme.logo}/>
         </div>
       )}
 
+      {/* Demo Controls */}
       {isDemoMode && (
           <div className="absolute top-4 left-5 z-20 space-y-2">
             <Alert variant="default" className={cn("shadow-md text-xs p-2", currentTheme.alert)}>
@@ -242,22 +261,6 @@ function SpeakerDisplay() {
           </div>
       )}
 
-      {message && !isQuestion && (
-        <div className="absolute top-10 left-10 z-10 max-w-lg animate-in fade-in-50 slide-in-from-top-10 duration-500">
-           <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
-             <MessageSquare className="h-6 w-6" />
-             <AlertTitle className="text-lg font-bold">
-                Message from Admin
-             </AlertTitle>
-             <AlertDescription className="text-md">
-                {message.text}
-             </AlertDescription>
-             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
-                <X className="h-5 w-5"/>
-             </button>
-           </Alert>
-        </div>
-      )}
     </div>
   );
 }
