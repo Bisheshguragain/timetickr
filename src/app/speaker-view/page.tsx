@@ -219,21 +219,38 @@ function SpeakerDisplay() {
                 </CardHeader>
                 <CardContent className="p-0 flex flex-col items-start gap-2">
                     <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoMessage}>Trigger Admin Message</Button>
-                    <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoQuestion}>Trigger Audience Q&A</Button>
+                    <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoQuestion}>Trigger Audience Q&amp;A</Button>
                 </CardContent>
             </Card>
           </div>
       )}
 
-      {message && (
+      {message && !isQuestion && (
+        <div className="absolute top-10 left-10 z-10 mx-auto max-w-lg animate-in fade-in-50 slide-in-from-top-10 duration-500">
+           <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
+             <MessageSquare className="h-6 w-6" />
+             <AlertTitle className="text-lg font-bold">
+                Message from Admin
+             </AlertTitle>
+             <AlertDescription className="text-md">
+                {message.text}
+             </AlertDescription>
+             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+                <X className="h-5 w-5"/>
+             </button>
+           </Alert>
+        </div>
+      )}
+
+      {message && isQuestion && (
         <div className="absolute bottom-10 left-10 right-10 z-10 mx-auto max-w-4xl animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
            <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
-             {isQuestion ? <MessageSquareQuote className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
+             <MessageSquareQuote className="h-6 w-6" />
              <AlertTitle className="text-xl font-bold">
-                {isQuestion ? "Audience Question" : "Message from Admin"}
+                Audience Question
              </AlertTitle>
              <AlertDescription className="text-lg">
-                {isQuestion ? message.text.substring(2) : message.text}
+                {message.text.substring(2)}
              </AlertDescription>
              <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
