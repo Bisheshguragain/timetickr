@@ -100,6 +100,7 @@ import { auth } from "@/lib/firebase";
 import { updatePassword } from "firebase/auth";
 import Image from "next/image";
 import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
+import { createStripeCheckoutSession } from "@/app/actions/stripe";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -486,19 +487,56 @@ function PurchaseTimersDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const { addTimers } = useTimer();
   const { toast } = useToast();
+  const { currentUser } = useTimer();
   const [quantity, setQuantity] = useState(1);
-  const pricePerTimer = 2;
+  const [isLoading, setIsLoading] = useState(false);
+  const pricePerTimer = 2; // Display only
   const totalCost = quantity * pricePerTimer;
+  const timerAddonPriceId = 'price_1Rjju3JKlah40zYDFMQtGHhF';
 
-  const handlePurchase = () => {
-    addTimers(quantity);
-    toast({
-      title: "Purchase Successful!",
-      description: `You've successfully added ${quantity} timer(s) to your account.`,
-    });
-    onOpenChange(false);
+  const handlePurchase = async () => {
+    if (!currentUser) {
+      toast({
+        variant: 'destructive',
+        title: 'Not Logged In',
+        description: 'You must be logged in to make a purchase.',
+      });
+      return;
+    }
+    setIsLoading(true);
+
+    try {
+      const { sessionId, error: sessionError } = await createStripeCheckoutSession({ 
+          priceId: timerAddonPriceId,
+          userId: currentUser.uid,
+          userEmail: currentUser.email!,
+          quantity: quantity,
+          mode: 'payment' // one-time purchase
+       });
+
+      if (sessionError) throw new Error(sessionError);
+
+      const stripe = (await import('@/lib/stripe-client')).default;
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+
+      if (error) {
+        console.error("Stripe redirect error:", error);
+        toast({
+            variant: "destructive",
+            title: "Checkout Error",
+            description: error.message || "An unexpected error occurred. Please try again.",
+        });
+      }
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: error.message || "Could not initiate checkout. Please contact support.",
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -520,6 +558,7 @@ function PurchaseTimersDialog({
               variant="outline"
               size="icon"
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              disabled={isLoading}
             >
               <Minus />
             </Button>
@@ -528,6 +567,7 @@ function PurchaseTimersDialog({
               variant="outline"
               size="icon"
               onClick={() => setQuantity(quantity + 1)}
+              disabled={isLoading}
             >
               <Plus />
             </Button>
@@ -538,7 +578,8 @@ function PurchaseTimersDialog({
         </div>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handlePurchase}>
+          <AlertDialogAction onClick={handlePurchase} disabled={isLoading}>
+            {isLoading && <Loader className="mr-2 animate-spin" />}
             Complete Purchase
           </AlertDialogAction>
         </AlertDialogFooter>
