@@ -72,6 +72,7 @@ import {
   Mail,
   MoreHorizontal,
   Info,
+  LogOut,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -86,6 +87,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { auth } from "@/lib/firebase";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -1010,6 +1012,11 @@ export default function DashboardPage() {
     }
   }, [currentUser, loadingAuth, router]);
 
+  const handleSignOut = async () => {
+    await auth.signOut();
+    router.push('/');
+  }
+
   if (loadingAuth || !currentUser) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
@@ -1063,7 +1070,12 @@ export default function DashboardPage() {
         <div className="container mx-auto">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
-            <ThemeToggle />
+            <div className="flex items-center gap-4">
+                <ThemeToggle />
+                <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign Out">
+                    <LogOut />
+                </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start">
