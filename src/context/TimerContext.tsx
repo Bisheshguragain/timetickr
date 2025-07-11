@@ -160,7 +160,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         // For demo purposes, assign plans based on email
         if (user.email === 'forfree@gmail.com') {
             setPlanState("Freemium");
-        } else if (user.email === 'starter@example.com') {
+        } else if (user.email === 'starter@gmail.com') {
             setPlanState("Starter");
         }
         else {
@@ -249,7 +249,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Set plan from DB, but allow demo user to override
             const dbPlan = data.plan || "Freemium";
-            if(currentUser?.email !== 'forfree@gmail.com' && currentUser?.email !== 'starter@example.com') {
+            if(currentUser?.email !== 'forfree@gmail.com' && currentUser?.email !== 'starter@gmail.com') {
                 setPlanState(dbPlan);
             }
 
