@@ -23,8 +23,8 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <TimerProvider>
           {children}
+          <Toaster />
         </TimerProvider>
-        <Toaster />
       </body>
     </html>
   );

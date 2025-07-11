@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MessageSquare, X, MonitorPlay, Loader } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ const formatTime = (seconds: number) => {
 
 function PairingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { pairingCode: validPairingCode } = useTimer();
 
@@ -32,7 +33,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsClient(true);
   }, []);
-
+  
   const urlCode = searchParams.get('code');
   const isPaired = urlCode === validPairingCode;
 
@@ -50,9 +51,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
   const handlePair = (e: React.FormEvent) => {
     e.preventDefault();
-    if (code === validPairingCode) {
+    if (code.toUpperCase() === validPairingCode) {
         setError('');
-        router.push(`/speaker-view?code=${code}`);
+        router.push(`${pathname}?code=${code.toUpperCase()}`);
     } else {
         setError('Invalid pairing code. Please try again.');
     }
@@ -75,8 +76,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
                     <Input 
                         placeholder="Enter pairing code..."
                         value={code}
-                        onChange={(e) => setCode(e.target.value.toUpperCase())}
+                        onChange={(e) => setCode(e.target.value)}
                         className="text-center text-lg font-mono tracking-widest"
+                        autoCapitalize="characters"
                     />
                     {error && <p className="text-sm text-destructive">{error}</p>}
                     <Button type="submit" className="w-full">
@@ -192,7 +194,7 @@ function SpeakerDisplay() {
 
 export default function SpeakerViewPage() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
             <PairingGate>
                 <SpeakerDisplay />
             </PairingGate>
