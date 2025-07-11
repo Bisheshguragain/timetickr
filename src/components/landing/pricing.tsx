@@ -1,12 +1,21 @@
 
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check } from "lucide-react";
+import { Check, Loader } from "lucide-react";
+import { useState } from "react";
+import { useTimer } from "@/context/TimerContext";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { createStripeCheckoutSession } from "@/app/actions/stripe";
+
 
 const plans = [
   {
     name: "Freemium",
+    priceId: null,
     price: "£0",
     period: "Free Forever",
     description: "For individuals & small projects getting started.",
@@ -23,6 +32,7 @@ const plans = [
   },
   {
     name: "Starter",
+    priceId: "price_1RjjsqJKlah40zYD9kzCBaLp",
     price: "£7",
     period: "/month",
     description: "For small teams and regular events.",
@@ -40,6 +50,7 @@ const plans = [
   },
   {
     name: "Professional",
+    priceId: "price_1Rjjt0JKlah40zYDMo3ROCAn",
     price: "£12",
     period: "/month",
     description: "For growing businesses with multiple events.",
@@ -57,6 +68,7 @@ const plans = [
   },
   {
     name: "Enterprise",
+    priceId: "price_1RjjtcJKlah40zYDHjeNdXAV",
     price: "£29",
     period: "/month",
     description: "For large-scale operations with specific needs.",
@@ -75,6 +87,54 @@ const plans = [
 ];
 
 export function Pricing() {
+  const [loading, setLoading] = useState<string | null>(null);
+  const { currentUser } = useTimer();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleCheckout = async (plan: typeof plans[0]) => {
+    if (!plan.priceId) return;
+
+    if (!currentUser) {
+      router.push(`/login?plan=${plan.name}`);
+      return;
+    }
+    
+    setLoading(plan.name);
+
+    try {
+      const { sessionId, error: sessionError } = await createStripeCheckoutSession({ 
+          priceId: plan.priceId,
+          userId: currentUser.uid,
+          userEmail: currentUser.email!,
+       });
+
+      if (sessionError) {
+        throw new Error(sessionError);
+      }
+
+      const stripe = (await import('@/lib/stripe-client')).default;
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+
+      if (error) {
+        console.error("Stripe redirect error:", error);
+        toast({
+            variant: "destructive",
+            title: "Checkout Error",
+            description: error.message || "An unexpected error occurred. Please try again.",
+        })
+      }
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: error.message || "Could not initiate checkout. Please contact support.",
+        })
+    } finally {
+        setLoading(null);
+    }
+  }
+
   return (
     <div className="container">
       <div className="mx-auto max-w-3xl text-center">
@@ -108,9 +168,16 @@ export function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
-                <Link href={plan.href}>{plan.cta}</Link>
-              </Button>
+              {plan.priceId ? (
+                <Button onClick={() => handleCheckout(plan)} className="w-full" variant={plan.popular ? "default" : "outline"} disabled={loading === plan.name}>
+                   {loading === plan.name ? <Loader className="mr-2 animate-spin"/> : null}
+                   {plan.cta}
+                </Button>
+              ) : (
+                <Button asChild className="w-full" variant="outline">
+                    <Link href={plan.href}>{plan.cta}</Link>
+                </Button>
+              )}
             </CardFooter>
           </Card>
         ))}
