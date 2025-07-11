@@ -160,9 +160,14 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentUser(user);
       setLoadingAuth(false);
       if (user) {
-        // Here you would fetch the user's plan from your DB
-        // For now, we'll default to Freemium
-        setPlanState("Freemium");
+        // For demo purposes, set a specific user to Freemium
+        if (user.email === 'forfree@gmail.com') {
+            setPlanState("Freemium");
+        } else {
+            // In a real app, you would fetch the user's plan from your DB.
+            // For now, we'll default everyone else to a different plan for contrast.
+            setPlanState("Professional"); 
+        }
       }
     });
 
@@ -213,11 +218,17 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setInitialDuration(data.initialDuration ?? 900);
             setMessage(data.message || null);
             setThemeState(data.theme || "Classic");
-            setPlanState(data.plan || "Freemium");
             setAudienceQuestions(data.audienceQuestions || []);
             setTeamMembers(data.teamMembers || defaultTeam);
             setSpeakerDevices(data.connections?.speakers || 0);
             setParticipantDevices(data.connections?.participants || 0);
+            
+            // Set plan from DB, but allow demo user to override
+            const dbPlan = data.plan || "Freemium";
+            if(currentUser?.email !== 'forfree@gmail.com') {
+                setPlanState(dbPlan);
+            }
+
             isUpdatingFromDb.current = false;
         } else {
              // If no data in DB, initialize it
@@ -227,7 +238,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 initialDuration,
                 message: null,
                 theme,
-                plan: "Freemium",
+                plan,
                 audienceQuestions: [],
                 teamMembers: defaultTeam,
             });
@@ -237,7 +248,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
         off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, plan, theme]);
+  }, [dbRef, initialDuration, currentUser]);
   
   // Update DB on state change
   useEffect(() => {
