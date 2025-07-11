@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Loader, Send, CheckCircle, MessageSquareQuestion } from "lucide-react";
+import { Loader, Send, CheckCircle, MessageSquareQuote } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useToast } from "@/hooks/use-toast";
 
@@ -86,7 +86,7 @@ function ParticipantForm() {
         <Card className="w-full max-w-lg">
             <CardHeader className="text-center">
                 <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-                    <MessageSquareQuestion />
+                    <MessageSquareQuote />
                     Ask a Question
                 </CardTitle>
                 <CardDescription>
