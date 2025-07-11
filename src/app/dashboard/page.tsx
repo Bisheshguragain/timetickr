@@ -49,6 +49,7 @@ import {
   Users,
   ThumbsDown,
   ThumbsUp,
+  PersonStanding,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -252,7 +253,12 @@ function ThemeSelectorCard() {
 }
 
 function DeviceConnectionCard() {
-  const { connectedDevices, pairingCode } = useTimer();
+  const {
+    speakerPairingCode,
+    audiencePairingCode,
+    speakerDevices,
+    participantDevices,
+  } = useTimer();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
 
@@ -260,13 +266,13 @@ function DeviceConnectionCard() {
     setIsClient(true);
   }, []);
 
-  const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${pairingCode}` : '';
-  const participantUrl = isClient ? `${window.location.origin}/participant?code=${pairingCode}` : '';
+  const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${speakerPairingCode}` : '';
+  const participantUrl = isClient ? `${window.location.origin}/participant?code=${audiencePairingCode}` : '';
 
   const copyToClipboard = (text: string) => {
-    if(!isClient) return;
+    if (!isClient) return;
     navigator.clipboard.writeText(text);
-    toast({ title: 'Copied to clipboard!', description: text });
+    toast({ title: "Copied to clipboard!", description: text });
   };
 
   return (
@@ -282,69 +288,77 @@ function DeviceConnectionCard() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-                Speaker Pairing Code
-            </label>
-            <div className="flex items-center gap-2">
-                 <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
-                    {isClient ? pairingCode : '...'}
-                 </div>
-                 <Button variant="outline" size="icon" onClick={() => copyToClipboard(pairingCode)} disabled={!isClient}>
-                    <Copy />
-                 </Button>
+          <label className="text-sm font-medium text-muted-foreground">
+            Speaker Pairing Code
+          </label>
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
+              {isClient ? speakerPairingCode : "..."}
             </div>
-        </div>
-         <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-                Speaker View Link
-            </label>
-             <div className="flex items-center gap-2">
-                <Input
-                    value={speakerViewUrl}
-                    readOnly
-                    className="truncate"
-                    disabled={!isClient}
-                />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)} disabled={!isClient}>
-                    <Copy />
-                </Button>
-            </div>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerPairingCode)} disabled={!isClient}>
+              <Copy />
+            </Button>
+          </div>
         </div>
         <div className="space-y-2">
-            <label className="text-sm font-medium text-muted-foreground">
-                Audience Q&A Link
-            </label>
-             <div className="flex items-center gap-2">
-                <Input
-                    value={participantUrl}
-                    readOnly
-                    className="truncate"
-                    disabled={!isClient}
-                />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)} disabled={!isClient}>
-                    <Copy />
-                </Button>
-            </div>
+          <label className="text-sm font-medium text-muted-foreground">
+            Speaker View Link
+          </label>
+          <div className="flex items-center gap-2">
+            <Input
+              value={speakerViewUrl}
+              readOnly
+              className="truncate"
+              disabled={!isClient}
+            />
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)} disabled={!isClient}>
+              <Copy />
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Audience Q&A Link
+          </label>
+          <div className="flex items-center gap-2">
+            <Input
+              value={participantUrl}
+              readOnly
+              className="truncate"
+              disabled={!isClient}
+            />
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)} disabled={!isClient}>
+              <Copy />
+            </Button>
+          </div>
         </div>
         <div>
-            <p className="text-sm font-medium text-muted-foreground">
-                Connected Devices
-            </p>
-            <div className="flex items-center gap-2 pt-2">
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                    <span className="font-bold text-primary">{isClient ? connectedDevices : '-'}</span>
-                </div>
-                 <p className="text-sm text-muted-foreground">{connectedDevices === 1 ? 'Device' : 'Devices'} Online</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            Connected Devices
+          </p>
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                <span className="font-bold text-primary">{isClient ? speakerDevices : "-"}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{speakerDevices === 1 ? "Speaker" : "Speakers"} Online</p>
             </div>
+            <div className="flex items-center gap-2">
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                <span className="font-bold text-primary">{isClient ? participantDevices : "-"}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{participantDevices === 1 ? "Participant" : "Participants"} Online</p>
+            </div>
+          </div>
         </div>
       </CardContent>
       <CardFooter>
-          <Button asChild className="w-full" disabled={!isClient}>
-              <Link href={speakerViewUrl} target="_blank">
-                <MonitorPlay className="mr-2" />
-                Open New Speaker View
-              </Link>
-            </Button>
+        <Button asChild className="w-full" disabled={!isClient}>
+          <Link href={speakerViewUrl} target="_blank">
+            <MonitorPlay className="mr-2" />
+            Open New Speaker View
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
   );
@@ -477,7 +491,7 @@ function PurchaseTimersDialog({
 function AnalyticsCard() {
     const { analytics, resetAnalytics } = useTimer();
 
-    const { totalTimers, avgDuration, messagesSent, durationBrackets } = analytics;
+    const { totalTimers, avgDuration, messagesSent, durationBrackets, maxAudience, maxSpeakers } = analytics;
 
     const chartData = [
         { name: "0-5m", count: durationBrackets["0-5"] },
@@ -506,18 +520,26 @@ function AnalyticsCard() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                    <div>
-                        <p className="text-2xl font-bold">{totalTimers}</p>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className="p-4 rounded-lg bg-secondary/50">
+                        <p className="text-3xl font-bold">{totalTimers}</p>
                         <p className="text-xs text-muted-foreground">Timers Used</p>
                     </div>
-                    <div>
-                        <p className="text-2xl font-bold">{formatTime(avgDuration)}</p>
+                     <div className="p-4 rounded-lg bg-secondary/50">
+                        <p className="text-3xl font-bold">{formatTime(avgDuration)}</p>
                         <p className="text-xs text-muted-foreground">Avg. Duration</p>
                     </div>
-                    <div>
-                        <p className="text-2xl font-bold">{messagesSent}</p>
+                     <div className="p-4 rounded-lg bg-secondary/50">
+                        <p className="text-3xl font-bold">{messagesSent}</p>
                         <p className="text-xs text-muted-foreground">Messages Sent</p>
+                    </div>
+                     <div className="p-4 rounded-lg bg-secondary/50">
+                        <p className="text-3xl font-bold">{maxSpeakers}</p>
+                        <p className="text-xs text-muted-foreground">Peak Speakers</p>
+                    </div>
+                     <div className="p-4 rounded-lg bg-secondary/50 col-span-2">
+                        <p className="text-3xl font-bold">{maxAudience}</p>
+                        <p className="text-xs text-muted-foreground">Peak Audience</p>
                     </div>
                 </div>
 
@@ -730,7 +752,7 @@ export default function DashboardPage() {
     theme,
     timersUsed,
     timerLimit,
-    pairingCode,
+    speakerPairingCode,
   } = useTimer();
   
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
@@ -780,7 +802,7 @@ export default function DashboardPage() {
 
   const isAtLimit = timerLimit !== -1 && timersUsed >= timerLimit;
 
-  const speakerViewUrl = isClient ? `/speaker-view?code=${pairingCode}` : '';
+  const speakerViewUrl = isClient ? `/speaker-view?code=${speakerPairingCode}` : '';
 
 
   return (
@@ -932,3 +954,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

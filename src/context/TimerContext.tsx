@@ -35,6 +35,8 @@ interface AnalyticsData {
   totalTimers: number;
   avgDuration: number;
   messagesSent: number;
+  maxSpeakers: number;
+  maxAudience: number;
   durationBrackets: {
     "0-5": number;
     "5-15": number;
@@ -59,7 +61,8 @@ interface TimerContextProps {
   setTheme: (theme: TimerTheme) => void;
   plan: SubscriptionPlan;
   setPlan: (plan: SubscriptionPlan) => void;
-  connectedDevices: number;
+  speakerDevices: number;
+  participantDevices: number;
   timersUsed: number;
   timerLimit: number;
   consumeTimerCredit: () => void;
@@ -67,7 +70,8 @@ interface TimerContextProps {
   addTimers: (quantity: number) => void;
   analytics: AnalyticsData;
   resetAnalytics: () => void;
-  pairingCode: string;
+  speakerPairingCode: string;
+  audiencePairingCode: string;
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
   dismissAudienceQuestion: (id: number) => void;
@@ -81,12 +85,25 @@ const initialAnalytics: AnalyticsData = {
     totalTimers: 0,
     avgDuration: 0,
     messagesSent: 0,
+    maxSpeakers: 0,
+    maxAudience: 0,
     durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
 };
 
 const generatePairingCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
+
+const getOrCreateCode = (key: string) => {
+    if (typeof window === 'undefined') return '';
+    let code = localStorage.getItem(key);
+    if (!code) {
+        code = generatePairingCode();
+        localStorage.setItem(key, code);
+    }
+    return code;
+}
+
 
 export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
@@ -95,22 +112,16 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [message, setMessage] = useState<Message | null>(null);
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
   const [plan, setPlanState] = useState<SubscriptionPlan>("Professional");
-  const [connectedDevices, setConnectedDevices] = useState(0);
+  const [speakerDevices, setSpeakerDevices] = useState(0);
+  const [participantDevices, setParticipantDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
   const isFinished = time === 0;
 
-  const pairingCode = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    let code = localStorage.getItem('pairingCode');
-    if (!code) {
-        code = generatePairingCode();
-        localStorage.setItem('pairingCode', code);
-    }
-    return code;
-  }, []);
+  const speakerPairingCode = useMemo(() => getOrCreateCode('speakerPairingCode'), []);
+  const audiencePairingCode = useMemo(() => getOrCreateCode('audiencePairingCode'), []);
 
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
@@ -119,7 +130,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const clientId = useRef<string | null>(null);
   const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const connectedClients = useRef(new Set<string>());
+  const connectedClients = useRef(new Map<string, string>());
+  const clientRole = useRef<'speaker' | 'participant' | 'admin'>('admin');
+
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -206,19 +219,29 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        // Only initialize client and channel if pairing code is valid
-        if(!code || code !== pairingCode) {
-             if (window.location.pathname.includes('/speaker-view') || window.location.pathname.includes('/participant')) {
-                return;
-             }
+        let code: string | null = null;
+        let isValid = false;
+
+        if (window.location.pathname.includes('/speaker-view')) {
+            code = urlParams.get('code');
+            clientRole.current = 'speaker';
+            isValid = code === speakerPairingCode;
+        } else if (window.location.pathname.includes('/participant')) {
+            code = urlParams.get('code');
+            clientRole.current = 'participant';
+            isValid = code === audiencePairingCode;
+        } else {
+            clientRole.current = 'admin';
+            isValid = true;
         }
+        
+        if (!isValid) return;
 
         clientId.current = Math.random().toString(36).substring(7);
         channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
     
         const handleMessage = (event: MessageEvent) => {
-          const { type, payload, senderId } = event.data;
+          const { type, payload, senderId, role } = event.data;
           
           if(senderId === clientId.current) return;
 
@@ -268,14 +291,13 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 setPlanState(payload.plan);
                 break;
             case "PING":
-                channelRef.current?.postMessage({ type: "PONG", senderId: clientId.current });
+                channelRef.current?.postMessage({ type: "PONG", senderId: clientId.current, role: clientRole.current });
                 break;
             case "PONG":
-                connectedClients.current.add(senderId);
-                setConnectedDevices(connectedClients.current.size);
+                connectedClients.current.set(senderId, role);
                 break;
             case "REQUEST_STATE":
-                if (clientId.current) { 
+                if (clientId.current && clientRole.current === 'admin') { 
                     channelRef.current?.postMessage({
                         type: 'SET_STATE',
                         payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
@@ -289,16 +311,38 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         channelRef.current.addEventListener("message", handleMessage);
         channelRef.current.postMessage({ type: "REQUEST_STATE", senderId: clientId.current });
         
+        const updateDeviceCounts = () => {
+            let speakers = 0;
+            let participants = 0;
+            connectedClients.current.forEach((role) => {
+                if (role === 'speaker') speakers++;
+                else if (role === 'participant') participants++;
+            });
+            setSpeakerDevices(speakers);
+            setParticipantDevices(participants);
+
+            // Update peak analytics
+            if (speakers > analytics.maxSpeakers || participants > analytics.maxAudience) {
+                const newAnalytics = {
+                    ...analytics,
+                    maxSpeakers: Math.max(analytics.maxSpeakers, speakers),
+                    maxAudience: Math.max(analytics.maxAudience, participants),
+                };
+                setAnalytics(newAnalytics);
+                setInStorage('timerAnalytics', newAnalytics);
+            }
+        };
+
         const ping = () => {
             connectedClients.current.clear();
-            if(clientId.current) connectedClients.current.add(clientId.current); 
-            setConnectedDevices(connectedClients.current.size);
-            channelRef.current?.postMessage({ type: "PING", senderId: clientId.current });
+            if(clientId.current) connectedClients.current.set(clientId.current, clientRole.current);
+            
+            channelRef.current?.postMessage({ type: "PING", senderId: clientId.current, role: clientRole.current });
             
             if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
             pingTimeoutRef.current = setTimeout(() => {
-                setConnectedDevices(connectedClients.current.size);
-            }, 500);
+                updateDeviceCounts();
+            }, 500); 
         };
         
         ping(); 
@@ -311,7 +355,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
           if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
         };
     }
-  }, [time, isActive, initialDuration, message, theme, plan, pairingCode, audienceQuestions]);
+  }, [time, isActive, initialDuration, message, theme, plan, speakerPairingCode, audiencePairingCode, audienceQuestions, analytics]);
 
 
   const broadcastAction = useCallback((action: any) => {
@@ -334,10 +378,12 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Effect to broadcast state changes
   useEffect(() => {
-    broadcastAction({
-      type: "SET_STATE",
-      payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
-    });
+    if (clientRole.current === 'admin') {
+      broadcastAction({
+        type: "SET_STATE",
+        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
+      });
+    }
   }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, broadcastAction]);
 
 
@@ -420,7 +466,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setTheme,
     plan,
     setPlan,
-    connectedDevices,
+    speakerDevices,
+    participantDevices,
     timersUsed,
     timerLimit,
     consumeTimerCredit,
@@ -428,7 +475,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     addTimers,
     analytics,
     resetAnalytics,
-    pairingCode,
+    speakerPairingCode,
+    audiencePairingCode,
     audienceQuestions,
     submitAudienceQuestion,
     dismissAudienceQuestion,
@@ -446,3 +494,5 @@ export const useTimer = () => {
   }
   return context;
 };
+
+    

@@ -24,7 +24,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { pairingCode: validPairingCode } = useTimer();
+  const { speakerPairingCode: validPairingCode } = useTimer();
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -201,3 +201,5 @@ export default function SpeakerViewPage() {
         </Suspense>
     )
 }
+
+    

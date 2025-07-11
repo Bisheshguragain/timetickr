@@ -13,7 +13,7 @@ import { Logo } from "@/components/landing/logo";
 import { useToast } from "@/hooks/use-toast";
 
 function ParticipantForm() {
-    const { pairingCode: validPairingCode, plan, submitAudienceQuestion } = useTimer();
+    const { audiencePairingCode: validPairingCode, plan, submitAudienceQuestion } = useTimer();
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const code = searchParams.get('code');
@@ -134,3 +134,5 @@ export default function ParticipantPage() {
         </Suspense>
     );
 }
+
+    
