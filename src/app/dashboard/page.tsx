@@ -77,7 +77,7 @@ import {
   KeyRound,
   ShieldCheck,
 } from "lucide-react";
-import { useTimer, TimerTheme, AudienceQuestion, TeamMember } from "@/context/TimerContext";
+import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -418,7 +418,7 @@ function DeviceConnectionCard() {
 function CurrentPlanCard() {
   const { plan, timersUsed, timerLimit, resetUsage } = useTimer();
 
-  const planDetails = {
+  const planDetails: Record<SubscriptionPlan, { name: string; description: string }> = {
     Freemium: { name: "Freemium", description: "Get started with our basic features." },
     Starter: { name: "Starter", description: "Unlock more features for small teams." },
     Professional: { name: "Professional", description: "Power features for growing businesses." },
@@ -426,7 +426,7 @@ function CurrentPlanCard() {
   };
 
   const currentPlanDetails = planDetails[plan];
-  const usagePercentage = timerLimit > 0 ? (timersUsed / timerLimit) * 100 : 100;
+  const usagePercentage = timerLimit > 0 ? (timersUsed / timerLimit) * 100 : (plan === 'Enterprise' ? 0 : 100);
 
   return (
     <Card>

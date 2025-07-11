@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,7 +31,7 @@ const plans = [
       "Remote Timer Control",
       "Live Messaging",
       "Up to 3 team members",
-      "TimeTickR Branding",
+      "Basic analytics",
       "All core features",
     ],
     cta: "Start Free Trial",
@@ -47,7 +48,7 @@ const plans = [
       "Everything in Starter",
       "Unlimited team members",
       "AI-Powered Moderation",
-      "TimeTickR Branding",
+      "Advanced role management",
       "Event analytics & export",
       "Priority support",
     ],

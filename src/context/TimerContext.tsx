@@ -163,6 +163,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setPlanState("Professional");
           } else if (user.email.startsWith('starter')) {
             setPlanState("Starter");
+          } else if (user.email.startsWith('enterprise')) {
+            setPlanState("Enterprise");
           } else {
              setPlanState("Freemium");
           }
