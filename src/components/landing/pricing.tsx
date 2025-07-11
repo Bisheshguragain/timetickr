@@ -34,7 +34,7 @@ const plans = [
       "Basic analytics",
       "All core features",
     ],
-    cta: "Start Free Trial",
+    cta: "Upgrade",
     href: "/login?plan=Starter",
     popular: true,
   },
@@ -52,7 +52,7 @@ const plans = [
       "Event analytics & export",
       "Priority support",
     ],
-    cta: "Start Free Trial",
+    cta: "Upgrade",
     href: "/login?plan=Professional",
   },
   {
