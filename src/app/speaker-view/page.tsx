@@ -5,7 +5,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote, Info } from "lucide-react";
+import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote, Info, Bot } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,9 +97,19 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
 
 function SpeakerDisplay() {
-  const { time, isFinished, message, dismissMessage, theme, plan } = useTimer();
+  const timerContext = useTimer();
   const searchParams = useSearchParams();
   const isDemoMode = searchParams.get('code') === null;
+  
+  // Local state for demo mode messages
+  const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
+
+  // Use context message if not in demo mode, otherwise use local demo message
+  const message = isDemoMode ? demoMessage : timerContext.message;
+  const dismissMessage = isDemoMode ? () => setDemoMessage(null) : timerContext.dismissMessage;
+  
+  const { time, isFinished, theme, plan } = timerContext;
+
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -156,6 +166,15 @@ function SpeakerDisplay() {
   const currentTheme = themeClasses[theme] || themeClasses.Classic;
   const isQuestion = message?.text.startsWith("Q:");
 
+  const triggerDemoMessage = () => {
+    setDemoMessage({id: Date.now(), text: "You have 5 minutes remaining."});
+  }
+
+  const triggerDemoQuestion = () => {
+    setDemoMessage({id: Date.now(), text: "Q: Can you elaborate on the key findings from your research?"});
+  }
+
+
   return (
     <div
       className={cn(
@@ -185,13 +204,24 @@ function SpeakerDisplay() {
       )}
 
       {isDemoMode && (
-          <div className="absolute top-4 left-5 z-20">
+          <div className="absolute top-4 left-5 z-20 space-y-2">
             <Alert variant="default" className={cn("shadow-md text-xs p-2", currentTheme.alert)}>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
                     Demo mode. Not connected to an admin panel.
                 </AlertDescription>
             </Alert>
+            <Card className={cn("p-2", currentTheme.alert)}>
+                <CardHeader className="p-1 pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm">
+                        <Bot className="h-4 w-4"/> Demo Controls
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 flex flex-col items-start gap-2">
+                    <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoMessage}>Trigger Admin Message</Button>
+                    <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoQuestion}>Trigger Audience Q&A</Button>
+                </CardContent>
+            </Card>
           </div>
       )}
 
