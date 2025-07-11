@@ -158,15 +158,17 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       setLoadingAuth(false);
       if (user) {
         // For demo purposes, assign plans based on email
-        if (user.email === 'forfree@gmail.com') {
-            setPlanState("Freemium");
-        } else if (user.email === 'starter@gmail.com') {
+        if (user.email?.endsWith('@gmail.com')) {
+          if (user.email.startsWith('pro')) {
+            setPlanState("Professional");
+          } else if (user.email.startsWith('starter')) {
             setPlanState("Starter");
+          } else {
+             setPlanState("Freemium");
+          }
         }
         else {
-            // In a real app, you would fetch the user's plan from your DB.
-            // For now, we'll default everyone else to a different plan for contrast.
-            setPlanState("Professional"); 
+            setPlanState("Freemium"); 
         }
         const userAsTeamMember: TeamMember = {
             name: "You",
@@ -249,8 +251,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Set plan from DB, but allow demo user to override
             const dbPlan = data.plan || "Freemium";
-            if(currentUser?.email !== 'forfree@gmail.com' && currentUser?.email !== 'starter@gmail.com') {
-                setPlanState(dbPlan);
+            if (currentUser && !currentUser.email?.endsWith('@gmail.com')) {
+               setPlanState(dbPlan);
             }
 
             isUpdatingFromDb.current = false;

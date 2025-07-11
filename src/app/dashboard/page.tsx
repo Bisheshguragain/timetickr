@@ -75,6 +75,7 @@ import {
   LogOut,
   UserCircle,
   KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -101,12 +102,13 @@ const formatTime = (seconds: number) => {
 };
 
 function LiveMessagingCard() {
-    const { sendMessage, analytics } = useTimer();
+    const { sendMessage, plan } = useTimer();
     const { toast } = useToast();
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
+    const canUseAi = plan === 'Professional' || plan === 'Enterprise';
 
     const presetMessages = [
         "5 minutes remaining",
@@ -135,16 +137,21 @@ function LiveMessagingCard() {
         setIsLoading(true);
         setLoadingMessage(messageToSend);
         try {
-            const moderationResult = await moderateMessage({ message: messageToSend });
-            if (moderationResult.isSafe) {
+            if(canUseAi) {
+                const moderationResult = await moderateMessage({ message: messageToSend });
+                if (moderationResult.isSafe) {
+                    sendMessage(messageToSend);
+                    setMessage("");
+                } else {
+                    toast({
+                        variant: "destructive",
+                        title: "Message Blocked",
+                        description: `Reason: ${moderationResult.reason}`,
+                    });
+                }
+            } else {
                 sendMessage(messageToSend);
                 setMessage("");
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Message Blocked",
-                    description: `Reason: ${moderationResult.reason}`,
-                });
             }
         } catch (error) {
             console.error("Error moderating message:", error);
@@ -167,7 +174,16 @@ function LiveMessagingCard() {
                     Live Messaging
                 </CardTitle>
                 <CardDescription>
-                    Send messages directly to the speaker's display. Messages are moderated by AI.
+                    Send messages directly to the speaker's display.
+                    {canUseAi ? (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                            <ShieldCheck className="text-green-500" /> AI Moderation is active.
+                        </span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground mt-1">
+                            <Link href="/#pricing" className="underline font-medium">Upgrade to Professional</Link> to enable AI moderation.
+                        </span>
+                    )}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -548,10 +564,13 @@ function AnalyticsCard() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <BarChartHorizontal />
-                    Basic Analytics
+                    {isProOrEnterprise ? "Advanced Analytics" : "Basic Analytics"}
                 </CardTitle>
                 <CardDescription>
-                    Summary of timer and message usage for this event.
+                    {isProOrEnterprise
+                        ? "In-depth summary of timer usage and event engagement."
+                        : "Summary of timer and message usage for this event."
+                    }
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -601,10 +620,14 @@ function AnalyticsCard() {
                       </BarChart>
                     </ChartContainer>
                 </div>
-                 {isProOrEnterprise && (
+                 {isProOrEnterprise ? (
                     <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
                         <RefreshCcw className="mr-2" /> Reset analytics
                     </Button>
+                 ) : (
+                    <p className="text-xs text-muted-foreground text-center">
+                        <Link href="/#pricing" className="underline font-medium">Upgrade to Professional</Link> for detailed reporting and data export.
+                    </p>
                  )}
             </CardContent>
         </Card>
@@ -723,26 +746,32 @@ function SmartAlertsCard() {
 }
 
 function AudienceQuestionsCard() {
-    const { audienceQuestions, dismissAudienceQuestion, sendMessage } = useTimer();
+    const { audienceQuestions, dismissAudienceQuestion, sendMessage, plan } = useTimer();
     const { toast } = useToast();
     const [approving, setApproving] = useState<number | null>(null);
+    const canUseAi = plan === 'Professional' || plan === 'Enterprise';
 
     const handleApprove = async (question: AudienceQuestion) => {
         setApproving(question.id);
         try {
-            const moderationResult = await moderateMessage({ message: question.text });
-            if (moderationResult.isSafe) {
+             if (canUseAi) {
+                const moderationResult = await moderateMessage({ message: question.text });
+                if (moderationResult.isSafe) {
+                    sendMessage(`Q: ${question.text}`);
+                    dismissAudienceQuestion(question.id);
+                } else {
+                    toast({
+                        variant: "destructive",
+                        title: "Question Blocked",
+                        description: `Reason: ${moderationResult.reason}`,
+                    });
+                     // Dismiss the blocked question from the queue
+                    dismissAudienceQuestion(question.id);
+                }
+             } else {
                 sendMessage(`Q: ${question.text}`);
                 dismissAudienceQuestion(question.id);
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Question Blocked",
-                    description: `Reason: ${moderationResult.reason}`,
-                });
-                 // Dismiss the blocked question from the queue
-                dismissAudienceQuestion(question.id);
-            }
+             }
         } catch (error) {
             console.error("Error moderating question:", error);
             toast({
@@ -763,7 +792,16 @@ function AudienceQuestionsCard() {
                     Audience Questions
                 </CardTitle>
                 <CardDescription>
-                    Review and approve questions from the audience before sending them to the speaker.
+                    Review and approve questions from the audience.
+                      {canUseAi ? (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                            <ShieldCheck className="text-green-500" /> AI Moderation is active.
+                        </span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground mt-1">
+                            <Link href="/#pricing" className="underline font-medium">Upgrade to Professional</Link> to enable AI moderation.
+                        </span>
+                    )}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -784,7 +822,7 @@ function AudienceQuestionsCard() {
                                     </Button>
                                     <Button size="sm" onClick={() => handleApprove(q)} disabled={approving === q.id}>
                                         {approving === q.id ? <Loader className="mr-2 animate-spin" /> : <ThumbsUp className="mr-2" />}
-                                        Approve &amp; Send
+                                        Approve & Send
                                     </Button>
                                 </div>
                             </div>
@@ -808,7 +846,7 @@ function TeamManagementCard() {
     
     // Freemium: 1 Admin + unlimited Speaker/Viewer
     // Starter: 3 members total
-    const memberLimit = isStarter ? 3 : -1; // -1 for unlimited (for Pro/Enterprise)
+    const memberLimit = isStarter ? 3 : -1; // -1 for unlimited (for Pro/Enterprise/Freemium)
     const canInvite = (memberLimit === -1) || (teamMembers.length < memberLimit);
 
     const handleInvite = (e: React.FormEvent) => {
@@ -1341,5 +1379,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
