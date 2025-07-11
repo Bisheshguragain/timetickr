@@ -264,6 +264,7 @@ function DeviceConnectionCard() {
   const participantUrl = isClient ? `${window.location.origin}/participant?code=${pairingCode}` : '';
 
   const copyToClipboard = (text: string) => {
+    if(!isClient) return;
     navigator.clipboard.writeText(text);
     toast({ title: 'Copied to clipboard!', description: text });
   };
@@ -286,9 +287,9 @@ function DeviceConnectionCard() {
             </label>
             <div className="flex items-center gap-2">
                  <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
-                    {pairingCode}
+                    {isClient ? pairingCode : '...'}
                  </div>
-                 <Button variant="outline" size="icon" onClick={() => copyToClipboard(pairingCode)}>
+                 <Button variant="outline" size="icon" onClick={() => copyToClipboard(pairingCode)} disabled={!isClient}>
                     <Copy />
                  </Button>
             </div>
@@ -302,8 +303,9 @@ function DeviceConnectionCard() {
                     value={speakerViewUrl}
                     readOnly
                     className="truncate"
+                    disabled={!isClient}
                 />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)}>
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)} disabled={!isClient}>
                     <Copy />
                 </Button>
             </div>
@@ -317,8 +319,9 @@ function DeviceConnectionCard() {
                     value={participantUrl}
                     readOnly
                     className="truncate"
+                    disabled={!isClient}
                 />
-                <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)}>
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)} disabled={!isClient}>
                     <Copy />
                 </Button>
             </div>
@@ -329,15 +332,15 @@ function DeviceConnectionCard() {
             </p>
             <div className="flex items-center gap-2 pt-2">
                 <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                    <span className="font-bold text-primary">{connectedDevices}</span>
+                    <span className="font-bold text-primary">{isClient ? connectedDevices : '-'}</span>
                 </div>
                  <p className="text-sm text-muted-foreground">{connectedDevices === 1 ? 'Device' : 'Devices'} Online</p>
             </div>
         </div>
       </CardContent>
       <CardFooter>
-          <Button asChild className="w-full">
-              <Link href={`/speaker-view?code=${pairingCode}`} target="_blank">
+          <Button asChild className="w-full" disabled={!isClient}>
+              <Link href={speakerViewUrl} target="_blank">
                 <MonitorPlay className="mr-2" />
                 Open New Speaker View
               </Link>
@@ -731,7 +734,12 @@ export default function DashboardPage() {
   } = useTimer();
   
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleToggleTimer = () => {
     if(!isActive) { // Only when starting
@@ -772,6 +780,8 @@ export default function DashboardPage() {
 
   const isAtLimit = timerLimit !== -1 && timersUsed >= timerLimit;
 
+  const speakerViewUrl = isClient ? `/speaker-view?code=${pairingCode}` : '';
+
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -780,8 +790,8 @@ export default function DashboardPage() {
         <div className="container mx-auto">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
-            <Button asChild variant="outline">
-              <Link href={`/speaker-view?code=${pairingCode}`} target="_blank">
+            <Button asChild variant="outline" disabled={!isClient}>
+              <Link href={speakerViewUrl} target="_blank">
                 <MonitorPlay className="mr-2" />
                 Open Speaker View
               </Link>
