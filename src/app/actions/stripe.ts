@@ -10,56 +10,48 @@ interface CreateCheckoutSessionArgs {
 }
 
 /**
- * Creates a Stripe Checkout session.
+ * Creates a Stripe Checkout session by calling a secure backend API route.
  * 
- * IMPORTANT: This is a placeholder for demonstration purposes. In a real application,
- * this function would securely create a checkout session on your backend using your
- * Stripe secret key.
+ * IMPORTANT: This function is now a CLIENT-SIDE action that calls your backend.
+ * The actual Stripe API call with your secret key must happen on the server.
  * 
  * To make this work:
- * 1. Create a backend endpoint (e.g., a Firebase Cloud Function or a Next.js API route).
- * 2. In that endpoint, use the Stripe Node.js library with your SECRET KEY to create a session.
- *    - The secret key should be stored as an environment variable (e.g., process.env.STRIPE_SECRET_KEY)
- *    - DO NOT expose your secret key on the client-side.
- * 3. Replace the placeholder logic below with a fetch call to your backend endpoint.
- * 4. Your backend logic should look something like this:
- * 
- *    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
- *    const session = await stripe.checkout.sessions.create({
- *      payment_method_types: ['card'],
- *      line_items: [{
- *          price: priceId,
- *          quantity: quantity || 1,
- *      }],
- *      mode: mode || 'subscription',
- *      success_url: `${YOUR_DOMAIN}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
- *      cancel_url: `${YOUR_DOMAIN}/`,
- *      customer_email: userEmail,
- *      client_reference_id: userId, // Links the session to your user
- *    });
- *    return { sessionId: session.id };
- * 
+ * 1. Create a Next.js API route (e.g., at `src/app/api/create-checkout-session/route.ts`).
+ * 2. In that API route, use the Stripe Node.js library with your SECRET KEY to create a session.
+ * 3. The secret key must be stored as an environment variable (e.g., process.env.STRIPE_SECRET_KEY).
+ * 4. This function will now call that API route.
  * 5. You will also need to set up a Stripe webhook to listen for `checkout.session.completed`
- *    events. This webhook will update your Firebase database with the user's new plan
- *    or add credits to their account.
+ *    events. This webhook will update your Firebase database (using the Firebase Admin SDK) 
+ *    with the user's new plan or add credits to their account.
  */
 export async function createStripeCheckoutSession(
     args: CreateCheckoutSessionArgs
 ): Promise<{ sessionId?: string; error?: string; }> {
 
-    console.log(`Creating checkout session for user ${args.userId} (${args.userEmail}) with price ${args.priceId}`);
+    console.log(`Requesting checkout session for user ${args.userId} with price ${args.priceId}`);
 
-    // ---
-    // --- THIS IS A PLACEHOLDER ---
-    // --- Replace this with a secure backend call to create a real Stripe session.
-    // ---
-    
-    // Simulating an error to prevent accidental execution without a backend.
-    const errorMessage = "Stripe backend not implemented. See comments in src/app/actions/stripe.ts for instructions.";
-    console.error(errorMessage);
+    try {
+        // In a real app, you'd get the base URL from the environment
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9002';
+        
+        const response = await fetch(`${apiBaseUrl}/api/create-checkout-session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(args),
+        });
 
-    return { error: errorMessage };
-    
-    // Example of what the return should look like from your real backend call:
-    // return { sessionId: "cs_test_..." };
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(errorBody.error || 'Failed to create checkout session');
+        }
+
+        const { sessionId } = await response.json();
+        return { sessionId };
+
+    } catch (error: any) {
+        console.error("Error creating Stripe checkout session:", error);
+        return { error: error.message };
+    }
 }
