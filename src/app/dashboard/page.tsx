@@ -50,6 +50,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   PersonStanding,
+  ExternalLink,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
@@ -331,6 +332,12 @@ function DeviceConnectionCard() {
               <Copy />
             </Button>
           </div>
+          <Button asChild variant="secondary" className="w-full" disabled={!isClient}>
+              <Link href={participantUrl} target="_blank">
+                <ExternalLink className="mr-2" />
+                Open Q&A Page
+              </Link>
+          </Button>
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">
@@ -723,7 +730,7 @@ function AudienceQuestionsCard() {
                             <div key={q.id} className="p-3 rounded-lg border bg-secondary/30 space-y-3">
                                 <p className="text-sm">{q.text}</p>
                                 <div className="flex justify-end gap-2">
-                                    <Button size="sm" variant="outline" onClick={() => dismissAudienceQuestion(q.id)} disabled={approving === q.id}>
+                                    <Button size="sm" variant="outline" onClick={()={() => dismissAudienceQuestion(q.id))} disabled={approving === q.id}>
                                         <ThumbsDown className="mr-2" />
                                         Dismiss
                                     </Button>
@@ -956,3 +963,4 @@ export default function DashboardPage() {
 }
 
     
+
