@@ -80,6 +80,8 @@ import {
   Upload,
   Trash2,
   FileDown,
+  Sparkles,
+  ClipboardCopy,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -97,6 +99,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { auth } from "@/lib/firebase";
 import { updatePassword } from "firebase/auth";
 import Image from "next/image";
+import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -1244,6 +1247,104 @@ function CustomBrandingCard() {
     )
 }
 
+function SpeechwriterCard() {
+  const { toast } = useToast();
+  const [topic, setTopic] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<GenerateSpeechOutput | null>(null);
+
+  const handleGenerate = async () => {
+    if (!topic.trim()) {
+      toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please enter a topic for your presentation.' });
+      return;
+    }
+    setIsLoading(true);
+    setResult(null);
+    try {
+      const speechResult = await generateSpeech({ topic });
+      setResult(speechResult);
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Could not generate content. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied to clipboard!", description: `${fieldName} has been copied.` });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles />
+          AI Speechwriter Assistant
+        </CardTitle>
+        <CardDescription>
+          Get a head start on your presentation. Enter a topic and let our AI create a title, outline, and opening statement.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <label htmlFor="speech-topic" className="mb-2 block text-sm font-medium text-muted-foreground">
+            Presentation Topic
+          </label>
+          <Textarea
+            id="speech-topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="e.g., The future of renewable energy"
+            rows={2}
+          />
+        </div>
+        <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
+          {isLoading ? <Loader className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
+          Generate Content
+        </Button>
+        {result && (
+          <div className="space-y-6 pt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <h4 className="font-semibold text-muted-foreground">Generated Title</h4>
+                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.title, 'Title')}>
+                    <ClipboardCopy />
+                </Button>
+              </div>
+              <p className="p-3 rounded-md bg-secondary text-lg font-bold">{result.title}</p>
+            </div>
+            <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                    <h4 className="font-semibold text-muted-foreground">Opening Statement</h4>
+                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.openingStatement, 'Opening Statement')}>
+                        <ClipboardCopy />
+                    </Button>
+                </div>
+              <p className="p-3 rounded-md bg-secondary italic">"{result.openingStatement}"</p>
+            </div>
+            <div className="space-y-2">
+               <div className="flex justify-between items-center">
+                    <h4 className="font-semibold text-muted-foreground">Presentation Outline</h4>
+                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.outline.join('\n'), 'Outline')}>
+                        <ClipboardCopy />
+                    </Button>
+                </div>
+              <ul className="space-y-2 p-3 rounded-md bg-secondary list-disc list-inside">
+                {result.outline.map((point, index) => (
+                  <li key={index}>{point}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
 export default function DashboardPage() {
   const {
     time,
@@ -1263,6 +1364,7 @@ export default function DashboardPage() {
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const { toast } = useToast();
+  const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
 
   useEffect(() => {
     if (!loadingAuth && !currentUser) {
@@ -1408,6 +1510,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
+                {isProOrEnterprise && <SpeechwriterCard />}
                 <LiveMessagingCard />
                 <AudienceQuestionsCard />
                 <TeamManagementCard />
