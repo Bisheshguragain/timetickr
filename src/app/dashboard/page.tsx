@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -790,7 +789,7 @@ function AudienceQuestionsCard() {
 }
 
 function TeamManagementCard() {
-    const { teamMembers, inviteTeamMember, updateMemberStatus } = useTimer();
+    const { teamMembers, inviteTeamMember, updateMemberStatus, plan } = useTimer();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
 
@@ -815,6 +814,8 @@ function TeamManagementCard() {
             description: `A new invitation has been sent to ${email}.`
         });
     }
+
+    const isFreemium = plan === 'Freemium';
 
     return (
         <Card>
@@ -849,7 +850,7 @@ function TeamManagementCard() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <label htmlFor="role" className="text-right">Role</label>
-                                <Select name="role" defaultValue="Speaker">
+                                <Select name="role" defaultValue="Speaker" disabled={isFreemium}>
                                     <SelectTrigger className="col-span-3">
                                         <SelectValue placeholder="Select a role" />
                                     </SelectTrigger>
@@ -860,6 +861,13 @@ function TeamManagementCard() {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {isFreemium && (
+                                <Alert variant="default" className="col-span-4 bg-amber-500/10 border-amber-500/50">
+                                    <AlertDescription>
+                                        Your current plan only allows inviting members with the 'Speaker' role. <Link href="/#pricing" className="font-bold underline">Upgrade</Link> to unlock more roles.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                         </div>
                         </form>
                         <DialogFooter>

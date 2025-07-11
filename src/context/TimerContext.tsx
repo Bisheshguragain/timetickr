@@ -328,7 +328,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const toggleTimer = () => {
     if (!isActive) {
-        consumeTimerCredit();
+      if (timerLimit !== -1 && timersUsed >= timerLimit) {
+        return; 
+      }
+      consumeTimerCredit();
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive); // Update local state immediately for responsiveness
