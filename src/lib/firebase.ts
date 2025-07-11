@@ -4,15 +4,25 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 
-// TODO: Add your own Firebase configuration from your project's settings
+// =================================================================================
+// TODO: PASTE YOUR FIREBASE CONFIGURATION HERE
+// =================================================================================
+// You can get this from the Firebase console:
+// 1. Go to your project's settings.
+// 2. In the "General" tab, scroll down to "Your apps".
+// 3. Select the web app and copy the config object.
+//
+// The auth/api-key-not-valid error occurs because these values are placeholders.
+// You MUST replace them with your actual project credentials to fix the error.
+// =================================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyCXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   authDomain: "your-project-id.firebaseapp.com",
   databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
   projectId: "your-project-id",
   storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:a1b2c3d4e5f6g7h8i9j0"
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:0000000000000000000000"
 };
 
 // Initialize Firebase
