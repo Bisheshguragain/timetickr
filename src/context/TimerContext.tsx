@@ -177,10 +177,6 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setExtraTimers(extra);
     const savedAnalytics = getFromStorage('timerAnalytics', initialAnalytics);
     setAnalytics(savedAnalytics);
-    const savedQuestions = getFromStorage('audienceQuestions', []);
-    setAudienceQuestions(savedQuestions);
-    const savedTeam = getFromStorage('teamMembers', defaultTeam);
-    setTeamMembers(savedTeam);
   }, []);
 
   // Firebase listener
@@ -189,23 +185,36 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         const data = snapshot.val();
         if (data) {
             isUpdatingFromDb.current = true;
-            setTime(data.time);
-            setIsActive(data.isActive);
-            setInitialDuration(data.initialDuration);
+            setTime(data.time ?? initialDuration);
+            setIsActive(data.isActive ?? false);
+            setInitialDuration(data.initialDuration ?? 900);
             setMessage(data.message || null);
             setThemeState(data.theme || "Classic");
             setPlanState(data.plan || "Professional");
             setAudienceQuestions(data.audienceQuestions || []);
+            setTeamMembers(data.teamMembers || defaultTeam);
             setSpeakerDevices(data.connections?.speakers || 0);
             setParticipantDevices(data.connections?.participants || 0);
             isUpdatingFromDb.current = false;
+        } else {
+             // If no data in DB, initialize it
+            set(dbRef, {
+                time: initialDuration,
+                isActive: false,
+                initialDuration,
+                message: null,
+                theme,
+                plan,
+                audienceQuestions: [],
+                teamMembers: defaultTeam,
+            });
         }
     });
 
     return () => {
         off(dbRef, 'value', listener);
     };
-  }, [dbRef]);
+  }, [dbRef, initialDuration, plan, theme]);
   
   // Update DB on state change
   useEffect(() => {
@@ -222,8 +231,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         theme,
         plan,
         audienceQuestions,
+        teamMembers,
     });
-  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, dbRef]);
+  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers, dbRef]);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
@@ -300,15 +310,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const resetTimer = () => {
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(db, `sessions/${sessionCode}`), {
-        time: initialDuration,
-        isActive: false,
-        initialDuration,
-        message: null,
-        theme,
-        plan,
-        audienceQuestions
-    });
+    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(db, `sessions/${sessionCode}/isActive`), false);
   };
 
   const setDuration = (duration: number) => {
@@ -370,16 +373,16 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       avatar: `https://placehold.co/40x40.png`,
     };
     const newTeam = [...teamMembers, newMember];
-    setTeamMembers(newTeam);
-    setInStorage('teamMembers', newTeam);
+    setTeamMembers(newTeam); // Optimistic update
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
     const newTeam = teamMembers.map(member => 
       member.email === email ? { ...member, status } : member
     );
-    setTeamMembers(newTeam);
-    setInStorage('teamMembers', newTeam);
+    setTeamMembers(newTeam); // Optimistic update
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {
