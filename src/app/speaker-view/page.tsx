@@ -102,6 +102,12 @@ function SpeakerDisplay() {
     };
   }, []);
 
+  useEffect(() => {
+    if (message) {
+      console.log("New message received by speaker:", message);
+    }
+  }, [message]);
+
   const themeClasses = {
     Classic: {
       bg: "bg-gray-900 text-white",
@@ -180,7 +186,7 @@ function SpeakerDisplay() {
                 {isQuestion ? "Audience Question" : "Message from Admin"}
              </AlertTitle>
              <AlertDescription className="text-lg">
-                {isQuestion ? message.text.substring(3) : message.text}
+                {isQuestion ? message.text.substring(2) : message.text}
              </AlertDescription>
              <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
