@@ -332,7 +332,7 @@ function DeviceConnectionCard() {
               <Copy />
             </Button>
           </div>
-          <Button asChild variant="secondary" className="w-full" disabled={!isClient}>
+          <Button asChild variant="secondary" className="w-full mt-2" disabled={!isClient}>
               <Link href={participantUrl} target="_blank">
                 <ExternalLink className="mr-2" />
                 Open Q&A Page
@@ -730,7 +730,7 @@ function AudienceQuestionsCard() {
                             <div key={q.id} className="p-3 rounded-lg border bg-secondary/30 space-y-3">
                                 <p className="text-sm">{q.text}</p>
                                 <div className="flex justify-end gap-2">
-                                    <Button size="sm" variant="outline" onClick={()={() => dismissAudienceQuestion(q.id))} disabled={approving === q.id}>
+                                    <Button size="sm" variant="outline" onClick={() => dismissAudienceQuestion(q.id)} disabled={approving === q.id}>
                                         <ThumbsDown className="mr-2" />
                                         Dismiss
                                     </Button>
@@ -759,16 +759,10 @@ export default function DashboardPage() {
     theme,
     timersUsed,
     timerLimit,
-    speakerPairingCode,
   } = useTimer();
   
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
-  const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const handleToggleTimer = () => {
     if(!isActive) { // Only when starting
@@ -809,22 +803,12 @@ export default function DashboardPage() {
 
   const isAtLimit = timerLimit !== -1 && timersUsed >= timerLimit;
 
-  const speakerViewUrl = isClient ? `/speaker-view?code=${speakerPairingCode}` : '';
-
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <>
       <main className="flex-1 p-4 md:p-8">
         <div className="container mx-auto">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
-            <Button asChild variant="outline" disabled={!isClient}>
-              <Link href={speakerViewUrl} target="_blank">
-                <MonitorPlay className="mr-2" />
-                Open Speaker View
-              </Link>
-            </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start">
@@ -958,9 +942,6 @@ export default function DashboardPage() {
         open={showPurchaseDialog}
         onOpenChange={setShowPurchaseDialog}
       />
-    </div>
+    </>
   );
 }
-
-    
-
