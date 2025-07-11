@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -1032,9 +1033,9 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
-                <TeamManagementCard />
                 <LiveMessagingCard />
                 <AudienceQuestionsCard />
+                <TeamManagementCard />
                 <AnalyticsCard />
             </div>
 
