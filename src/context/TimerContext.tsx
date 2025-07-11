@@ -106,9 +106,6 @@ const initialAnalytics: AnalyticsData = {
 
 const defaultTeam: TeamMember[] = [
     { name: "You", email: "me@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
-    { name: "Alex Johnson", email: "alex@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
-    { name: "Maria Garcia", email: "maria@example.com", role: "Speaker", status: "Active", avatar: "https://placehold.co/40x40.png" },
-    { name: "Sam Wilson", email: "sam@example.com", role: "Viewer", status: "Pending", avatar: "https://placehold.co/40x40.png" },
 ];
 
 
@@ -160,14 +157,32 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentUser(user);
       setLoadingAuth(false);
       if (user) {
-        // For demo purposes, set a specific user to Freemium
+        // For demo purposes, assign plans based on email
         if (user.email === 'forfree@gmail.com') {
             setPlanState("Freemium");
-        } else {
+        } else if (user.email === 'starter@example.com') {
+            setPlanState("Starter");
+        }
+        else {
             // In a real app, you would fetch the user's plan from your DB.
             // For now, we'll default everyone else to a different plan for contrast.
             setPlanState("Professional"); 
         }
+        const userAsTeamMember: TeamMember = {
+            name: "You",
+            email: user.email!,
+            role: "Admin",
+            status: "Active",
+            avatar: "https://placehold.co/40x40.png"
+        };
+        setTeamMembers(prev => {
+            const userExists = prev.some(m => m.email === user.email);
+            if (!userExists) return [userAsTeamMember, ...prev.filter(m => m.email !== "me@example.com")];
+            return prev.map(m => m.email === user.email || m.email === 'me@example.com' ? userAsTeamMember : m);
+        });
+
+      } else {
+        setTeamMembers(defaultTeam);
       }
     });
 
@@ -219,13 +234,22 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setMessage(data.message || null);
             setThemeState(data.theme || "Classic");
             setAudienceQuestions(data.audienceQuestions || []);
-            setTeamMembers(data.teamMembers || defaultTeam);
+
+            const dbTeam = data.teamMembers || defaultTeam;
+            if (currentUser) {
+                const userExists = dbTeam.some((m: TeamMember) => m.email === currentUser.email);
+                if (!userExists) {
+                    dbTeam.push({ name: "You", email: currentUser.email!, role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" });
+                }
+            }
+            setTeamMembers(dbTeam);
+            
             setSpeakerDevices(data.connections?.speakers || 0);
             setParticipantDevices(data.connections?.participants || 0);
             
             // Set plan from DB, but allow demo user to override
             const dbPlan = data.plan || "Freemium";
-            if(currentUser?.email !== 'forfree@gmail.com') {
+            if(currentUser?.email !== 'forfree@gmail.com' && currentUser?.email !== 'starter@example.com') {
                 setPlanState(dbPlan);
             }
 
@@ -240,7 +264,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 theme,
                 plan,
                 audienceQuestions: [],
-                teamMembers: defaultTeam,
+                teamMembers: teamMembers,
             });
         }
     });
@@ -318,9 +342,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const resetAnalytics = () => {
-    setAnalytics(initialAnalytics);
-    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
-    setInStorage(analyticsKey, initialAnalytics);
+    if (plan === 'Professional' || plan === 'Enterprise') {
+      setAnalytics(initialAnalytics);
+      const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
+      setInStorage(analyticsKey, initialAnalytics);
+    }
   }
 
   // Timer logic
@@ -408,6 +434,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
+     if (plan === 'Freemium' && role === 'Admin') {
+        // Silently prevent adding another admin on freemium, or show a toast.
+        console.error("Freemium plan cannot have more than one Admin.");
+        return;
+    }
     const newMember: TeamMember = {
       name: 'Invited User', // Placeholder name
       email,

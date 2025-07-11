@@ -71,6 +71,7 @@ import {
   UserPlus,
   Mail,
   MoreHorizontal,
+  Info,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -518,8 +519,8 @@ function PurchaseTimersDialog({
 }
 
 function AnalyticsCard() {
-    const { analytics, resetAnalytics } = useTimer();
-
+    const { analytics, resetAnalytics, plan } = useTimer();
+    const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
     const { totalTimers, avgDuration, messagesSent, durationBrackets, maxAudience, maxSpeakers } = analytics;
 
     const chartData = [
@@ -542,7 +543,7 @@ function AnalyticsCard() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <BarChartHorizontal />
-                    Event Analytics
+                    Basic Analytics
                 </CardTitle>
                 <CardDescription>
                     Summary of timer and message usage for this event.
@@ -595,9 +596,11 @@ function AnalyticsCard() {
                       </BarChart>
                     </ChartContainer>
                 </div>
-                 <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
-                    <RefreshCcw className="mr-2" /> Reset analytics
-                </Button>
+                 {isProOrEnterprise && (
+                    <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
+                        <RefreshCcw className="mr-2" /> Reset analytics
+                    </Button>
+                 )}
             </CardContent>
         </Card>
     )
@@ -789,16 +792,42 @@ function AudienceQuestionsCard() {
 }
 
 function TeamManagementCard() {
-    const { teamMembers, inviteTeamMember, updateMemberStatus, plan } = useTimer();
+    const { teamMembers, inviteTeamMember, updateMemberStatus, plan, currentUser } = useTimer();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
+    const [showAlert, setShowAlert] = useState(false);
+    const [alertMessage, setAlertMessage] = useState("");
+
+    const isFreemium = plan === 'Freemium';
+    const isStarter = plan === 'Starter';
+    
+    // Freemium: 1 Admin + unlimited Speaker/Viewer
+    // Starter: 3 members total
+    const memberLimit = isStarter ? 3 : -1; // -1 for unlimited (for Pro/Enterprise)
+    const canInvite = (memberLimit === -1) || (teamMembers.length < memberLimit);
 
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (isStarter && !canInvite) {
+            setAlertMessage("You have reached the 3-member limit for the Starter plan.");
+            setShowAlert(true);
+            return;
+        }
+
         const formData = new FormData(e.target as HTMLFormElement);
         const email = formData.get("email") as string;
         const role = formData.get("role") as TeamMember['role'];
         
+        if (teamMembers.some(m => m.email.toLowerCase() === email.toLowerCase())) {
+             toast({
+                variant: 'destructive',
+                title: 'User Already Invited',
+                description: `${email} is already a member of this team.`
+            });
+            return;
+        }
+
         inviteTeamMember(email, role);
 
         toast({
@@ -815,10 +844,24 @@ function TeamManagementCard() {
         });
     }
 
-    const isFreemium = plan === 'Freemium';
-
     return (
         <Card>
+            <AlertDialog open={showAlert} onOpenChange={setShowAlert}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Team Limit Reached</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {alertMessage} Please <Link href="/#pricing" className="font-bold underline">upgrade your plan</Link> to invite more members.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction asChild>
+                            <Link href="/#pricing">Upgrade Plan</Link>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="flex items-center gap-2">
@@ -850,8 +893,8 @@ function TeamManagementCard() {
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <label htmlFor="role" className="text-right">Role</label>
-                                <Select name="role" defaultValue="Speaker" disabled={isFreemium}>
-                                    <SelectTrigger className="col-span-3">
+                                <Select name="role" defaultValue="Speaker">
+                                    <SelectTrigger className="col-span-3" disabled={isFreemium}>
                                         <SelectValue placeholder="Select a role" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -862,9 +905,18 @@ function TeamManagementCard() {
                                 </Select>
                             </div>
                             {isFreemium && (
-                                <Alert variant="default" className="col-span-4 bg-amber-500/10 border-amber-500/50">
+                                <Alert variant="default" className="col-span-4">
+                                    <Info className="h-4 w-4" />
                                     <AlertDescription>
-                                        Your current plan only allows inviting members with the 'Speaker' role. <Link href="/#pricing" className="font-bold underline">Upgrade</Link> to unlock more roles.
+                                        Your Freemium plan only allows inviting members with 'Speaker' or 'Viewer' roles. <Link href="/#pricing" className="font-bold underline">Upgrade</Link> to unlock more roles.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            {isStarter && (
+                                 <Alert variant="default" className="col-span-4">
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>
+                                        Your Starter plan includes up to 3 team members. ({teamMembers.length} / 3)
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -906,7 +958,7 @@ function TeamManagementCard() {
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon">
+                                        <Button variant="ghost" size="icon" disabled={member.email === currentUser?.email}>
                                             <MoreHorizontal />
                                         </Button>
                                     </DropdownMenuTrigger>
