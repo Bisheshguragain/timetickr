@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -935,10 +936,27 @@ export default function DashboardPage() {
     theme,
     timersUsed,
     timerLimit,
+    currentUser,
+    loadingAuth,
   } = useTimer();
-  
+
+  const router = useRouter();
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (!loadingAuth && !currentUser) {
+      router.push('/login');
+    }
+  }, [currentUser, loadingAuth, router]);
+
+  if (loadingAuth || !currentUser) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center">
+        <Loader className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   const handleToggleTimer = () => {
     if(!isActive) { // Only when starting

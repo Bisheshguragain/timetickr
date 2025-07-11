@@ -1,23 +1,25 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, TimerIcon, Moon, Sun } from "lucide-react";
+import { Menu, TimerIcon, Moon, Sun, LogOut } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useTimer } from "@/context/TimerContext";
+import { auth } from "@/lib/firebase";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const { currentUser, loadingAuth } = useTimer();
 
   useEffect(() => {
-    // Check for saved theme preference in localStorage
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
         setIsDarkMode(savedTheme === 'dark');
     } else {
-        // If no theme is saved, check system preference
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         setIsDarkMode(prefersDark);
     }
@@ -40,6 +42,10 @@ export function Header() {
     { href: "#", label: "Company" },
     { href: "#contact", label: "Contact" },
   ];
+
+  const handleSignOut = () => {
+    auth.signOut();
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -64,9 +70,26 @@ export function Header() {
             ))}
             </nav>
             <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex text-foreground/60">
-                Login
-            </Button>
+            
+            {!loadingAuth && (
+              <>
+                {currentUser ? (
+                  <>
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link href="/dashboard">Dashboard</Link>
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign Out">
+                      <LogOut className="h-5 w-5" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex text-foreground/60">
+                    <Link href="/login">Login</Link>
+                  </Button>
+                )}
+              </>
+            )}
+
             <div className="flex items-center gap-2">
                 <Sun className="h-5 w-5 text-foreground/60" />
                 <Switch
@@ -103,7 +126,15 @@ export function Header() {
                         {link.label}
                         </Link>
                     ))}
-                    <Link href="#" className="text-foreground" onClick={() => setMenuOpen(false)}>Login</Link>
+                     {!loadingAuth && (
+                      <>
+                        {currentUser ? (
+                          <Link href="/dashboard" className="text-foreground" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+                        ) : (
+                          <Link href="/login" className="text-foreground" onClick={() => setMenuOpen(false)}>Login</Link>
+                        )}
+                      </>
+                    )}
                     </div>
                 </div>
                 </SheetContent>

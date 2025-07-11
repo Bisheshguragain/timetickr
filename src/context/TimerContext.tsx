@@ -10,8 +10,10 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { ref, onValue, set, update, off } from "firebase/database";
+import { User, onAuthStateChanged } from "firebase/auth";
+
 
 interface Message {
   id: number;
@@ -87,6 +89,8 @@ interface TimerContextProps {
   teamMembers: TeamMember[];
   inviteTeamMember: (email: string, role: TeamMember['role']) => void;
   updateMemberStatus: (email: string, status: TeamMember['status']) => void;
+  currentUser: User | null;
+  loadingAuth: boolean;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -129,7 +133,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [isActive, setIsActive] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
-  const [plan, setPlanState] = useState<SubscriptionPlan>("Professional");
+  const [plan, setPlanState] = useState<SubscriptionPlan>("Freemium");
   const [speakerDevices, setSpeakerDevices] = useState(0);
   const [participantDevices, setParticipantDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
@@ -137,6 +141,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const isFinished = time === 0;
 
   const sessionCode = useMemo(() => getOrCreateCode('sessionCode'), []);
@@ -148,6 +154,20 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const dbRef = useMemo(() => ref(db, `sessions/${sessionCode}`), [sessionCode]);
   
   const isUpdatingFromDb = useRef(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setLoadingAuth(false);
+      if (user) {
+        // Here you would fetch the user's plan from your DB
+        // For now, we'll default to Freemium
+        setPlanState("Freemium");
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -161,23 +181,26 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   }
   
   const getUsageFromStorage = () => {
-    const usage = getFromStorage('timerUsage', { used: 0, extra: 0, month: new Date().getMonth() });
+    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    const usage = getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
     const currentMonth = new Date().getMonth();
     if (usage.month === currentMonth) {
       return usage;
     }
     const newUsage = { used: 0, extra: 0, month: currentMonth };
-    setInStorage('timerUsage', newUsage);
+    setInStorage(usageKey, newUsage);
     return newUsage;
   };
 
   useEffect(() => {
+    if (loadingAuth) return;
     const { used, extra } = getUsageFromStorage();
     setTimersUsed(used);
     setExtraTimers(extra);
-    const savedAnalytics = getFromStorage('timerAnalytics', initialAnalytics);
+    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
+    const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
     setAnalytics(savedAnalytics);
-  }, []);
+  }, [currentUser, loadingAuth]);
 
   // Firebase listener
   useEffect(() => {
@@ -190,7 +213,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setInitialDuration(data.initialDuration ?? 900);
             setMessage(data.message || null);
             setThemeState(data.theme || "Classic");
-            setPlanState(data.plan || "Professional");
+            setPlanState(data.plan || "Freemium");
             setAudienceQuestions(data.audienceQuestions || []);
             setTeamMembers(data.teamMembers || defaultTeam);
             setSpeakerDevices(data.connections?.speakers || 0);
@@ -204,7 +227,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 initialDuration,
                 message: null,
                 theme,
-                plan,
+                plan: "Freemium",
                 audienceQuestions: [],
                 teamMembers: defaultTeam,
             });
@@ -238,7 +261,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
     setExtraTimers(newExtraTimers);
-    setInStorage('timerUsage', { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
+    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    setInStorage(usageKey, { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
   };
   
   const consumeTimerCredit = () => {
@@ -248,7 +272,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
     const newUsage = timersUsed + 1;
     setTimersUsed(newUsage);
-    setInStorage('timerUsage', { used: newUsage, extra: extraTimers, month: new Date().getMonth() });
+    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    setInStorage(usageKey, { used: newUsage, extra: extraTimers, month: new Date().getMonth() });
     
     // Analytics update
     const newTotalTimers = analytics.totalTimers + 1;
@@ -270,18 +295,21 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       durationBrackets: newBrackets,
     }
     setAnalytics(newAnalytics);
-    setInStorage('timerAnalytics', newAnalytics);
+    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
+    setInStorage(analyticsKey, newAnalytics);
   };
 
   const resetUsage = () => {
     setTimersUsed(0);
     setExtraTimers(0);
-    setInStorage('timerUsage', { used: 0, extra: 0, month: new Date().getMonth() });
+    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    setInStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
   };
   
   const resetAnalytics = () => {
     setAnalytics(initialAnalytics);
-    setInStorage('timerAnalytics', initialAnalytics);
+    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
+    setInStorage(analyticsKey, initialAnalytics);
   }
 
   // Timer logic
@@ -333,7 +361,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       messagesSent: analytics.messagesSent + 1,
     };
     setAnalytics(newAnalytics);
-    setInStorage('timerAnalytics', newAnalytics);
+    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
+    setInStorage(analyticsKey, newAnalytics);
   };
 
   const dismissMessage = () => {
@@ -416,6 +445,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     teamMembers,
     inviteTeamMember,
     updateMemberStatus,
+    currentUser,
+    loadingAuth,
   };
 
   return (
