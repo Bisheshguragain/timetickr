@@ -17,12 +17,17 @@ const GenerateAlertsInputSchema = z.object({
     .number()
     .positive()
     .describe('The total duration of the presentation in minutes.'),
+  numberOfSpeakers: z
+    .number()
+    .positive()
+    .int()
+    .describe('The total number of speakers in the presentation session.'),
 });
 export type GenerateAlertsInput = z.infer<typeof GenerateAlertsInputSchema>;
 
 const AlertSchema = z.object({
     time: z.number().describe("The time in seconds from the start of the presentation when the alert should be sent."),
-    message: z.string().describe("The message to be displayed to the speaker."),
+    message: z.string().describe("The message to be displayed to the speaker or event manager."),
     type: z.enum(["encouragement", "warning", "info"]).describe("The type of alert.")
 });
 
@@ -41,21 +46,25 @@ const generateAlertsPrompt = ai.definePrompt({
   name: 'generateAlertsPrompt',
   input: { schema: GenerateAlertsInputSchema },
   output: { schema: GenerateAlertsOutputSchema },
-  prompt: `You are an expert event manager responsible for keeping speakers on time. 
-  
-  Your task is to generate a schedule of automated "smart alerts" for a presentation that will last for {{{durationInMinutes}}} minutes.
-  
-  Create a series of timed messages to help the speaker manage their time effectively. The schedule should include:
-  - An encouraging message near the beginning.
-  - A heads-up when they are about halfway through.
-  - A 5-minute warning.
-  - A 2-minute or 1-minute warning to wrap up.
-  - A "Time's up" message at the end.
-  - An overtime warning if appropriate for longer presentations.
+  prompt: `You are an expert event manager responsible for creating and optimizing presentation schedules. 
 
-  All 'time' values in the output must be in seconds from the start of the presentation. For a {{{durationInMinutes}}} minute presentation, the final "Time's up" alert should be at {{{durationInMinutes}}} * 60 seconds.
+  Your task is to generate a schedule of automated "smart alerts" for a session that is {{{durationInMinutes}}} minutes long and has {{{numberOfSpeakers}}} speakers.
+
+  First, calculate the time allocated to each speaker. If there are multiple speakers, assume a small buffer between them for introductions and handoffs.
   
-  Generate the schedule and provide it in the requested format.`,
+  Then, create a series of timed messages for the entire session to keep things running smoothly. This schedule should include:
+  - An info message to start the session.
+  - For each speaker:
+    - An info message announcing the start of their slot (e.g., "Time for Speaker 2").
+    - An encouraging message near the beginning of their time.
+    - A warning when they have 2 minutes remaining.
+    - A final "Time's up" message for their slot.
+  - A 5-minute warning before the entire session ends.
+  - A final "Session Over" message at the very end.
+
+  All 'time' values in the output must be in seconds from the start of the session. For a {{{durationInMinutes}}} minute session, the final "Session Over" alert should be at {{{durationInMinutes}}} * 60 seconds.
+  
+  Generate the full, optimized schedule and provide it in the requested format.`,
 });
 
 

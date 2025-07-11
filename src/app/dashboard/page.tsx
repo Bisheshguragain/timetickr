@@ -583,19 +583,20 @@ function AnalyticsCard() {
 
 function SmartAlertsCard() {
   const { toast } = useToast();
-  const [duration, setDuration] = useState(15);
+  const [duration, setDuration] = useState(30);
+  const [speakers, setSpeakers] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput | null>(null);
 
   const handleGenerateAlerts = async () => {
-    if (duration <= 0) {
-        toast({ variant: 'destructive', title: 'Invalid Duration', description: 'Please enter a positive number for the duration.' });
+    if (duration <= 0 || speakers <= 0) {
+        toast({ variant: 'destructive', title: 'Invalid Input', description: 'Please enter positive numbers for duration and speakers.' });
         return;
     }
     setIsLoading(true);
     setGeneratedAlerts(null);
     try {
-        const result = await generateAlerts({ durationInMinutes: duration });
+        const result = await generateAlerts({ durationInMinutes: duration, numberOfSpeakers: speakers });
         setGeneratedAlerts(result);
     } catch(error) {
         console.error("Error generating smart alerts:", error);
@@ -626,31 +627,46 @@ function SmartAlertsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-            <label
-                htmlFor="alert-duration"
-                className="mb-2 block text-sm font-medium text-muted-foreground"
-            >
-                Presentation Duration (in minutes)
-            </label>
-            <div className="flex items-center gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label
+                    htmlFor="alert-duration"
+                    className="mb-2 block text-sm font-medium text-muted-foreground"
+                >
+                    Total Duration (mins)
+                </label>
                 <Input
                     id="alert-duration"
                     type="number"
                     value={duration}
-                    onChange={(e) => setDuration(parseInt(e.target.value, 10))}
+                    onChange={(e) => setDuration(parseInt(e.target.value, 10) || 0)}
                     placeholder="e.g., 45"
                 />
-                <Button onClick={handleGenerateAlerts} disabled={isLoading}>
-                    {isLoading ? <Loader className="mr-2 animate-spin" /> : null}
-                    Generate
-                </Button>
+            </div>
+             <div>
+                <label
+                    htmlFor="alert-speakers"
+                    className="mb-2 block text-sm font-medium text-muted-foreground"
+                >
+                    Number of Speakers
+                </label>
+                <Input
+                    id="alert-speakers"
+                    type="number"
+                    value={speakers}
+                    onChange={(e) => setSpeakers(parseInt(e.target.value, 10) || 0)}
+                    placeholder="e.g., 3"
+                />
             </div>
         </div>
+        <Button onClick={handleGenerateAlerts} disabled={isLoading} className="w-full">
+            {isLoading ? <Loader className="mr-2 animate-spin" /> : null}
+            Generate Schedule
+        </Button>
         {generatedAlerts && (
             <div className="space-y-3 pt-4">
                  <h4 className="text-sm font-medium text-muted-foreground">Generated Alert Schedule</h4>
-                 <div className="space-y-2 rounded-lg border p-3">
+                 <div className="space-y-2 rounded-lg border p-3 max-h-60 overflow-y-auto">
                  {generatedAlerts.alerts.sort((a,b) => a.time - b.time).map((alert) => (
                     <div key={alert.time} className="flex items-start gap-3">
                         <div className="flex h-8 w-16 flex-shrink-0 items-center justify-center rounded-md bg-secondary text-sm font-mono">
