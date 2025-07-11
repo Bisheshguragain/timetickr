@@ -15,6 +15,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -51,6 +67,8 @@ import {
   ThumbsUp,
   PersonStanding,
   ExternalLink,
+  UserPlus,
+  Mail,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -62,6 +80,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { generateAlerts, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -766,6 +786,112 @@ function AudienceQuestionsCard() {
     );
 }
 
+function TeamManagementCard() {
+    const { toast } = useToast();
+    const [open, setOpen] = useState(false);
+
+    const teamMembers = [
+        { name: "Alex Johnson", email: "alex@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
+        { name: "Maria Garcia", email: "maria@example.com", role: "Speaker", status: "Active", avatar: "https://placehold.co/40x40.png" },
+        { name: "Sam Wilson", email: "sam@example.com", role: "Viewer", status: "Pending", avatar: "https://placehold.co/40x40.png" },
+        { name: "You", email: "me@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
+    ];
+
+    const handleInvite = (e: React.FormEvent) => {
+        e.preventDefault();
+        const formData = new FormData(e.target as HTMLFormElement);
+        const email = formData.get("email");
+        const role = formData.get("role");
+        
+        toast({
+            title: "Invitation Sent!",
+            description: `${email} has been invited as a ${role}.`
+        });
+        setOpen(false);
+    }
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle className="flex items-center gap-2">
+                        <Users />
+                        Team Management
+                    </CardTitle>
+                    <CardDescription>
+                        Invite and manage team members for this event.
+                    </CardDescription>
+                </div>
+                <Dialog open={open} onOpenChange={setOpen}>
+                    <DialogTrigger asChild>
+                        <Button>
+                            <UserPlus className="mr-2" /> Invite Member
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Invite a new team member</DialogTitle>
+                            <DialogDescription>
+                                They will receive an email with instructions to join your team.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form id="invite-form" onSubmit={handleInvite}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <label htmlFor="email" className="text-right">Email</label>
+                                <Input id="email" name="email" type="email" placeholder="name@company.com" className="col-span-3" required />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <label htmlFor="role" className="text-right">Role</label>
+                                <Select name="role" defaultValue="Speaker">
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select a role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Admin">Admin (Full control)</SelectItem>
+                                        <SelectItem value="Speaker">Speaker (View-only)</SelectItem>
+                                        <SelectItem value="Viewer">Viewer (Display mode)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        </form>
+                        <DialogFooter>
+                            <Button type="submit" form="invite-form">
+                                <Mail className="mr-2" /> Send Invitation
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {teamMembers.map((member) => (
+                        <div key={member.email} className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Avatar>
+                                    <AvatarImage src={member.avatar} />
+                                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-medium">{member.name}</p>
+                                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-medium">{member.role}</p>
+                                <Badge variant={member.status === 'Active' ? 'default' : 'secondary'} className={member.status === 'Active' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/10 dark:text-green-400' : ''}>
+                                    {member.status}
+                                </Badge>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
 
 export default function DashboardPage() {
   const {
@@ -875,6 +1001,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
+                <TeamManagementCard />
                 <LiveMessagingCard />
                 <AudienceQuestionsCard />
                 <AnalyticsCard />
@@ -964,3 +1091,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
