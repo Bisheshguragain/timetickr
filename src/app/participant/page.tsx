@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Loader, Send, CheckCircle, MessageSquareQuote } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 function ParticipantForm() {
     const { sessionCode: validPairingCode, plan, submitAudienceQuestion } = useTimer();
@@ -139,8 +140,8 @@ function ParticipantForm() {
 }
 
 export default function ParticipantPage() {
-    const { plan } = useTimer();
-    const showBranding = plan !== "Enterprise";
+    const { plan, customLogo } = useTimer();
+    const showBranding = plan !== "Enterprise" || !customLogo;
     
     return (
         <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
@@ -148,11 +149,13 @@ export default function ParticipantPage() {
                 <div className="w-full max-w-lg">
                     <ParticipantForm />
                 </div>
-                {showBranding && (
-                    <div className="absolute bottom-4">
-                        <Logo className="text-muted-foreground" />
-                    </div>
-                )}
+                 <div className="absolute bottom-4">
+                    {customLogo && plan === "Enterprise" ? (
+                        <Image src={customLogo} alt="Custom Event Logo" width={100} height={40} className="object-contain" />
+                    ) : showBranding ? (
+                         <Logo className="text-muted-foreground" />
+                    ) : null}
+                </div>
             </div>
         </Suspense>
     );

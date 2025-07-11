@@ -11,6 +11,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -105,7 +106,7 @@ function SpeakerDisplay() {
   const message = isDemoMode ? demoMessage : timerContext.message;
   const dismissMessage = isDemoMode ? () => setDemoMessage(null) : timerContext.dismissMessage;
   
-  const { time, isFinished, theme, plan } = timerContext;
+  const { time, isFinished, theme, plan, customLogo } = timerContext;
 
 
   useEffect(() => {
@@ -232,11 +233,13 @@ function SpeakerDisplay() {
       )}
 
       {/* Branding Logo */}
-      {plan !== "Enterprise" && (
-        <div className="absolute top-4 right-5 z-20">
+      <div className="absolute top-4 right-5 z-20">
+        {customLogo && plan === 'Enterprise' ? (
+             <Image src={customLogo} alt="Custom Event Logo" width={120} height={50} className="object-contain" />
+        ) : plan !== "Enterprise" ? (
             <Logo className={currentTheme.logo}/>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       {/* Demo Controls */}
       {isDemoMode && (

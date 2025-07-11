@@ -91,6 +91,8 @@ interface TimerContextProps {
   updateMemberStatus: (email: string, status: TeamMember['status']) => void;
   currentUser: User | null;
   loadingAuth: boolean;
+  customLogo: string | null;
+  setCustomLogo: (logo: string | null) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -140,6 +142,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [customLogo, setCustomLogoState] = useState<string | null>(null);
+
   const isFinished = time === 0;
 
   const sessionCode = useMemo(() => getOrCreateCode('sessionCode'), []);
@@ -224,6 +228,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
     const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
     setAnalytics(savedAnalytics);
+    const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
+    const savedLogo = getFromStorage(logoKey, null);
+    if(savedLogo) setCustomLogoState(savedLogo);
   }, [currentUser, loadingAuth]);
 
   // Firebase listener
@@ -238,6 +245,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setMessage(data.message || null);
             setThemeState(data.theme || "Classic");
             setAudienceQuestions(data.audienceQuestions || []);
+            setCustomLogoState(data.customLogo || null);
 
             const dbTeam = data.teamMembers || defaultTeam;
             if (currentUser) {
@@ -269,6 +277,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 plan,
                 audienceQuestions: [],
                 teamMembers: teamMembers,
+                customLogo: null,
             });
         }
     });
@@ -294,8 +303,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         plan,
         audienceQuestions,
         teamMembers,
+        customLogo,
     });
-  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers, dbRef]);
+  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers, customLogo, dbRef]);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
@@ -424,6 +434,13 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
+  const setCustomLogo = (logo: string | null) => {
+    setCustomLogoState(logo);
+    const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
+    setInStorage(logoKey, logo);
+    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+  }
+
   const submitAudienceQuestion = (text: string) => {
     const newQuestion = { id: Date.now(), text };
     const newQuestions = [...audienceQuestions, newQuestion];
@@ -496,6 +513,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     updateMemberStatus,
     currentUser,
     loadingAuth,
+    customLogo,
+    setCustomLogo,
   };
 
   return (

@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -76,6 +76,9 @@ import {
   UserCircle,
   KeyRound,
   ShieldCheck,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -92,6 +95,7 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { auth } from "@/lib/firebase";
 import { updatePassword } from "firebase/auth";
+import Image from "next/image";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -1122,6 +1126,83 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
     )
 }
 
+function CustomBrandingCard() {
+    const { customLogo, setCustomLogo } = useTimer();
+    const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            if (file.size > 1024 * 1024) { // 1MB limit
+                toast({
+                    variant: 'destructive',
+                    title: 'File Too Large',
+                    description: 'Please upload an image smaller than 1MB.',
+                });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                setCustomLogo(result);
+                 toast({
+                    title: 'Logo Updated!',
+                    description: 'Your new logo has been saved.',
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveLogo = () => {
+        setCustomLogo(null);
+        toast({
+            title: 'Logo Removed',
+            description: 'Branding has been reset.',
+        });
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ImageIcon />
+                    Custom Branding
+                </CardTitle>
+                <CardDescription>
+                    Upload your company logo to be displayed on speaker and participant views.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="aspect-video w-full rounded-md border-2 border-dashed bg-secondary flex items-center justify-center">
+                    {customLogo ? (
+                        <Image src={customLogo} alt="Custom Logo Preview" width={200} height={100} className="object-contain max-h-full max-w-full" />
+                    ) : (
+                        <p className="text-muted-foreground text-sm">No logo uploaded</p>
+                    )}
+                </div>
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/png, image/jpeg, image/svg+xml"
+                    className="hidden"
+                />
+                 <div className="flex gap-2">
+                    <Button onClick={() => fileInputRef.current?.click()} className="w-full">
+                        <Upload className="mr-2"/> Upload Logo
+                    </Button>
+                    {customLogo && (
+                        <Button onClick={handleRemoveLogo} variant="destructive" className="w-full">
+                            <Trash2 className="mr-2"/> Remove Logo
+                        </Button>
+                    )}
+                 </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 export default function DashboardPage() {
   const {
@@ -1135,6 +1216,7 @@ export default function DashboardPage() {
     timerLimit,
     currentUser,
     loadingAuth,
+    plan,
   } = useTimer();
 
   const router = useRouter();
@@ -1212,6 +1294,7 @@ export default function DashboardPage() {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                             <Avatar className="h-10 w-10">
+                                <AvatarImage src={`https://placehold.co/40x40.png`} data-ai-hint="person face" />
                                 <AvatarFallback>{currentUser.email?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         </Button>
@@ -1293,6 +1376,7 @@ export default function DashboardPage() {
 
             <div className="space-y-8 lg:col-span-1">
                 <CurrentPlanCard />
+                 {plan === 'Enterprise' && <CustomBrandingCard />}
                 <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
