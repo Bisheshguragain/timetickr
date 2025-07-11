@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -69,8 +68,9 @@ import {
   ExternalLink,
   UserPlus,
   Mail,
+  MoreHorizontal,
 } from "lucide-react";
-import { useTimer, TimerTheme, AudienceQuestion } from "@/context/TimerContext";
+import { useTimer, TimerTheme, AudienceQuestion, TeamMember } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -82,6 +82,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -774,7 +775,7 @@ function AudienceQuestionsCard() {
                                     </Button>
                                     <Button size="sm" onClick={() => handleApprove(q)} disabled={approving === q.id}>
                                         {approving === q.id ? <Loader className="mr-2 animate-spin" /> : <ThumbsUp className="mr-2" />}
-                                        Approve & Send
+                                        Approve &amp; Send
                                     </Button>
                                 </div>
                             </div>
@@ -787,27 +788,30 @@ function AudienceQuestionsCard() {
 }
 
 function TeamManagementCard() {
+    const { teamMembers, inviteTeamMember, updateMemberStatus } = useTimer();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
-
-    const teamMembers = [
-        { name: "Alex Johnson", email: "alex@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
-        { name: "Maria Garcia", email: "maria@example.com", role: "Speaker", status: "Active", avatar: "https://placehold.co/40x40.png" },
-        { name: "Sam Wilson", email: "sam@example.com", role: "Viewer", status: "Pending", avatar: "https://placehold.co/40x40.png" },
-        { name: "You", email: "me@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
-    ];
 
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
-        const email = formData.get("email");
-        const role = formData.get("role");
+        const email = formData.get("email") as string;
+        const role = formData.get("role") as TeamMember['role'];
         
+        inviteTeamMember(email, role);
+
         toast({
             title: "Invitation Sent!",
             description: `${email} has been invited as a ${role}.`
         });
         setOpen(false);
+    }
+    
+    const resendInvitation = (email: string) => {
+        toast({
+            title: "Invitation Resent!",
+            description: `A new invitation has been sent to ${email}.`
+        });
     }
 
     return (
@@ -870,7 +874,7 @@ function TeamManagementCard() {
                         <div key={member.email} className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <Avatar>
-                                    <AvatarImage src={member.avatar} />
+                                    <AvatarImage src={member.avatar} data-ai-hint="person face" />
                                     <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
                                 <div>
@@ -878,11 +882,38 @@ function TeamManagementCard() {
                                     <p className="text-sm text-muted-foreground">{member.email}</p>
                                 </div>
                             </div>
-                            <div className="text-right">
-                                <p className="text-sm font-medium">{member.role}</p>
-                                <Badge variant={member.status === 'Active' ? 'default' : 'secondary'} className={member.status === 'Active' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/10 dark:text-green-400' : ''}>
-                                    {member.status}
-                                </Badge>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="text-sm font-medium">{member.role}</p>
+                                    <Badge variant={member.status === 'Active' ? 'default' : member.status === 'Pending' ? 'secondary' : 'outline'} className={
+                                        cn({
+                                            'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300': member.status === 'Active',
+                                            'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300': member.status === 'Pending',
+                                        })
+                                    }>
+                                        {member.status}
+                                    </Badge>
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon">
+                                            <MoreHorizontal />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        {member.status === 'Pending' && (
+                                            <DropdownMenuItem onClick={() => resendInvitation(member.email)}>
+                                                <Send className="mr-2"/> Resend Invitation
+                                            </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuItem onClick={() => updateMemberStatus(member.email, member.status === 'Active' ? 'Inactive' : 'Active')}>
+                                            <Check className="mr-2"/> Mark as {member.status === 'Active' ? 'Inactive' : 'Active'}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem className="text-destructive">
+                                            <ThumbsDown className="mr-2"/> Remove Member
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                     ))}
@@ -1091,5 +1122,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    

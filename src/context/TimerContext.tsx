@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, {
@@ -19,6 +18,14 @@ interface Message {
 export interface AudienceQuestion {
     id: number;
     text: string;
+}
+
+export interface TeamMember {
+    name: string;
+    email: string;
+    role: "Admin" | "Speaker" | "Viewer";
+    status: "Active" | "Pending" | "Inactive";
+    avatar: string;
 }
 
 export type TimerTheme = "Classic" | "Modern" | "Minimalist" | "Industrial";
@@ -75,6 +82,9 @@ interface TimerContextProps {
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
   dismissAudienceQuestion: (id: number) => void;
+  teamMembers: TeamMember[];
+  inviteTeamMember: (email: string, role: TeamMember['role']) => void;
+  updateMemberStatus: (email: string, status: TeamMember['status']) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -89,6 +99,14 @@ const initialAnalytics: AnalyticsData = {
     maxAudience: 0,
     durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
 };
+
+const defaultTeam: TeamMember[] = [
+    { name: "You", email: "me@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
+    { name: "Alex Johnson", email: "alex@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
+    { name: "Maria Garcia", email: "maria@example.com", role: "Speaker", status: "Active", avatar: "https://placehold.co/40x40.png" },
+    { name: "Sam Wilson", email: "sam@example.com", role: "Viewer", status: "Pending", avatar: "https://placehold.co/40x40.png" },
+];
+
 
 const generatePairingCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -118,6 +136,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const isFinished = time === 0;
 
   const speakerPairingCode = useMemo(() => getOrCreateCode('speakerPairingCode'), []);
@@ -164,6 +183,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setAnalytics(savedAnalytics);
     const savedQuestions = getFromStorage('audienceQuestions', []);
     setAudienceQuestions(savedQuestions);
+    const savedTeam = getFromStorage('teamMembers', defaultTeam);
+    setTeamMembers(savedTeam);
   }, []);
 
   const addTimers = (quantity: number) => {
@@ -254,6 +275,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
               setThemeState(payload.theme);
               setPlanState(payload.plan);
               setAudienceQuestions(payload.audienceQuestions);
+              setTeamMembers(payload.teamMembers);
               break;
             case "SUBMIT_QUESTION":
                 const newQuestions = [...audienceQuestions, payload.question];
@@ -300,7 +322,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 if (clientId.current && clientRole.current === 'admin') { 
                     channelRef.current?.postMessage({
                         type: 'SET_STATE',
-                        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
+                        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers },
                         senderId: clientId.current
                     });
                 }
@@ -355,7 +377,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
           if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
         };
     }
-  }, [time, isActive, initialDuration, message, theme, plan, speakerPairingCode, audiencePairingCode, audienceQuestions, analytics]);
+  }, [time, isActive, initialDuration, message, theme, plan, speakerPairingCode, audiencePairingCode, audienceQuestions, analytics, teamMembers]);
 
 
   const broadcastAction = useCallback((action: any) => {
@@ -381,10 +403,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     if (clientRole.current === 'admin') {
       broadcastAction({
         type: "SET_STATE",
-        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
+        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers },
       });
     }
-  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, broadcastAction]);
+  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers, broadcastAction]);
 
 
   const toggleTimer = () => {
@@ -451,6 +473,27 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setInStorage('audienceQuestions', filteredQuestions);
   }
 
+  const inviteTeamMember = (email: string, role: TeamMember['role']) => {
+    const newMember: TeamMember = {
+      name: 'Invited User', // Placeholder name
+      email,
+      role,
+      status: 'Pending',
+      avatar: `https://placehold.co/40x40.png`,
+    };
+    const newTeam = [...teamMembers, newMember];
+    setTeamMembers(newTeam);
+    setInStorage('teamMembers', newTeam);
+  };
+
+  const updateMemberStatus = (email: string, status: TeamMember['status']) => {
+    const newTeam = teamMembers.map(member => 
+      member.email === email ? { ...member, status } : member
+    );
+    setTeamMembers(newTeam);
+    setInStorage('teamMembers', newTeam);
+  };
+
   const value = {
     time,
     setTime,
@@ -480,6 +523,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     audienceQuestions,
     submitAudienceQuestion,
     dismissAudienceQuestion,
+    teamMembers,
+    inviteTeamMember,
+    updateMemberStatus,
   };
 
   return (
@@ -494,5 +540,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
-    
