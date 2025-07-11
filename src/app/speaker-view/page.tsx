@@ -197,6 +197,23 @@ function SpeakerDisplay() {
         {formatTime(time)}
       </div>
 
+      {message && isQuestion && (
+        <div className="z-10 mt-8 max-w-4xl w-full px-10 animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
+           <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
+             <MessageSquareQuote className="h-6 w-6" />
+             <AlertTitle className="text-xl font-bold">
+                Audience Question
+             </AlertTitle>
+             <AlertDescription className="text-lg">
+                {message.text.substring(2)}
+             </AlertDescription>
+             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+                <X className="h-5 w-5"/>
+             </button>
+           </Alert>
+        </div>
+      )}
+
       {plan !== "Enterprise" && (
         <div className="absolute top-4 right-5 z-20">
             <Logo className={currentTheme.logo}/>
@@ -226,7 +243,7 @@ function SpeakerDisplay() {
       )}
 
       {message && !isQuestion && (
-        <div className="absolute top-10 left-10 z-10 mx-auto max-w-lg animate-in fade-in-50 slide-in-from-top-10 duration-500">
+        <div className="absolute top-10 left-10 z-10 max-w-lg animate-in fade-in-50 slide-in-from-top-10 duration-500">
            <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
              <MessageSquare className="h-6 w-6" />
              <AlertTitle className="text-lg font-bold">
@@ -234,23 +251,6 @@ function SpeakerDisplay() {
              </AlertTitle>
              <AlertDescription className="text-md">
                 {message.text}
-             </AlertDescription>
-             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
-                <X className="h-5 w-5"/>
-             </button>
-           </Alert>
-        </div>
-      )}
-
-      {message && isQuestion && (
-        <div className="absolute bottom-10 left-10 right-10 z-10 mx-auto max-w-4xl animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
-           <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
-             <MessageSquareQuote className="h-6 w-6" />
-             <AlertTitle className="text-xl font-bold">
-                Audience Question
-             </AlertTitle>
-             <AlertDescription className="text-lg">
-                {message.text.substring(2)}
              </AlertDescription>
              <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
