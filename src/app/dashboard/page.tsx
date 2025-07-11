@@ -667,8 +667,8 @@ function SmartAlertsCard() {
             <div className="space-y-3 pt-4">
                  <h4 className="text-sm font-medium text-muted-foreground">Generated Alert Schedule</h4>
                  <div className="space-y-2 rounded-lg border p-3 max-h-60 overflow-y-auto">
-                 {generatedAlerts.alerts.sort((a,b) => a.time - b.time).map((alert) => (
-                    <div key={alert.time} className="flex items-start gap-3">
+                 {generatedAlerts.alerts.sort((a,b) => a.time - b.time).map((alert, index) => (
+                    <div key={index} className="flex items-start gap-3">
                         <div className="flex h-8 w-16 flex-shrink-0 items-center justify-center rounded-md bg-secondary text-sm font-mono">
                            {formatTime(alert.time)}
                         </div>
@@ -710,6 +710,8 @@ function AudienceQuestionsCard() {
                     title: "Question Blocked",
                     description: `Reason: ${moderationResult.reason}`,
                 });
+                 // Dismiss the blocked question from the queue
+                dismissAudienceQuestion(question.id);
             }
         } catch (error) {
             console.error("Error moderating question:", error);

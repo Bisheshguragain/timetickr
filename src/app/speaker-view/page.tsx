@@ -5,7 +5,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { MessageSquare, X, MonitorPlay, Loader } from "lucide-react";
+import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,6 +142,7 @@ function SpeakerDisplay() {
   };
 
   const currentTheme = themeClasses[theme] || themeClasses.Classic;
+  const isQuestion = message?.text.startsWith("Q:");
 
   return (
     <div
@@ -174,12 +175,12 @@ function SpeakerDisplay() {
       {message && (
         <div className="absolute bottom-10 left-10 right-10 z-10 mx-auto max-w-4xl animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
            <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
-             <MessageSquare className="h-6 w-6" />
+             {isQuestion ? <MessageSquareQuote className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
              <AlertTitle className="text-xl font-bold">
-                Message from Admin
+                {isQuestion ? "Audience Question" : "Message from Admin"}
              </AlertTitle>
              <AlertDescription className="text-lg">
-                {message.text}
+                {isQuestion ? message.text.substring(3) : message.text}
              </AlertDescription>
              <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
@@ -201,5 +202,3 @@ export default function SpeakerViewPage() {
         </Suspense>
     )
 }
-
-    
