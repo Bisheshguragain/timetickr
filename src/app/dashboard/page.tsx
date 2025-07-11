@@ -79,6 +79,7 @@ import {
   Image as ImageIcon,
   Upload,
   Trash2,
+  FileDown,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -545,6 +546,7 @@ function PurchaseTimersDialog({
 
 function AnalyticsCard() {
     const { analytics, resetAnalytics, plan } = useTimer();
+    const { toast } = useToast();
     const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
     const { totalTimers, avgDuration, messagesSent, durationBrackets, maxAudience, maxSpeakers } = analytics;
 
@@ -561,6 +563,39 @@ function AnalyticsCard() {
         label: "Count",
         color: "hsl(var(--primary))",
       },
+    }
+
+    const handleExport = () => {
+        const headers = ["Metric", "Value"];
+        const rows = [
+            ["Total Timers Started", totalTimers],
+            ["Average Duration (seconds)", avgDuration],
+            ["Total Messages Sent", messagesSent],
+            ["Peak Concurrent Speakers", maxSpeakers],
+            ["Peak Concurrent Audience", maxAudience],
+            ["Durations: 0-5 mins", durationBrackets["0-5"]],
+            ["Durations: 5-15 mins", durationBrackets["5-15"]],
+            ["Durations: 15-30 mins", durationBrackets["15-30"]],
+            ["Durations: 30-60 mins", durationBrackets["30-60"]],
+            ["Durations: 60+ mins", durationBrackets["60+"]],
+        ];
+
+        let csvContent = "data:text/csv;charset=utf-8," 
+            + headers.join(",") + "\n" 
+            + rows.map(e => e.join(",")).join("\n");
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "analytics-export.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+            title: "Export Started",
+            description: "Your analytics data is being downloaded."
+        });
     }
 
     return (
@@ -625,9 +660,14 @@ function AnalyticsCard() {
                     </ChartContainer>
                 </div>
                  {isProOrEnterprise ? (
-                    <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
-                        <RefreshCcw className="mr-2" /> Reset analytics
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
+                            <RefreshCcw className="mr-2" /> Reset analytics
+                        </Button>
+                        <Button onClick={handleExport} variant="outline" size="sm">
+                            <FileDown className="mr-2" /> Export Data
+                        </Button>
+                    </div>
                  ) : (
                     <p className="text-xs text-muted-foreground text-center">
                         <Link href="/#pricing" className="underline font-medium">Upgrade to Professional</Link> for detailed reporting and data export.
