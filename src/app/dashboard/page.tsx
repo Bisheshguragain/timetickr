@@ -53,7 +53,6 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion } from "@/context/TimerContext";
-import { Header } from "@/components/landing/header";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -62,6 +61,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { generateAlerts, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -809,6 +809,7 @@ export default function DashboardPage() {
         <div className="container mx-auto">
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
+            <ThemeToggle />
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start">
