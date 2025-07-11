@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import { useSearchParams } from 'next/navigation';
 import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,11 @@ function ParticipantForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState("");
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const isPaired = code === validPairingCode;
 
@@ -46,6 +51,21 @@ function ParticipantForm() {
         } finally {
             setIsLoading(false);
         }
+    }
+
+    if (!isClient) {
+        return (
+            <Card className="w-full max-w-lg">
+                <CardHeader>
+                    <CardTitle>Loading...</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex justify-center items-center py-8">
+                        <Loader className="h-8 w-8 animate-spin" />
+                    </div>
+                </CardContent>
+            </Card>
+        );
     }
 
     if (!isPaired) {
