@@ -24,7 +24,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { speakerPairingCode: validPairingCode } = useTimer();
+  const { sessionCode: validSessionCode } = useTimer();
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -37,8 +37,8 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const urlCode = searchParams.get('code');
   
   // Demo mode: if no code is in the URL, show the speaker view.
-  const isDemoMode = urlCode === null;
-  const isPaired = urlCode === validPairingCode;
+  const isDemoMode = !urlCode;
+  const isPaired = urlCode === validSessionCode;
 
   if (!isClient) {
     return (
@@ -54,7 +54,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
   const handlePair = (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.toUpperCase() === validPairingCode) {
+    if (code.toUpperCase() === validSessionCode) {
         setError('');
         router.push(`${pathname}?code=${code.toUpperCase()}`);
     } else {
@@ -79,7 +79,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
                     <Input 
                         placeholder="Enter pairing code..."
                         value={code}
-                        onChange={(e) => setCode(e.target.value)}
+                        onChange={(e) => setCode(e.target.value.toUpperCase())}
                         className="text-center text-lg font-mono tracking-widest"
                         autoCapitalize="characters"
                     />
@@ -98,7 +98,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 function SpeakerDisplay() {
   const timerContext = useTimer();
   const searchParams = useSearchParams();
-  const isDemoMode = searchParams.get('code') === null;
+  const isDemoMode = !searchParams.get('code');
   
   const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
 

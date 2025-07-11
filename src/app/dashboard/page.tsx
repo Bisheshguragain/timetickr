@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -277,8 +278,7 @@ function ThemeSelectorCard() {
 
 function DeviceConnectionCard() {
   const {
-    speakerPairingCode,
-    audiencePairingCode,
+    sessionCode,
     speakerDevices,
     participantDevices,
   } = useTimer();
@@ -289,8 +289,8 @@ function DeviceConnectionCard() {
     setIsClient(true);
   }, []);
 
-  const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${speakerPairingCode}` : '';
-  const participantUrl = isClient ? `${window.location.origin}/participant?code=${audiencePairingCode}` : '';
+  const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${sessionCode}` : '';
+  const participantUrl = isClient ? `${window.location.origin}/participant?code=${sessionCode}` : '';
 
   const copyToClipboard = (text: string) => {
     if (!isClient) return;
@@ -312,13 +312,13 @@ function DeviceConnectionCard() {
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <label className="text-sm font-medium text-muted-foreground">
-            Speaker Pairing Code
+            Session Pairing Code
           </label>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
-              {isClient ? speakerPairingCode : "..."}
+              {isClient ? sessionCode : "..."}
             </div>
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerPairingCode)} disabled={!isClient}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode)} disabled={!isClient}>
               <Copy />
             </Button>
           </div>

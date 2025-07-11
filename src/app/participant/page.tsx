@@ -13,7 +13,7 @@ import { Logo } from "@/components/landing/logo";
 import { useToast } from "@/hooks/use-toast";
 
 function ParticipantForm() {
-    const { audiencePairingCode: validPairingCode, plan, submitAudienceQuestion } = useTimer();
+    const { sessionCode: validPairingCode, plan, submitAudienceQuestion } = useTimer();
     const { toast } = useToast();
     const searchParams = useSearchParams();
     const code = searchParams.get('code');
@@ -76,8 +76,8 @@ function ParticipantForm() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                     <p className="text-destructive">This Q&A link is invalid or has expired. Please check the link and try again.</p>
-                    <p className="text-xs text-muted-foreground">
-                        Note: This prototype uses browser storage. For this link to work, it must be opened in the same browser where the admin dashboard is running. The expected code is: <code className="font-mono bg-secondary p-1 rounded">{validPairingCode}</code>
+                     <p className="text-xs text-muted-foreground">
+                        Note: This prototype uses browser storage for the session code. For this link to work, the admin dashboard must have been opened first in this browser to generate a session code.
                     </p>
                 </CardContent>
             </Card>

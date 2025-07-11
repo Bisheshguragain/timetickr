@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, {
@@ -9,6 +10,8 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { db } from "@/lib/firebase";
+import { ref, onValue, set, update, off } from "firebase/database";
 
 interface Message {
   id: number;
@@ -77,8 +80,7 @@ interface TimerContextProps {
   addTimers: (quantity: number) => void;
   analytics: AnalyticsData;
   resetAnalytics: () => void;
-  speakerPairingCode: string;
-  audiencePairingCode: string;
+  sessionCode: string; // Unified code for speaker and audience
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
   dismissAudienceQuestion: (id: number) => void;
@@ -88,8 +90,6 @@ interface TimerContextProps {
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
-
-const BROADCAST_CHANNEL_NAME = "timer_channel";
 
 const initialAnalytics: AnalyticsData = {
     totalTimers: 0,
@@ -108,7 +108,7 @@ const defaultTeam: TeamMember[] = [
 ];
 
 
-const generatePairingCode = () => {
+const generateSessionCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
@@ -116,7 +116,7 @@ const getOrCreateCode = (key: string) => {
     if (typeof window === 'undefined') return '';
     let code = localStorage.getItem(key);
     if (!code) {
-        code = generatePairingCode();
+        code = generateSessionCode();
         localStorage.setItem(key, code);
     }
     return code;
@@ -139,19 +139,15 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const isFinished = time === 0;
 
-  const speakerPairingCode = useMemo(() => getOrCreateCode('speakerPairingCode'), []);
-  const audiencePairingCode = useMemo(() => getOrCreateCode('audiencePairingCode'), []);
+  const sessionCode = useMemo(() => getOrCreateCode('sessionCode'), []);
 
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const channelRef = useRef<BroadcastChannel | null>(null);
-  const clientId = useRef<string | null>(null);
-  const pingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const connectedClients = useRef(new Map<string, string>());
-  const clientRole = useRef<'speaker' | 'participant' | 'admin'>('admin');
-
+  const dbRef = useMemo(() => ref(db, `sessions/${sessionCode}`), [sessionCode]);
+  
+  const isUpdatingFromDb = useRef(false);
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -186,6 +182,48 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const savedTeam = getFromStorage('teamMembers', defaultTeam);
     setTeamMembers(savedTeam);
   }, []);
+
+  // Firebase listener
+  useEffect(() => {
+    const listener = onValue(dbRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            isUpdatingFromDb.current = true;
+            setTime(data.time);
+            setIsActive(data.isActive);
+            setInitialDuration(data.initialDuration);
+            setMessage(data.message || null);
+            setThemeState(data.theme || "Classic");
+            setPlanState(data.plan || "Professional");
+            setAudienceQuestions(data.audienceQuestions || []);
+            setSpeakerDevices(data.connections?.speakers || 0);
+            setParticipantDevices(data.connections?.participants || 0);
+            isUpdatingFromDb.current = false;
+        }
+    });
+
+    return () => {
+        off(dbRef, 'value', listener);
+    };
+  }, [dbRef]);
+  
+  // Update DB on state change
+  useEffect(() => {
+    if (isUpdatingFromDb.current) return;
+
+    const role = typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard') ? 'viewer' : 'admin';
+    if (role !== 'admin') return;
+
+    update(dbRef, {
+        time,
+        isActive,
+        initialDuration,
+        message,
+        theme,
+        plan,
+        audienceQuestions,
+    });
+  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, dbRef]);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
@@ -236,154 +274,6 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setInStorage('timerAnalytics', initialAnalytics);
   }
 
-  // Initialize Broadcast Channel and Client ID
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const urlParams = new URLSearchParams(window.location.search);
-        let code: string | null = null;
-        let isValid = false;
-
-        if (window.location.pathname.includes('/speaker-view')) {
-            code = urlParams.get('code');
-            clientRole.current = 'speaker';
-            isValid = code === speakerPairingCode;
-        } else if (window.location.pathname.includes('/participant')) {
-            code = urlParams.get('code');
-            clientRole.current = 'participant';
-            isValid = code === audiencePairingCode;
-        } else {
-            clientRole.current = 'admin';
-            isValid = true;
-        }
-        
-        if (!isValid) return;
-
-        clientId.current = Math.random().toString(36).substring(7);
-        channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-    
-        const handleMessage = (event: MessageEvent) => {
-          const { type, payload, senderId, role } = event.data;
-          
-          if(senderId === clientId.current) return;
-
-          switch (type) {
-            case "SET_STATE":
-              setTime(payload.time);
-              setIsActive(payload.isActive);
-              setInitialDuration(payload.initialDuration);
-              setMessage(payload.message);
-              setThemeState(payload.theme);
-              setPlanState(payload.plan);
-              setAudienceQuestions(payload.audienceQuestions);
-              setTeamMembers(payload.teamMembers);
-              break;
-            case "SUBMIT_QUESTION":
-                const newQuestions = [...audienceQuestions, payload.question];
-                setAudienceQuestions(newQuestions);
-                setInStorage('audienceQuestions', newQuestions);
-                break;
-            case "DISMISS_QUESTION":
-                const filteredQuestions = audienceQuestions.filter(q => q.id !== payload.id);
-                setAudienceQuestions(filteredQuestions);
-                setInStorage('audienceQuestions', filteredQuestions);
-                break;
-            case "TOGGLE":
-              setIsActive((prev) => !prev);
-              break;
-            case "RESET":
-              setIsActive(false);
-              setTime(payload.initialDuration);
-              break;
-            case "SET_DURATION":
-              if (!isActive) {
-                 setInitialDuration(payload.duration);
-                 setTime(payload.duration);
-              }
-              break;
-            case "SEND_MESSAGE":
-                setMessage(payload.message);
-                break;
-            case "DISMISS_MESSAGE":
-                setMessage(null);
-                break;
-            case "SET_THEME":
-                setThemeState(payload.theme);
-                break;
-            case "SET_PLAN":
-                setPlanState(payload.plan);
-                break;
-            case "PING":
-                channelRef.current?.postMessage({ type: "PONG", senderId: clientId.current, role: clientRole.current });
-                break;
-            case "PONG":
-                connectedClients.current.set(senderId, role);
-                break;
-            case "REQUEST_STATE":
-                if (clientId.current && clientRole.current === 'admin') { 
-                    channelRef.current?.postMessage({
-                        type: 'SET_STATE',
-                        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers },
-                        senderId: clientId.current
-                    });
-                }
-                break;
-          }
-        };
-        
-        channelRef.current.addEventListener("message", handleMessage);
-        channelRef.current.postMessage({ type: "REQUEST_STATE", senderId: clientId.current });
-        
-        const updateDeviceCounts = () => {
-            let speakers = 0;
-            let participants = 0;
-            connectedClients.current.forEach((role) => {
-                if (role === 'speaker') speakers++;
-                else if (role === 'participant') participants++;
-            });
-            setSpeakerDevices(speakers);
-            setParticipantDevices(participants);
-
-            // Update peak analytics
-            if (speakers > analytics.maxSpeakers || participants > analytics.maxAudience) {
-                const newAnalytics = {
-                    ...analytics,
-                    maxSpeakers: Math.max(analytics.maxSpeakers, speakers),
-                    maxAudience: Math.max(analytics.maxAudience, participants),
-                };
-                setAnalytics(newAnalytics);
-                setInStorage('timerAnalytics', newAnalytics);
-            }
-        };
-
-        const ping = () => {
-            connectedClients.current.clear();
-            if(clientId.current) connectedClients.current.set(clientId.current, clientRole.current);
-            
-            channelRef.current?.postMessage({ type: "PING", senderId: clientId.current, role: clientRole.current });
-            
-            if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
-            pingTimeoutRef.current = setTimeout(() => {
-                updateDeviceCounts();
-            }, 500); 
-        };
-        
-        ping(); 
-        const pingInterval = setInterval(ping, 5000); 
-
-        return () => {
-          channelRef.current?.removeEventListener("message", handleMessage);
-          channelRef.current?.close();
-          clearInterval(pingInterval);
-          if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
-        };
-    }
-  }, [time, isActive, initialDuration, message, theme, plan, speakerPairingCode, audiencePairingCode, audienceQuestions, analytics, teamMembers]);
-
-
-  const broadcastAction = useCallback((action: any) => {
-    channelRef.current?.postMessage({ ...action, senderId: clientId.current });
-  }, []);
-
   // Timer logic
   useEffect(() => {
     if (isActive && time > 0) {
@@ -397,44 +287,43 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => clearInterval(intervalRef.current as NodeJS.Timeout);
   }, [isActive, time]);
-  
-  // Effect to broadcast state changes
-  useEffect(() => {
-    if (clientRole.current === 'admin') {
-      broadcastAction({
-        type: "SET_STATE",
-        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers },
-      });
-    }
-  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers, broadcastAction]);
-
 
   const toggleTimer = () => {
     if (!isActive) {
         consumeTimerCredit();
     }
-    broadcastAction({ type: "TOGGLE" });
-    setIsActive(prev => !prev);
+    const newIsActive = !isActive;
+    setIsActive(newIsActive); // Update local state immediately for responsiveness
+    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
-    broadcastAction({ type: "RESET", payload: { initialDuration } });
     setIsActive(false);
     setTime(initialDuration);
+    set(ref(db, `sessions/${sessionCode}`), {
+        time: initialDuration,
+        isActive: false,
+        initialDuration,
+        message: null,
+        theme,
+        plan,
+        audienceQuestions
+    });
   };
 
   const setDuration = (duration: number) => {
     if (!isActive) {
-      broadcastAction({ type: "SET_DURATION", payload: { duration } });
       setInitialDuration(duration);
       setTime(duration);
+      set(ref(db, `sessions/${sessionCode}/time`), duration);
+      set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
     }
   };
 
   const sendMessage = (text: string) => {
     const newMessage = { id: Date.now(), text };
-    broadcastAction({ type: "SEND_MESSAGE", payload: { message: newMessage }});
     setMessage(newMessage);
+    set(ref(db, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
@@ -445,32 +334,31 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const dismissMessage = () => {
-    broadcastAction({ type: "DISMISS_MESSAGE" });
     setMessage(null);
+    set(ref(db, `sessions/${sessionCode}/message`), null);
   };
   
   const setTheme = (newTheme: TimerTheme) => {
-    broadcastAction({ type: "SET_THEME", payload: { theme: newTheme } });
     setThemeState(newTheme);
+    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
-    broadcastAction({ type: "SET_PLAN", payload: { plan: newPlan } });
+    setPlanState(newPlan);
+    set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const submitAudienceQuestion = (text: string) => {
     const newQuestion = { id: Date.now(), text };
-    broadcastAction({ type: 'SUBMIT_QUESTION', payload: { question: newQuestion } });
     const newQuestions = [...audienceQuestions, newQuestion];
-    setAudienceQuestions(newQuestions);
-    setInStorage('audienceQuestions', newQuestions);
+    setAudienceQuestions(newQuestions); // Optimistic update
+    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
   };
 
   const dismissAudienceQuestion = (id: number) => {
-    broadcastAction({ type: 'DISMISS_QUESTION', payload: { id } });
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    setInStorage('audienceQuestions', filteredQuestions);
+    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
@@ -518,8 +406,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     addTimers,
     analytics,
     resetAnalytics,
-    speakerPairingCode,
-    audiencePairingCode,
+    sessionCode,
     audienceQuestions,
     submitAudienceQuestion,
     dismissAudienceQuestion,
