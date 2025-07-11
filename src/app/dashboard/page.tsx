@@ -73,6 +73,8 @@ import {
   MoreHorizontal,
   Info,
   LogOut,
+  UserCircle,
+  KeyRound,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -86,8 +88,9 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { auth } from "@/lib/firebase";
+import { updatePassword } from "firebase/auth";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -987,6 +990,100 @@ function TeamManagementCard() {
     )
 }
 
+function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+    const { toast } = useToast();
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        if (newPassword.length < 6) {
+            setError("Password must be at least 6 characters long.");
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+
+        setIsLoading(true);
+        const user = auth.currentUser;
+        if (user) {
+            try {
+                await updatePassword(user, newPassword);
+                toast({
+                    title: "Password Updated",
+                    description: "Your password has been changed successfully.",
+                });
+                setNewPassword("");
+                setConfirmPassword("");
+                onOpenChange(false);
+            } catch (err: any) {
+                console.error("Password update error:", err);
+                setError(err.message);
+                toast({
+                    variant: "destructive",
+                    title: "Update Failed",
+                    description: "Could not update password. You may need to sign in again.",
+                });
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <KeyRound />
+                        Change Password
+                    </DialogTitle>
+                    <DialogDescription>
+                        Enter a new password for your account below.
+                    </DialogDescription>
+                </DialogHeader>
+                <form id="change-password-form" onSubmit={handleChangePassword}>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <label htmlFor="new-password">New Password</label>
+                            <Input
+                                id="new-password"
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label htmlFor="confirm-password">Confirm New Password</label>
+                            <Input
+                                id="confirm-password"
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                            />
+                        </div>
+                        {error && <p className="text-sm text-destructive">{error}</p>}
+                    </div>
+                </form>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button type="submit" form="change-password-form" disabled={isLoading}>
+                        {isLoading && <Loader className="mr-2 animate-spin" />}
+                        Update Password
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 
 export default function DashboardPage() {
   const {
@@ -1004,6 +1101,7 @@ export default function DashboardPage() {
 
   const router = useRouter();
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -1072,9 +1170,35 @@ export default function DashboardPage() {
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
             <div className="flex items-center gap-4">
                 <ThemeToggle />
-                <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign Out">
-                    <LogOut />
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                            <Avatar className="h-10 w-10">
+                                <AvatarFallback>{currentUser.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                        <DropdownMenuLabel className="font-normal">
+                            <div className="flex flex-col space-y-1">
+                                <p className="text-sm font-medium leading-none">My Account</p>
+                                <p className="text-xs leading-none text-muted-foreground truncate">
+                                    {currentUser.email}
+                                </p>
+                            </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setShowSettingsDialog(true)}>
+                            <KeyRound className="mr-2" />
+                            <span>Change Password</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleSignOut}>
+                            <LogOut className="mr-2" />
+                            <span>Log out</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
           </div>
 
@@ -1210,6 +1334,12 @@ export default function DashboardPage() {
         open={showPurchaseDialog}
         onOpenChange={setShowPurchaseDialog}
       />
+      <ChangePasswordDialog
+        open={showSettingsDialog}
+        onOpenChange={setShowSettingsDialog}
+      />
     </>
   );
 }
+
+    
