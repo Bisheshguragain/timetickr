@@ -1,8 +1,8 @@
 
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,8 +23,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "lucide-react";
 import Link from "next/link";
+import { SubscriptionPlan } from "@/context/TimerContext";
 
-export default function LoginPage() {
+function LoginContent() {
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -34,6 +35,14 @@ export default function LoginPage() {
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const plan = searchParams.get('plan') as SubscriptionPlan;
+    if (plan) {
+      localStorage.setItem('selectedPlan', plan);
+    }
+  }, [searchParams]);
 
   const handleSignUp = async () => {
     setLoading(true);
@@ -78,7 +87,6 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
       <Tabs defaultValue="signin" className="w-full max-w-sm">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -144,6 +152,16 @@ export default function LoginPage() {
             </Link>
           </div>
       </Tabs>
-    </div>
   );
+}
+
+
+export default function LoginPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
+      <Suspense fallback={<Loader className="animate-spin" />}>
+        <LoginContent />
+      </Suspense>
+    </div>
+  )
 }

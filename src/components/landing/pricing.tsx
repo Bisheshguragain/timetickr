@@ -35,7 +35,7 @@ const plans = [
       "All core features",
     ],
     cta: "Start Free Trial",
-    href: "/dashboard",
+    href: "/login?plan=Starter",
     popular: true,
   },
   {
@@ -53,7 +53,7 @@ const plans = [
       "Priority support",
     ],
     cta: "Start Free Trial",
-    href: "/dashboard",
+    href: "/login?plan=Professional",
   },
   {
     name: "Enterprise",

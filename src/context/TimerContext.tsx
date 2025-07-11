@@ -161,21 +161,20 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentUser(user);
       setLoadingAuth(false);
       if (user) {
-        // For demo purposes, assign plans based on email
-        if (user.email?.endsWith('@gmail.com')) {
-          if (user.email.startsWith('pro')) {
-            setPlanState("Professional");
-          } else if (user.email.startsWith('starter')) {
-            setPlanState("Starter");
-          } else if (user.email.startsWith('enterprise')) {
-            setPlanState("Enterprise");
-          } else {
-             setPlanState("Freemium");
-          }
-        }
-        else {
+        // Assign plan based on sign-up choice or demo email
+        const selectedPlan = localStorage.getItem('selectedPlan') as SubscriptionPlan;
+        if (selectedPlan) {
+            setPlanState(selectedPlan);
+            localStorage.removeItem('selectedPlan'); // Clean up after use
+        } else if (user.email?.endsWith('@gmail.com')) {
+          if (user.email.startsWith('pro')) setPlanState("Professional");
+          else if (user.email.startsWith('starter')) setPlanState("Starter");
+          else if (user.email.startsWith('enterprise')) setPlanState("Enterprise");
+          else setPlanState("Freemium");
+        } else {
             setPlanState("Freemium"); 
         }
+
         const userAsTeamMember: TeamMember = {
             name: "You",
             email: user.email!,
@@ -261,7 +260,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             
             // Set plan from DB, but allow demo user to override
             const dbPlan = data.plan || "Freemium";
-            if (currentUser && !currentUser.email?.endsWith('@gmail.com')) {
+            const selectedPlan = localStorage.getItem('selectedPlan') as SubscriptionPlan;
+            if (!selectedPlan && !(currentUser && currentUser.email?.endsWith('@gmail.com'))) {
                setPlanState(dbPlan);
             }
 
