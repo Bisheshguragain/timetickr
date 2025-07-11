@@ -25,25 +25,32 @@ import { Loader } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [signInEmail, setSignInEmail] = useState("");
+  const [signInPassword, setSignInPassword] = useState("");
+  const [signUpEmail, setSignUpEmail] = useState("");
+  const [signUpPassword, setSignUpPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [signInError, setSignInError] = useState<string | null>(null);
+  const [signUpError, setSignUpError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSignUp = async () => {
     setLoading(true);
-    setError(null);
+    setSignUpError(null);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
       });
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/email-already-in-use') {
+        setSignUpError("This email is already in use. Please sign in instead.");
+      } else {
+        setSignUpError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -51,16 +58,20 @@ export default function LoginPage() {
 
   const handleSignIn = async () => {
     setLoading(true);
-    setError(null);
+    setSignInError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
       toast({
         title: "Signed In!",
         description: "Welcome back.",
       });
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setSignInError("Invalid email or password. Please try again or sign up.");
+      } else {
+        setSignInError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -84,13 +95,13 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email-signin">Email</Label>
-                <Input id="email-signin" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input id="email-signin" type="email" placeholder="m@example.com" value={signInEmail} onChange={(e) => setSignInEmail(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password-signin">Password</Label>
-                <Input id="password-signin" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input id="password-signin" type="password" value={signInPassword} onChange={(e) => setSignInPassword(e.target.value)} />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {signInError && <p className="text-sm text-destructive">{signInError}</p>}
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button onClick={handleSignIn} className="w-full" disabled={loading}>
@@ -111,13 +122,13 @@ export default function LoginPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email-signup">Email</Label>
-                <Input id="email-signup" type="email" placeholder="m@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input id="email-signup" type="email" placeholder="m@example.com" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password-signup">Password</Label>
-                <Input id="password-signup" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input id="password-signup" type="password" value={signUpPassword} onChange={(e) => setSignUpPassword(e.target.value)} />
               </div>
-               {error && <p className="text-sm text-destructive">{error}</p>}
+               {signUpError && <p className="text-sm text-destructive">{signUpError}</p>}
             </CardContent>
             <CardFooter className="flex-col gap-4">
               <Button onClick={handleSignUp} className="w-full" disabled={loading}>
