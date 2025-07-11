@@ -5,7 +5,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote } from "lucide-react";
+import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote, Info } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +35,10 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   }, []);
   
   const urlCode = searchParams.get('code');
+  
+  // Demo mode: if no code is in the URL, show the speaker view.
+  // The view will still be functional but won't be paired.
+  const isDemoMode = urlCode === null;
   const isPaired = urlCode === validPairingCode;
 
   if (!isClient) {
@@ -45,7 +49,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isPaired) {
+  if (isPaired || isDemoMode) {
     return <>{children}</>;
   }
 
@@ -94,6 +98,8 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
 function SpeakerDisplay() {
   const { time, isFinished, message, dismissMessage, theme, plan } = useTimer();
+  const searchParams = useSearchParams();
+  const isDemoMode = searchParams.get('code') === null;
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -176,6 +182,17 @@ function SpeakerDisplay() {
         <div className="absolute top-4 right-5 z-20">
             <Logo className={currentTheme.logo}/>
         </div>
+      )}
+
+      {isDemoMode && (
+          <div className="absolute top-4 left-5 z-20">
+            <Alert variant="default" className={cn("shadow-md text-xs p-2", currentTheme.alert)}>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                    Demo mode. Not connected to an admin panel.
+                </AlertDescription>
+            </Alert>
+          </div>
       )}
 
       {message && (
