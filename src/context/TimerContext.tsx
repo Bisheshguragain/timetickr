@@ -16,6 +16,11 @@ interface Message {
   text: string;
 }
 
+export interface AudienceQuestion {
+    id: number;
+    text: string;
+}
+
 export type TimerTheme = "Classic" | "Modern" | "Minimalist" | "Industrial";
 export type SubscriptionPlan = "Freemium" | "Starter" | "Professional" | "Enterprise";
 
@@ -63,6 +68,9 @@ interface TimerContextProps {
   analytics: AnalyticsData;
   resetAnalytics: () => void;
   pairingCode: string;
+  audienceQuestions: AudienceQuestion[];
+  submitAudienceQuestion: (text: string) => void;
+  dismissAudienceQuestion: (id: number) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -84,13 +92,14 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
-  const [message, setMessage] = useState<Message | null>({ id: 1, text: "This is a sample message in Classic theme." });
+  const [message, setMessage] = useState<Message | null>(null);
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
   const [plan, setPlanState] = useState<SubscriptionPlan>("Professional");
   const [connectedDevices, setConnectedDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
+  const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
   const isFinished = time === 0;
 
   const pairingCode = useMemo(() => {
@@ -129,7 +138,6 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     if (usage.month === currentMonth) {
       return usage;
     }
-    // New month, reset usage but keep extra timers purchased? For now, we reset all.
     const newUsage = { used: 0, extra: 0, month: currentMonth };
     setInStorage('timerUsage', newUsage);
     return newUsage;
@@ -141,6 +149,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     setExtraTimers(extra);
     const savedAnalytics = getFromStorage('timerAnalytics', initialAnalytics);
     setAnalytics(savedAnalytics);
+    const savedQuestions = getFromStorage('audienceQuestions', []);
+    setAudienceQuestions(savedQuestions);
   }, []);
 
   const addTimers = (quantity: number) => {
@@ -198,8 +208,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         // Only initialize client and channel if pairing code is valid
-        if(code !== pairingCode && window.location.pathname.includes('/speaker-view')) {
-            return;
+        if(!code || code !== pairingCode) {
+             if (window.location.pathname.includes('/speaker-view') || window.location.pathname.includes('/participant')) {
+                return;
+             }
         }
 
         clientId.current = Math.random().toString(36).substring(7);
@@ -218,7 +230,18 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
               setMessage(payload.message);
               setThemeState(payload.theme);
               setPlanState(payload.plan);
+              setAudienceQuestions(payload.audienceQuestions);
               break;
+            case "SUBMIT_QUESTION":
+                const newQuestions = [...audienceQuestions, payload.question];
+                setAudienceQuestions(newQuestions);
+                setInStorage('audienceQuestions', newQuestions);
+                break;
+            case "DISMISS_QUESTION":
+                const filteredQuestions = audienceQuestions.filter(q => q.id !== payload.id);
+                setAudienceQuestions(filteredQuestions);
+                setInStorage('audienceQuestions', filteredQuestions);
+                break;
             case "TOGGLE":
               setIsActive((prev) => !prev);
               break;
@@ -255,7 +278,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
                 if (clientId.current) { 
                     channelRef.current?.postMessage({
                         type: 'SET_STATE',
-                        payload: { time, isActive, initialDuration, message, theme, plan },
+                        payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
                         senderId: clientId.current
                     });
                 }
@@ -288,7 +311,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
           if (pingTimeoutRef.current) clearTimeout(pingTimeoutRef.current);
         };
     }
-  }, [time, isActive, initialDuration, message, theme, plan, pairingCode]);
+  }, [time, isActive, initialDuration, message, theme, plan, pairingCode, audienceQuestions]);
 
 
   const broadcastAction = useCallback((action: any) => {
@@ -313,13 +336,12 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     broadcastAction({
       type: "SET_STATE",
-      payload: { time, isActive, initialDuration, message, theme, plan },
+      payload: { time, isActive, initialDuration, message, theme, plan, audienceQuestions },
     });
-  }, [time, isActive, initialDuration, message, theme, plan, broadcastAction]);
+  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, broadcastAction]);
 
 
   const toggleTimer = () => {
-    // Consume a credit only when starting the timer, not pausing/resuming
     if (!isActive) {
         consumeTimerCredit();
     }
@@ -366,8 +388,21 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     broadcastAction({ type: "SET_PLAN", payload: { plan: newPlan } });
-    // When plan changes, we might want to reset usage if it's a new month or handle it differently
-    // For now, we'll just update the limit.
+  }
+
+  const submitAudienceQuestion = (text: string) => {
+    const newQuestion = { id: Date.now(), text };
+    broadcastAction({ type: 'SUBMIT_QUESTION', payload: { question: newQuestion } });
+    const newQuestions = [...audienceQuestions, newQuestion];
+    setAudienceQuestions(newQuestions);
+    setInStorage('audienceQuestions', newQuestions);
+  };
+
+  const dismissAudienceQuestion = (id: number) => {
+    broadcastAction({ type: 'DISMISS_QUESTION', payload: { id } });
+    const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
+    setAudienceQuestions(filteredQuestions);
+    setInStorage('audienceQuestions', filteredQuestions);
   }
 
   const value = {
@@ -394,6 +429,9 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     analytics,
     resetAnalytics,
     pairingCode,
+    audienceQuestions,
+    submitAudienceQuestion,
+    dismissAudienceQuestion,
   };
 
   return (

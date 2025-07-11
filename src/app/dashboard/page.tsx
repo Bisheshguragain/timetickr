@@ -46,8 +46,11 @@ import {
   BarChartHorizontal,
   FileClock,
   Copy,
+  Users,
+  ThumbsDown,
+  ThumbsUp,
 } from "lucide-react";
-import { useTimer, TimerTheme } from "@/context/TimerContext";
+import { useTimer, TimerTheme, AudienceQuestion } from "@/context/TimerContext";
 import { Header } from "@/components/landing/header";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
@@ -258,6 +261,7 @@ function DeviceConnectionCard() {
   }, []);
 
   const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${pairingCode}` : '';
+  const participantUrl = isClient ? `${window.location.origin}/participant?code=${pairingCode}` : '';
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -272,13 +276,13 @@ function DeviceConnectionCard() {
           Connect a Device
         </CardTitle>
         <CardDescription>
-          Pair speaker displays using the code or link below.
+          Pair displays or share links to connect participants.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
-                Pairing Code
+                Speaker Pairing Code
             </label>
             <div className="flex items-center gap-2">
                  <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
@@ -291,7 +295,7 @@ function DeviceConnectionCard() {
         </div>
          <div className="space-y-2">
             <label className="text-sm font-medium text-muted-foreground">
-                Pairing Link
+                Speaker View Link
             </label>
              <div className="flex items-center gap-2">
                 <Input
@@ -300,6 +304,21 @@ function DeviceConnectionCard() {
                     className="truncate"
                 />
                 <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)}>
+                    <Copy />
+                </Button>
+            </div>
+        </div>
+        <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">
+                Audience Q&A Link
+            </label>
+             <div className="flex items-center gap-2">
+                <Input
+                    value={participantUrl}
+                    readOnly
+                    className="truncate"
+                />
+                <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)}>
                     <Copy />
                 </Button>
             </div>
@@ -625,6 +644,79 @@ function SmartAlertsCard() {
   )
 }
 
+function AudienceQuestionsCard() {
+    const { audienceQuestions, dismissAudienceQuestion, sendMessage } = useTimer();
+    const { toast } = useToast();
+    const [approving, setApproving] = useState<number | null>(null);
+
+    const handleApprove = async (question: AudienceQuestion) => {
+        setApproving(question.id);
+        try {
+            const moderationResult = await moderateMessage({ message: question.text });
+            if (moderationResult.isSafe) {
+                sendMessage(`Q: ${question.text}`);
+                dismissAudienceQuestion(question.id);
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Question Blocked",
+                    description: `Reason: ${moderationResult.reason}`,
+                });
+            }
+        } catch (error) {
+            console.error("Error moderating question:", error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not approve question. Please try again.",
+            });
+        } finally {
+            setApproving(null);
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Users />
+                    Audience Questions
+                </CardTitle>
+                <CardDescription>
+                    Review and approve questions from the audience before sending them to the speaker.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {audienceQuestions.length === 0 ? (
+                    <div className="text-center text-muted-foreground py-8">
+                        <p>No questions yet.</p>
+                        <p className="text-xs">Share the Q&A link to get started.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                        {audienceQuestions.map((q) => (
+                            <div key={q.id} className="p-3 rounded-lg border bg-secondary/30 space-y-3">
+                                <p className="text-sm">{q.text}</p>
+                                <div className="flex justify-end gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => dismissAudienceQuestion(q.id)} disabled={approving === q.id}>
+                                        <ThumbsDown className="mr-2" />
+                                        Dismiss
+                                    </Button>
+                                    <Button size="sm" onClick={() => handleApprove(q)} disabled={approving === q.id}>
+                                        {approving === q.id ? <Loader className="mr-2 animate-spin" /> : <ThumbsUp className="mr-2" />}
+                                        Approve & Send
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export default function DashboardPage() {
   const {
     time,
@@ -742,6 +834,7 @@ export default function DashboardPage() {
                 </CardContent>
                 </Card>
                 <LiveMessagingCard />
+                <AudienceQuestionsCard />
                 <AnalyticsCard />
             </div>
 
