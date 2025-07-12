@@ -1800,4 +1800,8 @@ export default function DashboardPage() {
       />
       <ChangePasswordDialog
         open={showSettingsDialog}
-        onOpenChange={setShowSettings
+        onOpenChange={setShowSettingsDialog}
+      />
+    </>
+  );
+}
