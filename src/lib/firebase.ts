@@ -1,4 +1,3 @@
-
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, getApp, FirebaseApp, FirebaseOptions } from "firebase/app";
 import { getDatabase, Database } from "firebase/database";
@@ -18,7 +17,6 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Database;
 
-// Initialize Firebase
 try {
     app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     auth = getAuth(app);
