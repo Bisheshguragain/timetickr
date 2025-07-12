@@ -16,14 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getFirebaseInstances } from "@/lib/firebase";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword 
-} from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "lucide-react";
 import Link from "next/link";
 import { SubscriptionPlan } from "@/context/TimerContext";
+import type { Auth, UserCredential } from "firebase/auth";
 
 function LoginContent() {
   const [signInEmail, setSignInEmail] = useState("");
@@ -45,29 +42,19 @@ function LoginContent() {
     }
   }, [searchParams]);
 
-  const getAuthInstance = () => {
-    try {
-        const { auth } = getFirebaseInstances();
-        return auth;
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'Configuration Error', description: 'Firebase is not configured correctly. Check the console for details.' });
-        return null;
-    }
-  }
-
   const handleSignUp = async () => {
     setLoading(true);
     setSignUpError(null);
-    const auth = getAuthInstance();
-    if (!auth) {
-        setLoading(false);
-        setSignUpError("Firebase is not configured correctly.");
-        return;
+    const firebase = getFirebaseInstances();
+    if (!firebase) {
+      setLoading(false);
+      setSignUpError("Firebase is not configured correctly.");
+      return;
     }
+    const { createUserWithEmailAndPassword } = await import('firebase/auth');
 
     try {
-      await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
+      await createUserWithEmailAndPassword(firebase.auth, signUpEmail, signUpPassword);
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
@@ -87,15 +74,16 @@ function LoginContent() {
   const handleSignIn = async () => {
     setLoading(true);
     setSignInError(null);
-    const auth = getAuthInstance();
-    if (!auth) {
+    const firebase = getFirebaseInstances();
+    if (!firebase) {
         setLoading(false);
         setSignInError("Firebase is not configured correctly.");
         return;
     }
-
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    
     try {
-      await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
+      await signInWithEmailAndPassword(firebase.auth, signInEmail, signInPassword);
       toast({
         title: "Signed In!",
         description: "Welcome back.",

@@ -29,8 +29,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
-  const urlCode = searchParams.get('code');
   const { isSessionFound } = useTimer();
+  const urlCode = searchParams.get('code');
+
 
   useEffect(() => {
     setIsClient(true);
@@ -118,7 +119,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
                     </Button>
                 </form>
                  <p className="text-xs text-muted-foreground mt-4">
-                    Note: For this to work, the admin dashboard must have been opened first in this browser to generate a session code.
+                    Note: For this to work, the admin dashboard must be open to maintain the session.
                 </p>
             </CardContent>
         </Card>
@@ -129,14 +130,11 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
 function SpeakerDisplay() {
   const timerContext = useTimer();
-  const searchParams = useSearchParams();
-  
-  const isDemoMode = false; // Demo mode is now handled by the absence of a valid session
   
   const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
 
-  const message = isDemoMode ? demoMessage : timerContext.message;
-  const dismissMessage = isDemoMode ? () => setDemoMessage(null) : timerContext.dismissMessage;
+  const message = timerContext.message;
+  const dismissMessage = timerContext.dismissMessage;
   
   const { time, isFinished, theme, plan, customLogo } = timerContext;
 

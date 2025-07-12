@@ -97,7 +97,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { getFirebaseInstances } from "@/lib/firebase";
-import { updatePassword } from "firebase/auth";
 import Image from "next/image";
 import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
@@ -315,10 +314,16 @@ function DeviceConnectionCard() {
   } = useTimer();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const [speakerViewUrl, setSpeakerViewUrl] = useState('');
+  const [participantUrl, setParticipantUrl] = useState('');
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    if (typeof window !== 'undefined') {
+        setSpeakerViewUrl(`${window.location.origin}/speaker-view?code=${sessionCode}`);
+        setParticipantUrl(`${window.location.origin}/participant?code=${sessionCode}`);
+    }
+  }, [sessionCode]);
 
   if (!isClient) {
     return (
@@ -337,9 +342,6 @@ function DeviceConnectionCard() {
         </Card>
     );
   }
-
-  const speakerViewUrl = `${window.location.origin}/speaker-view?code=${sessionCode}`;
-  const participantUrl = `${window.location.origin}/participant?code=${sessionCode}`;
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -1151,15 +1153,16 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
         }
 
         setIsLoading(true);
-        const { auth } = getFirebaseInstances();
+        const firebase = getFirebaseInstances();
         
-        if (!auth) {
+        if (!firebase) {
             setError("Firebase not initialized correctly.");
             setIsLoading(false);
             return;
         }
+        const { updatePassword } = await import('firebase/auth');
 
-        const user = auth.currentUser;
+        const user = firebase.auth.currentUser;
         if (user) {
             try {
                 await updatePassword(user, newPassword);
@@ -1437,15 +1440,15 @@ export default function DashboardPage() {
   }, [currentUser, loadingAuth, router]);
 
   const handleSignOut = async () => {
-    try {
-        const { auth } = getFirebaseInstances();
-        if(auth) {
-            await auth.signOut();
+    const firebase = getFirebaseInstances();
+    if(firebase?.auth) {
+        try {
+            await firebase.auth.signOut();
             router.push('/');
+        } catch (e) {
+            console.error("Logout failed", e);
+            toast({variant: "destructive", title: "Logout failed", description: "Could not sign out."})
         }
-    } catch (e) {
-        console.error("Firebase not configured correctly", e);
-        toast({variant: "destructive", title: "Logout failed", description: "Could not connect to authentication service."})
     }
   }
 

@@ -14,12 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
 function ParticipantForm() {
-    const { submitAudienceQuestion, isSessionFound } = useTimer();
+    const { submitAudienceQuestion, isSessionFound, sessionCode } = useTimer();
     const { toast } = useToast();
     const router = useRouter();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const code = searchParams.get('code');
 
     const [question, setQuestion] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -36,7 +34,7 @@ function ParticipantForm() {
                 <CardContent className="space-y-2">
                     <p className="text-destructive">This Q&A link is invalid or has expired. Please check the link and try again.</p>
                      <p className="text-xs text-muted-foreground">
-                        The session code <span className="font-mono">{code}</span> could not be found.
+                        The session code <span className="font-mono">{sessionCode}</span> could not be found.
                     </p>
                 </CardContent>
                  <CardFooter>
