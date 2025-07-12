@@ -5,25 +5,18 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 import { getDatabase, type Database } from "firebase/database";
-import type { FirebaseServices } from './firebase-types';
 
-// --- IMPORTANT ---
-// These environment variables must be defined in your .env.local file.
-// See the project README for more details.
+// Hardcoded Firebase configuration provided by the user.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  apiKey: "AIzaSyB1Att5fmS7zFa_X9-hczg-YhhLAoWimUU",
+  authDomain: "timetickr-landing-page.firebaseapp.com",
+  // Using the compatible .firebaseio.com URL format
+  databaseURL: "https://timetickr-landing-page.firebaseio.com",
+  projectId: "timetickr-landing-page",
+  storageBucket: "timetickr-landing-page.appspot.com",
+  messagingSenderId: "62667221490",
+  appId: "1:62667221490:web:f9927e4b63dc50a52be36b"
 };
-
-// Check if all required environment variables are set.
-if (!firebaseConfig.apiKey) {
-    throw new Error("Firebase configuration is not complete. Please create a .env.local file and add all the required NEXT_PUBLIC_FIREBASE_... variables.");
-}
 
 let app: FirebaseApp;
 
@@ -35,7 +28,8 @@ if (!getApps().length) {
     app = getApp();
 }
 
-const auth = getAuth(app);
-const db = getDatabase(app);
+const auth: Auth = getAuth(app);
+const db: Database = getDatabase(app);
 
+// Export the initialized services for use in other parts of the application.
 export { app, auth, db };
