@@ -266,24 +266,27 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setParticipantDevices(data.connections?.participants || 0);
             
             const dbPlan = data.plan || "Freemium";
-            const selectedPlan = isClient ? localStorage.getItem('selectedPlan') as SubscriptionPlan : null;
+            const selectedPlan = isClient ? localStorage.getItem('selectedPlan') : null;
 
+            // Only update plan from DB if it wasn't just set by the user during signup
+            // or if a demo user's plan isn't already set. This prevents overwrites.
             if (!selectedPlan && !(currentUser && currentUser.email?.endsWith('@gmail.com'))) {
                setPlanState(dbPlan);
             }
 
             isUpdatingFromDb.current = false;
         } else {
+            // Only set initial data if the node is truly empty
             const initialData = {
                 time: initialDuration,
                 isActive: false,
                 initialDuration: initialDuration,
                 message: null,
-                theme: theme,
-                plan: plan,
+                theme: "Classic",
+                plan: "Freemium",
                 audienceQuestions: [],
                 teamMembers: teamMembers,
-                customLogo: customLogo,
+                customLogo: null,
             };
             if(dbRef) set(dbRef, initialData);
         }
@@ -298,8 +301,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isUpdatingFromDb.current || !dbRef || !isClient) return;
 
-    const role = !window.location.pathname.includes('/dashboard') ? 'viewer' : 'admin';
-    if (role !== 'admin') return;
+    // To prevent non-admin pages from writing, check the path.
+    // A more robust solution might use user roles from the context.
+    const isAdminView = window.location.pathname.includes('/dashboard');
+    if (!isAdminView) return;
 
     update(dbRef, {
         time,
@@ -307,11 +312,12 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         initialDuration,
         message,
         plan,
+        theme,
         audienceQuestions,
         teamMembers,
         customLogo,
     });
-  }, [time, isActive, initialDuration, message, plan, audienceQuestions, teamMembers, customLogo, dbRef, isClient]);
+  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient]);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
@@ -369,11 +375,17 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Timer logic
   useEffect(() => {
     if (isActive && time > 0) {
       intervalRef.current = setInterval(() => {
-        setTime((prevTime) => prevTime - 1);
+        // We only want the admin dashboard to be the source of truth for time updates
+        const isAdminView = window.location.pathname.includes('/dashboard');
+        if(isAdminView) {
+            setTime((prevTime) => prevTime - 1);
+        }
       }, 1000);
     } else if (time === 0) {
       setIsActive(false);
@@ -538,4 +550,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
