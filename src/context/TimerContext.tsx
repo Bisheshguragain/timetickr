@@ -11,7 +11,7 @@ import React, {
   useMemo,
 } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { ref, onValue, set, update, off, get, getDatabase } from "firebase/database";
+import { ref, onValue, set, update, off, get } from "firebase/database";
 import type { FirebaseServices } from "@/lib/firebase";
 import { useFirebase } from "@/hooks/use-firebase";
 
