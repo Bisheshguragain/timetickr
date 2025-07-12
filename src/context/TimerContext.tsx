@@ -268,16 +268,34 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   // Firebase listener
   useEffect(() => {
-    if (!dbRef) {
-        if (sessionCodeFromProps) {
-            setIsSessionFound(false);
-        }
-        return;
-    };
+    if (!dbRef) return;
+    
+    // If we're the admin/host, make sure the session exists in Firebase.
+    if (!sessionCodeFromProps) {
+        get(dbRef).then(snapshot => {
+            if (!snapshot.exists()) {
+                 const initialData = {
+                    time: initialDuration,
+                    isActive: false,
+                    initialDuration: initialDuration,
+                    adminMessage: null,
+                    audienceQuestionMessage: null,
+                    theme: "Classic",
+                    plan: "Freemium",
+                    audienceQuestions: [],
+                    teamMembers: teamMembers,
+                    customLogo: null,
+                };
+                set(dbRef, initialData);
+            }
+        });
+    }
+
     const listener = onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
-            setIsSessionFound(true);
+            if (!isSessionFound) setIsSessionFound(true);
+
             isUpdatingFromDb.current = true;
             setTime(data.time ?? initialDuration);
             setIsActive(data.isActive ?? false);
@@ -309,25 +327,15 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
             isUpdatingFromDb.current = false;
         } else {
-             // If we're a client (speaker/participant), this means the code is invalid.
-             // If we're the host, it means we need to create it.
-            if(sessionCodeFromProps){
-                setIsSessionFound(false);
-            } else {
-                setIsSessionFound(true); // Host always "finds" the session
-                const initialData = {
-                    time: initialDuration,
-                    isActive: false,
-                    initialDuration: initialDuration,
-                    adminMessage: null,
-                    audienceQuestionMessage: null,
-                    theme: "Classic",
-                    plan: "Freemium",
-                    audienceQuestions: [],
-                    teamMembers: teamMembers,
-                    customLogo: null,
-                };
-                if(dbRef) set(dbRef, initialData);
+            // For clients, if data is null after a short delay, assume the code is bad.
+            if (sessionCodeFromProps) {
+                setTimeout(() => {
+                    get(dbRef).then(snap => {
+                        if (!snap.exists()) {
+                            setIsSessionFound(false);
+                        }
+                    });
+                }, 1500); // Wait 1.5s to give the host time to create the session.
             }
         }
     });
@@ -335,7 +343,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     return () => {
         if(dbRef) off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, currentUser, sessionCodeFromProps]);
+  }, [dbRef, sessionCodeFromProps, currentUser, initialDuration, isSessionFound, teamMembers]);
+
 
   // Update DB on state change
   useEffect(() => {
