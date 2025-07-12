@@ -152,7 +152,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const isFinished = time === 0;
 
   useEffect(() => {
-      setFirebaseServices(getFirebaseServices());
+    // Initialize Firebase on the client
+    setFirebaseServices(getFirebaseServices());
   }, []);
 
   useEffect(() => {
@@ -439,7 +440,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [isActive, time, sessionCodeFromProps, dbRef]);
 
   const toggleTimer = () => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     if (!isActive) {
       if (timerLimit !== -1 && timersUsed >= timerLimit) {
         return;
@@ -448,32 +449,32 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/isActive`), newIsActive);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/isActive`), false);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/isActive`), false);
   };
 
   const setDuration = (duration: number) => {
-    if (!dbRef || isActive) return;
+    if (!dbRef || isActive || !firebaseServices) return;
     setInitialDuration(duration);
     setTime(duration);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/time`), duration);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/initialDuration`), duration);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/time`), duration);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/initialDuration`), duration);
   };
 
   const sendMessage = (text: string) => {
-    if (!dbRef) {
+    if (!dbRef || !firebaseServices) {
       throw new Error("Database connection not available.");
     }
     const newMessage = { id: Date.now(), text };
     setMessage(newMessage);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/message`), newMessage);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
@@ -485,35 +486,35 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const dismissMessage = () => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     setMessage(null);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/message`), null);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/message`), null);
   };
 
   const setTheme = (newTheme: TimerTheme) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     setThemeState(newTheme);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/theme`), newTheme);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     setPlanState(newPlan);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/plan`), newPlan);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const setCustomLogo = (logo: string | null) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     setCustomLogoState(logo);
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     setInStorage(logoKey, logo);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/customLogo`), logo);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/customLogo`), logo);
   }
 
   const submitAudienceQuestion = (text: string) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     // We get the latest questions from DB to prevent race conditions
-    get(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
+    get(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
         const newQuestion = { id: Date.now(), text };
         const newQuestions = [...currentQuestions, newQuestion];
@@ -522,14 +523,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const dismissAudienceQuestion = (id: number) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     if (plan === 'Freemium' && role === 'Admin') {
         console.error("Freemium plan cannot have more than one Admin.");
         return;
@@ -543,16 +544,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
-    if (!dbRef) return;
+    if (!dbRef || !firebaseServices) return;
     const newTeam = teamMembers.map(member =>
       member.email === email ? { ...member, status } : member
     );
     setTeamMembers(newTeam);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(firebaseServices.db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {
