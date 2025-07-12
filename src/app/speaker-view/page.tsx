@@ -44,12 +44,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   }
 
   const urlCode = searchParams.get('code');
-  
-  // Demo mode: if no code is in the URL, show the speaker view.
-  const isDemoMode = !urlCode;
-  const isPaired = urlCode === validSessionCode;
+  const isPaired = urlCode === validSessionCode && validSessionCode !== '';
 
-  if (isPaired || isDemoMode) {
+  if (isPaired) {
     return <>{children}</>;
   }
 
@@ -63,6 +60,8 @@ function PairingGate({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // If there's a code in the URL but it's not valid (e.g., old session), show the form.
+  // Also show the form if there is no code in the URL at all.
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-gray-900 p-4">
         <Card className="w-full max-w-sm">
@@ -89,6 +88,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
                         Connect Display
                     </Button>
                 </form>
+                 <p className="text-xs text-muted-foreground mt-4">
+                    Note: For this to work, the admin dashboard must have been opened first in this browser to generate a session code.
+                </p>
             </CardContent>
         </Card>
     </div>
@@ -99,7 +101,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 function SpeakerDisplay() {
   const timerContext = useTimer();
   const searchParams = useSearchParams();
-  const isDemoMode = !searchParams.get('code');
+  
+  // Demo mode is now explicitly for when no admin session is active.
+  const isDemoMode = !timerContext.sessionCode;
   
   const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
 
