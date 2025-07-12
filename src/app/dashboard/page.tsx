@@ -454,7 +454,7 @@ function DeviceConnectionCard() {
 }
 
 function CurrentPlanCard() {
-  const { plan, timersUsed, timerLimit, resetUsage } = useTimer();
+  const { plan, timersUsed, timerLimit } = useTimer();
 
   const planDetails: Record<SubscriptionPlan, { name: string; description: string }> = {
     Freemium: { name: "Freemium", description: "Get started with our basic features." },
@@ -494,9 +494,6 @@ function CurrentPlanCard() {
             </div>
             <Progress value={usagePercentage} />
          </div>
-         <Button onClick={resetUsage} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
-            <RefreshCcw className="mr-2" /> Reset usage for demo
-         </Button>
       </CardContent>
       {plan !== 'Enterprise' && (
         <CardFooter>
@@ -709,29 +706,32 @@ function AnalyticsCard() {
                     </div>
                 </div>
 
-                <div>
-                    <p className="mb-2 text-sm font-medium text-muted-foreground">
-                        Duration Breakdown
-                    </p>
-                    <ChartContainer config={chartConfig} className="h-40 w-full">
-                      <BarChartRechart accessibilityLayer data={chartData} layout="vertical" margin={{ left: -10 }}>
-                        <XAxis type="number" dataKey="count" hide />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          tickLine={false}
-                          axisLine={false}
-                          tickMargin={10}
-                          width={50}
-                        />
-                        <ChartTooltip
-                            cursor={false}
-                            content={<ChartTooltipContent hideLabel />}
-                        />
-                        <BarRechart dataKey="count" fill="var(--color-count)" radius={4} />
-                      </BarChartRechart>
-                    </ChartContainer>
-                </div>
+                {isProOrEnterprise && (
+                  <div>
+                      <p className="mb-2 text-sm font-medium text-muted-foreground">
+                          Duration Breakdown
+                      </p>
+                      <ChartContainer config={chartConfig} className="h-40 w-full">
+                        <BarChartRechart accessibilityLayer data={chartData} layout="vertical" margin={{ left: -10 }}>
+                          <XAxis type="number" dataKey="count" hide />
+                          <YAxis
+                            dataKey="name"
+                            type="category"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={10}
+                            width={50}
+                          />
+                          <ChartTooltip
+                              cursor={false}
+                              content={<ChartTooltipContent hideLabel />}
+                          />
+                          <BarRechart dataKey="count" fill="var(--color-count)" radius={4} />
+                        </BarChartRechart>
+                      </ChartContainer>
+                  </div>
+                )}
+
                  {isProOrEnterprise ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
@@ -1036,9 +1036,9 @@ function TeamManagementCard() {
     const isFreemium = plan === 'Freemium';
     const isStarter = plan === 'Starter';
 
-    // Freemium: 1 Admin + unlimited Speaker/Viewer
+    // Freemium: 1 Admin (owner) + unlimited Speaker/Viewer
     // Starter: 3 members total
-    const memberLimit = isStarter ? 3 : -1; // -1 for unlimited (for Pro/Enterprise/Freemium)
+    const memberLimit = isStarter ? 3 : -1; // -1 for unlimited
     const canInvite = (memberLimit === -1) || (teamMembers.length < memberLimit);
 
     const handleInvite = (e: React.FormEvent) => {
@@ -1053,6 +1053,15 @@ function TeamManagementCard() {
         const formData = new FormData(e.target as HTMLFormElement);
         const email = formData.get("email") as string;
         const role = formData.get("role") as TeamMember['role'];
+
+        if (isFreemium && role === 'Admin') {
+            toast({
+                variant: 'destructive',
+                title: 'Plan Limit',
+                description: "You cannot invite another Admin on the Freemium plan."
+            });
+            return;
+        }
 
         if (teamMembers.some(m => m.email.toLowerCase() === email.toLowerCase())) {
              toast({
@@ -1129,11 +1138,11 @@ function TeamManagementCard() {
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <label htmlFor="role" className="text-right">Role</label>
                                 <Select name="role" defaultValue="Speaker">
-                                    <SelectTrigger className="col-span-3" disabled={isFreemium}>
+                                    <SelectTrigger className="col-span-3">
                                         <SelectValue placeholder="Select a role" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Admin">Admin (Full control)</SelectItem>
+                                        <SelectItem value="Admin" disabled={isFreemium}>Admin (Full control)</SelectItem>
                                         <SelectItem value="Speaker">Speaker (View-only)</SelectItem>
                                         <SelectItem value="Viewer">Viewer (Display mode)</SelectItem>
                                     </SelectContent>
