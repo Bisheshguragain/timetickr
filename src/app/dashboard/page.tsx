@@ -110,7 +110,7 @@ const formatTime = (seconds: number) => {
 };
 
 function LiveMessagingCard() {
-    const { sendMessage, plan } = useTimer();
+    const { sendAdminMessage, plan } = useTimer();
     const { toast } = useToast();
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -148,7 +148,7 @@ function LiveMessagingCard() {
             if(canUseAi) {
                 const moderationResult = await moderateMessage({ message: messageToSend });
                 if (moderationResult.isSafe) {
-                    sendMessage(messageToSend);
+                    sendAdminMessage(messageToSend);
                     setMessage("");
                 } else {
                     toast({
@@ -158,7 +158,7 @@ function LiveMessagingCard() {
                     });
                 }
             } else {
-                sendMessage(messageToSend);
+                sendAdminMessage(messageToSend);
                 setMessage("");
             }
         } catch (error: any) {
@@ -851,7 +851,7 @@ function SmartAlertsCard() {
 }
 
 function AudienceQuestionsCard() {
-    const { audienceQuestions, dismissAudienceQuestion, sendMessage, plan } = useTimer();
+    const { audienceQuestions, dismissAudienceQuestion, sendAudienceQuestionMessage, plan } = useTimer();
     const { toast } = useToast();
     const [approving, setApproving] = useState<number | null>(null);
     const canUseAi = plan === 'Professional' || plan === 'Enterprise';
@@ -862,7 +862,7 @@ function AudienceQuestionsCard() {
              if (canUseAi) {
                 const moderationResult = await moderateMessage({ message: question.text });
                 if (moderationResult.isSafe) {
-                    sendMessage(`Q: ${question.text}`);
+                    sendAudienceQuestionMessage(question.text);
                     dismissAudienceQuestion(question.id);
                 } else {
                     toast({
@@ -874,7 +874,7 @@ function AudienceQuestionsCard() {
                     dismissAudienceQuestion(question.id);
                 }
              } else {
-                sendMessage(`Q: ${question.text}`);
+                sendAudienceQuestionMessage(question.text);
                 dismissAudienceQuestion(question.id);
              }
         } catch (error: any) {
@@ -1680,3 +1680,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    

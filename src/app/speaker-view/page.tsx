@@ -129,15 +129,17 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
 
 function SpeakerDisplay() {
-  const timerContext = useTimer();
-  
-  const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
-
-  const message = timerContext.message;
-  const dismissMessage = timerContext.dismissMessage;
-  
-  const { time, isFinished, theme, plan, customLogo } = timerContext;
-
+  const {
+    time,
+    isFinished,
+    theme,
+    plan,
+    customLogo,
+    adminMessage,
+    audienceQuestionMessage,
+    dismissAdminMessage,
+    dismissAudienceQuestionMessage,
+  } = useTimer();
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -186,7 +188,6 @@ function SpeakerDisplay() {
   };
 
   const currentTheme = themeClasses[theme] || themeClasses.Classic;
-  const isQuestion = message?.text.startsWith("Q:");
 
   return (
     <div
@@ -201,7 +202,7 @@ function SpeakerDisplay() {
       )}
     >
       {/* Admin Message - Top Left */}
-      {message && !isQuestion && (
+      {adminMessage && (
         <div className="absolute top-10 left-10 z-10 max-w-lg animate-in fade-in-50 slide-in-from-top-10 duration-500">
            <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
              <MessageSquare className="h-6 w-6" />
@@ -209,9 +210,9 @@ function SpeakerDisplay() {
                 Message from Admin
              </AlertTitle>
              <AlertDescription className="text-md">
-                {message.text}
+                {adminMessage.text}
              </AlertDescription>
-             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+             <button onClick={dismissAdminMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
              </button>
            </Alert>
@@ -230,7 +231,7 @@ function SpeakerDisplay() {
       </div>
 
       {/* Audience Question - Below Timer */}
-      {message && isQuestion && (
+      {audienceQuestionMessage && (
         <div className="z-10 mt-8 max-w-4xl w-full px-10 animate-in fade-in-50 slide-in-from-bottom-10 duration-500">
            <Alert variant="default" className={cn("shadow-2xl", currentTheme.alert)}>
              <MessageSquareQuote className="h-6 w-6" />
@@ -238,9 +239,9 @@ function SpeakerDisplay() {
                 Audience Question
              </AlertTitle>
              <AlertDescription className="text-lg">
-                {message.text.substring(2)}
+                {audienceQuestionMessage.text}
              </AlertDescription>
-             <button onClick={dismissMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+             <button onClick={dismissAudienceQuestionMessage} className="absolute top-3 right-3 p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
                 <X className="h-5 w-5"/>
              </button>
            </Alert>
@@ -279,3 +280,5 @@ export default function SpeakerViewPage() {
         </Suspense>
     )
 }
+
+    
