@@ -11,8 +11,8 @@ import React, {
   useMemo,
 } from "react";
 import { getFirebaseInstances } from "@/lib/firebase";
-import { ref, onValue, set, update, off, get } from "firebase/database";
-import { User, onAuthStateChanged } from "firebase/auth";
+import { ref, onValue, set, update, off, get, Database } from "firebase/database";
+import { User, onAuthStateChanged, Auth } from "firebase/auth";
 
 
 interface Message {
@@ -146,14 +146,28 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [isClient, setIsClient] = useState(false);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
 
-  const { db, auth } = useMemo(() => {
-    try {
-      return getFirebaseInstances();
-    } catch (error) {
-      console.error("Failed to get Firebase instances in context:", error);
-      return { db: null, auth: null };
+  const firebaseServices = useMemo(() => {
+    // This now correctly runs on the client and passes the config
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+    
+    // Check if all required environment variables are present on the client
+    if (Object.values(firebaseConfig).some(value => !value)) {
+        console.error("Firebase config variables are missing from .env.local. Please check your file.");
+        return { app: null, auth: null, db: null };
     }
+    
+    return getFirebaseInstances(firebaseConfig);
   }, []);
+  
+  const { auth, db } = firebaseServices;
 
   const isFinished = time === 0;
 
@@ -340,7 +354,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   
   // Update DB on state change
   useEffect(() => {
-    if (isUpdatingFromDb.current || !dbRef || !isClient || sessionCodeFromProps) return;
+    if (isUpdatingFromDb.current || !dbRef || !isClient || sessionCodeFromProps || !db) return;
 
     const isAdminView = window.location.pathname.includes('/dashboard');
     if (!isAdminView) return;
@@ -356,7 +370,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         teamMembers,
         customLogo,
     });
-  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient, sessionCodeFromProps]);
+  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient, sessionCodeFromProps, db]);
 
   const addTimers = (quantity: number) => {
     if (!currentUser) return;
@@ -435,7 +449,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [isActive, time, sessionCodeFromProps, dbRef]);
 
   const toggleTimer = () => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     if (!isActive) {
       if (timerLimit !== -1 && timersUsed >= timerLimit) {
         return; 
@@ -444,32 +458,32 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    set(ref(db!, `sessions/${sessionCode}/isActive`), newIsActive);
+    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(db!, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(db!, `sessions/${sessionCode}/isActive`), false);
+    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(db, `sessions/${sessionCode}/isActive`), false);
   };
 
   const setDuration = (duration: number) => {
-    if (!dbRef || isActive) return;
+    if (!dbRef || !db || isActive) return;
     setInitialDuration(duration);
     setTime(duration);
-    set(ref(db!, `sessions/${sessionCode}/time`), duration);
-    set(ref(db!, `sessions/${sessionCode}/initialDuration`), duration);
+    set(ref(db, `sessions/${sessionCode}/time`), duration);
+    set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
   };
 
   const sendMessage = (text: string) => {
-    if (!dbRef) {
+    if (!dbRef || !db) {
       throw new Error("Database connection not available.");
     }
     const newMessage = { id: Date.now(), text };
     setMessage(newMessage);
-    set(ref(db!, `sessions/${sessionCode}/message`), newMessage);
+    set(ref(db, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
@@ -481,35 +495,35 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const dismissMessage = () => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     setMessage(null);
-    set(ref(db!, `sessions/${sessionCode}/message`), null);
+    set(ref(db, `sessions/${sessionCode}/message`), null);
   };
   
   const setTheme = (newTheme: TimerTheme) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     setThemeState(newTheme);
-    set(ref(db!, `sessions/${sessionCode}/theme`), newTheme);
+    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     setPlanState(newPlan);
-    set(ref(db!, `sessions/${sessionCode}/plan`), newPlan);
+    set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const setCustomLogo = (logo: string | null) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     setCustomLogoState(logo);
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     setInStorage(logoKey, logo);
-    set(ref(db!, `sessions/${sessionCode}/customLogo`), logo);
+    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
   }
 
   const submitAudienceQuestion = (text: string) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     // We get the latest questions from DB to prevent race conditions
-    get(ref(dbRef, 'audienceQuestions')).then(snapshot => {
+    get(ref(db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
         const newQuestion = { id: Date.now(), text };
         const newQuestions = [...currentQuestions, newQuestion];
@@ -518,14 +532,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const dismissAudienceQuestion = (id: number) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    set(ref(db!, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
+    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     if (plan === 'Freemium' && role === 'Admin') {
         console.error("Freemium plan cannot have more than one Admin.");
         return;
@@ -539,16 +553,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
-    set(ref(db!, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
-    if (!dbRef) return;
+    if (!dbRef || !db) return;
     const newTeam = teamMembers.map(member => 
       member.email === email ? { ...member, status } : member
     );
     setTeamMembers(newTeam);
-    set(ref(db!, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {

@@ -60,7 +60,7 @@ import {
   ArrowRight,
   RefreshCcw,
   ShoppingCart,
-  BarChartHorizontal,
+  BarChart,
   FileClock,
   Copy,
   Users,
@@ -88,7 +88,7 @@ import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Bar as BarRechart, BarChart as BarChartRechart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { generateAlerts, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -661,7 +661,7 @@ function AnalyticsCard() {
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <BarChartHorizontal />
+                    <BarChart />
                     {isProOrEnterprise ? "Advanced Analytics" : "Basic Analytics"}
                 </CardTitle>
                 <CardDescription>
@@ -700,7 +700,7 @@ function AnalyticsCard() {
                         Duration Breakdown
                     </p>
                     <ChartContainer config={chartConfig} className="h-40 w-full">
-                      <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: -10 }}>
+                      <BarChartRechart accessibilityLayer data={chartData} layout="vertical" margin={{ left: -10 }}>
                         <XAxis type="number" dataKey="count" hide />
                         <YAxis 
                           dataKey="name" 
@@ -714,8 +714,8 @@ function AnalyticsCard() {
                             cursor={false}
                             content={<ChartTooltipContent hideLabel />}
                         />
-                        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                      </BarChart>
+                        <BarRechart dataKey="count" fill="var(--color-count)" radius={4} />
+                      </BarChartRechart>
                     </ChartContainer>
                 </div>
                  {isProOrEnterprise ? (
@@ -1151,7 +1151,23 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
         }
 
         setIsLoading(true);
-        const { auth } = getFirebaseInstances();
+        const firebaseConfig = {
+          apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+          authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+          databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+          projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+          appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+        };
+        const { auth } = getFirebaseInstances(firebaseConfig);
+        
+        if (!auth) {
+            setError("Firebase not initialized correctly.");
+            setIsLoading(false);
+            return;
+        }
+
         const user = auth.currentUser;
         if (user) {
             try {
@@ -1430,9 +1446,20 @@ export default function DashboardPage() {
   }, [currentUser, loadingAuth, router]);
 
   const handleSignOut = async () => {
-    const { auth } = getFirebaseInstances();
-    await auth.signOut();
-    router.push('/');
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+    const { auth } = getFirebaseInstances(firebaseConfig);
+    if(auth) {
+        await auth.signOut();
+        router.push('/');
+    }
   }
 
   if (loadingAuth || !currentUser) {

@@ -45,11 +45,35 @@ function LoginContent() {
     }
   }, [searchParams]);
 
+  const getAuthInstance = () => {
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+    if (Object.values(firebaseConfig).some(value => !value)) {
+       toast({ variant: 'destructive', title: 'Configuration Error', description: 'Firebase keys are missing. Please check your .env.local file.' });
+       return null;
+    }
+    const { auth } = getFirebaseInstances(firebaseConfig);
+    return auth;
+  }
+
   const handleSignUp = async () => {
     setLoading(true);
     setSignUpError(null);
+    const auth = getAuthInstance();
+    if (!auth) {
+        setLoading(false);
+        setSignUpError("Firebase is not configured correctly.");
+        return;
+    }
+
     try {
-      const { auth } = getFirebaseInstances();
       await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
       toast({
         title: "Account Created!",
@@ -70,8 +94,14 @@ function LoginContent() {
   const handleSignIn = async () => {
     setLoading(true);
     setSignInError(null);
+    const auth = getAuthInstance();
+    if (!auth) {
+        setLoading(false);
+        setSignInError("Firebase is not configured correctly.");
+        return;
+    }
+
     try {
-      const { auth } = getFirebaseInstances();
       await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
       toast({
         title: "Signed In!",
