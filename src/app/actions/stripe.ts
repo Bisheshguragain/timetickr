@@ -28,10 +28,10 @@ export async function createStripeCheckoutSession(
     console.log(`Requesting checkout session for user ${args.userId} with price ${args.priceId}`);
 
     if (!process.env.STRIPE_SECRET_KEY) {
-        throw new Error('STRIPE_SECRET_KEY is not set in the environment.');
+        console.error('STRIPE_SECRET_KEY is not set in the environment.');
+        return { error: 'Server configuration error. Please contact support.' };
     }
     
-    // In a real app, you'd get the base URL from the environment or request headers
     const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment_success=true` : 'http://localhost:9002/dashboard?payment_success=true';
     const cancelUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment_canceled=true` : 'http://localhost:9002/dashboard?payment_canceled=true';
 

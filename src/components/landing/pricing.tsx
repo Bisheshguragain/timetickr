@@ -28,11 +28,11 @@ const plans = [
       "Email Support",
     ],
     cta: "Get Started",
-    href: "/dashboard",
+    href: "/login?plan=Freemium",
   },
   {
     name: "Starter",
-    priceId: "price_1RjjsqJKlah40zYD9kzCBaLp",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID!,
     price: "£7",
     period: "/month",
     description: "For small teams and regular events.",
@@ -50,7 +50,7 @@ const plans = [
   },
   {
     name: "Professional",
-    priceId: "price_1Rjjt0JKlah40zYDMo3ROCAn",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID!,
     price: "£12",
     period: "/month",
     description: "For growing businesses with multiple events.",
@@ -68,7 +68,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    priceId: "price_1RjjtcJKlah40zYDHjeNdXAV",
+    priceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID!,
     price: "£29",
     period: "/month",
     description: "For large-scale operations with specific needs.",
@@ -81,8 +81,8 @@ const plans = [
       "Custom integrations",
       "GDPR compliance tools",
     ],
-    cta: "Contact Sales",
-    href: "#contact",
+    cta: "Upgrade",
+    href: "/login?plan=Enterprise",
   },
 ];
 
@@ -93,16 +93,25 @@ export function Pricing() {
   const { toast } = useToast();
 
   const handleCheckout = async (plan: typeof plans[0]) => {
-    if (!plan.priceId) {
-        if (plan.href === "#contact") {
-            router.push(plan.href);
-        }
+    // For Freemium, just redirect
+    if (plan.name === "Freemium") {
+        router.push(plan.href);
         return;
     }
-
+    
+    // If not logged in, redirect to login page with the selected plan
     if (!currentUser) {
       router.push(plan.href);
       return;
+    }
+
+    if (!plan.priceId) {
+        toast({
+            variant: "destructive",
+            title: "Plan Not Available",
+            description: "This plan is not available for online checkout. Please contact sales.",
+        });
+        return;
     }
     
     setLoading(plan.name);
@@ -173,16 +182,10 @@ export function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              {plan.name === 'Freemium' ? (
-                 <Button asChild className="w-full" variant="outline">
-                    <Link href={plan.href}>{plan.cta}</Link>
-                </Button>
-              ) : (
                 <Button onClick={() => handleCheckout(plan)} className="w-full" variant={plan.popular ? "default" : "outline"} disabled={loading === plan.name}>
                    {loading === plan.name ? <Loader className="mr-2 animate-spin"/> : null}
                    {plan.cta}
                 </Button>
-              )}
             </CardFooter>
           </Card>
         ))}
@@ -190,5 +193,3 @@ export function Pricing() {
     </div>
   );
 }
-
-    

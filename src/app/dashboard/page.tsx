@@ -329,7 +329,7 @@ function DeviceConnectionCard() {
 
   useEffect(() => {
     setIsClient(true);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && sessionCode) {
         setSpeakerViewUrl(`${window.location.origin}/speaker-view?code=${sessionCode}`);
         setParticipantUrl(`${window.location.origin}/participant?code=${sessionCode}`);
     }
@@ -376,9 +376,9 @@ function DeviceConnectionCard() {
           </label>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
-              {sessionCode}
+              {sessionCode || <Loader className="animate-spin" size="sm" />}
             </div>
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode || "")}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode || "")} disabled={!sessionCode}>
               <Copy />
             </Button>
           </div>
@@ -392,8 +392,9 @@ function DeviceConnectionCard() {
               value={speakerViewUrl}
               readOnly
               className="truncate"
+              placeholder="Generating link..."
             />
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)} disabled={!speakerViewUrl}>
               <Copy />
             </Button>
           </div>
@@ -407,16 +408,17 @@ function DeviceConnectionCard() {
               value={participantUrl}
               readOnly
               className="truncate"
+              placeholder="Generating link..."
             />
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)} disabled={!participantUrl}>
               <Copy />
             </Button>
           </div>
-          <Button asChild variant="secondary" className="w-full mt-2">
-              <Link href={participantUrl} target="_blank">
+          <Button asChild variant="secondary" className="w-full mt-2" disabled={!participantUrl}>
+              <a href={participantUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="mr-2" />
                 Open Q&A Page
-              </Link>
+              </a>
           </Button>
         </div>
         <div>
@@ -440,11 +442,11 @@ function DeviceConnectionCard() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button asChild className="w-full">
-          <Link href={speakerViewUrl} target="_blank">
+        <Button asChild className="w-full" disabled={!speakerViewUrl}>
+          <a href={speakerViewUrl} target="_blank" rel="noopener noreferrer">
             <MonitorPlay className="mr-2" />
             Open New Speaker View
-          </Link>
+          </a>
         </Button>
       </CardFooter>
     </Card>
@@ -520,7 +522,7 @@ function PurchaseTimersDialog({
   const [isLoading, setIsLoading] = useState(false);
   const pricePerTimer = 2; // Display only
   const totalCost = quantity * pricePerTimer;
-  const timerAddonPriceId = 'price_1Rjju3JKlah40zYDFMQtGHhF';
+  const timerAddonPriceId = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID!;
 
   const handlePurchase = async () => {
     if (!currentUser) {
@@ -1170,10 +1172,10 @@ function TeamManagementCard() {
                             <div className="flex items-center gap-4">
                                 <Avatar>
                                     <AvatarImage src={member.avatar} data-ai-hint="person face" />
-                                    <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                    <AvatarFallback>{member.email.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="font-medium">{member.name}</p>
+                                    <p className="font-medium">{member.email === currentUser?.email ? "You" : member.name}</p>
                                     <p className="text-sm text-muted-foreground">{member.email}</p>
                                 </div>
                             </div>
@@ -1321,9 +1323,30 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 }
 
 function CustomBrandingCard() {
-    const { customLogo, setCustomLogo } = useTimer();
+    const { customLogo, setCustomLogo, plan } = useTimer();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    if (plan !== 'Enterprise') {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ImageIcon />
+                        Custom Branding
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center text-muted-foreground p-4 bg-secondary rounded-lg">
+                        <p>This feature is available on the Enterprise plan.</p>
+                        <Button asChild variant="link" className="p-0 h-auto">
+                            <Link href="/#pricing">Upgrade to remove branding</Link>
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -1353,7 +1376,7 @@ function CustomBrandingCard() {
         setCustomLogo(null);
         toast({
             title: 'Logo Removed',
-            description: 'Branding has been reset.',
+            description: 'Branding has been reset to default.',
         });
     }
 
@@ -1595,7 +1618,7 @@ export default function DashboardPage() {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={currentUser.photoURL || `https://placehold.co/40x40.png`} data-ai-hint="person face" />
+                                <AvatarImage src={currentUser.photoURL || undefined} data-ai-hint="person face" />
                                 <AvatarFallback>{currentUser.email?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         </Button>
@@ -1678,7 +1701,7 @@ export default function DashboardPage() {
 
             <div className="space-y-8 lg:col-span-1">
                 <CurrentPlanCard />
-                 {plan === 'Enterprise' && <CustomBrandingCard />}
+                <CustomBrandingCard />
                 <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">

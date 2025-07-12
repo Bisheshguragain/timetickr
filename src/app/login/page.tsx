@@ -22,7 +22,7 @@ import { SubscriptionPlan, useTimer } from "@/context/TimerContext";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
 function LoginContent() {
-  const { firebaseServices } = useTimer();
+  const { firebaseServices, setPlan } = useTimer();
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -34,11 +34,13 @@ function LoginContent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
+  // Store the selected plan from the URL in a ref to persist it across re-renders.
+  const selectedPlanRef = React.useRef<SubscriptionPlan | null>(null);
+  
   useEffect(() => {
-    // This logic runs only on the client, after hydration
     const plan = searchParams.get('plan') as SubscriptionPlan;
-    if (plan) {
-      localStorage.setItem('selectedPlan', plan);
+    if (plan && ['Starter', 'Professional', 'Enterprise'].includes(plan)) {
+      selectedPlanRef.current = plan;
     }
   }, [searchParams]);
 
@@ -52,7 +54,14 @@ function LoginContent() {
     }
 
     try {
-      await createUserWithEmailAndPassword(firebaseServices.auth, signUpEmail, signUpPassword);
+      const userCredential = await createUserWithEmailAndPassword(firebaseServices.auth, signUpEmail, signUpPassword);
+      
+      // If a plan was selected before signing up, apply it now.
+      if (selectedPlanRef.current) {
+        setPlan(selectedPlanRef.current);
+        console.log(`New user ${userCredential.user.uid} signed up for plan: ${selectedPlanRef.current}`);
+      }
+
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
@@ -85,7 +94,8 @@ function LoginContent() {
         description: "Welcome back.",
       });
       router.push("/dashboard");
-    } catch (err: any) {
+    } catch (err: any)
+{
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         setSignInError("Invalid email or password. Please try again or sign up.");
       } else {
@@ -113,11 +123,11 @@ function LoginContent() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email-signin">Email</Label>
-                <Input id="email-signin" type="email" placeholder="m@example.com" value={signInEmail} onChange={(e) => setSignInEmail(e.target.value)} />
+                <Input id="email-signin" type="email" placeholder="m@example.com" value={signInEmail} onChange={(e) => setSignInEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password-signin">Password</Label>
-                <Input id="password-signin" type="password" value={signInPassword} onChange={(e) => setSignInPassword(e.target.value)} />
+                <Input id="password-signin" type="password" value={signInPassword} onChange={(e) => setSignInPassword(e.target.value)} required />
               </div>
               {signInError && <p className="text-sm text-destructive">{signInError}</p>}
             </CardContent>
@@ -134,17 +144,20 @@ function LoginContent() {
             <CardHeader>
               <CardTitle>Sign Up</CardTitle>
               <CardDescription>
-                Create an account to get started with TimeTickR.
+                {selectedPlanRef.current 
+                    ? `Create an account to start your ${selectedPlanRef.current} plan.`
+                    : "Create an account to get started with TimeTickR."
+                }
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email-signup">Email</Label>
-                <Input id="email-signup" type="email" placeholder="m@example.com" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} />
+                <Input id="email-signup" type="email" placeholder="m@example.com" value={signUpEmail} onChange={(e) => setSignUpEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password-signup">Password</Label>
-                <Input id="password-signup" type="password" value={signUpPassword} onChange={(e) => setSignUpPassword(e.target.value)} />
+                <Input id="password-signup" type="password" value={signUpPassword} onChange={(e) => setSignUpPassword(e.target.value)} required />
               </div>
                {signUpError && <p className="text-sm text-destructive">{signUpError}</p>}
             </CardContent>
@@ -167,12 +180,10 @@ function LoginContent() {
 
 
 export default function LoginPage() {
-  const { firebaseServices } = useTimer();
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
       <Suspense fallback={<Loader className="animate-spin" />}>
-        {firebaseServices ? <LoginContent /> : <Loader className="animate-spin" />}
+        <LoginContent />
       </Suspense>
     </div>
   )
