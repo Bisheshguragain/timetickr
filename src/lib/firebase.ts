@@ -7,8 +7,13 @@ import { getAuth, Auth } from "firebase/auth";
 let firebaseInstances: { app: FirebaseApp; auth: Auth; db: Database } | null = null;
 
 // This function provides a single point of entry for getting Firebase instances.
-// It ensures that Firebase is initialized only once.
+// It ensures that Firebase is initialized only once and only on the client-side.
 export function getFirebaseInstances() {
+  // We only want to initialize Firebase on the client side.
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   if (firebaseInstances) {
     return firebaseInstances;
   }
@@ -22,18 +27,11 @@ export function getFirebaseInstances() {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   };
-
+  
   // Check if all required environment variables are present.
-  // This is the most critical check to prevent the "Cannot parse Firebase url" error.
   if (!firebaseConfig.apiKey || !firebaseConfig.databaseURL || !firebaseConfig.projectId) {
-    const missingKeys = Object.entries(firebaseConfig)
-      .filter(([, value]) => !value)
-      .map(([key]) => `NEXT_PUBLIC_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
-    
-    console.error(`Firebase initialization failed: Missing required environment variables: ${missingKeys.join(', ')}. Please check your .env.local file.`);
-    
-    // Throw an error to halt execution if config is invalid.
-    throw new Error("Firebase configuration is missing or invalid.");
+     console.error("Firebase configuration is missing or invalid. Check your .env.local file.");
+     return null;
   }
 
   let app: FirebaseApp;
