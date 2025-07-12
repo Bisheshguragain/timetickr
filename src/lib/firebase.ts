@@ -25,25 +25,31 @@ const requiredEnv = [
   'NEXT_PUBLIC_FIREBASE_APP_ID',
 ];
 
-const missingEnv = requiredEnv.filter(key => !process.env[key]);
+// This check will only run on the client side, preventing server build errors.
+if (typeof window !== 'undefined') {
+    const missingEnv = requiredEnv.filter(key => !(process.env as any)[key]);
 
-if (missingEnv.length > 0) {
-    // This will log a warning in the server console during development if keys are missing
-    console.warn(`FIREBASE WARNING: Missing environment variables: ${missingEnv.join(', ')}. Please set them in your .env.local file.`);
-}
-
-
-try {
-    // Initialize Firebase
-    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    db = getDatabase(app);
-    auth = getAuth(app);
-} catch (error: any) {
-    console.error("Firebase initialization error:", error.message);
-    // Setting these to null so the app doesn't crash, but functions will fail gracefully.
-    app = null;
-    db = null;
-    auth = null;
+    if (missingEnv.length > 0) {
+        // This will log a warning in the browser console if keys are missing
+        console.warn(`FIREBASE WARNING: Missing environment variables: ${missingEnv.join(', ')}. Please set them in your .env.local file.`);
+        // Set to null to prevent further errors
+        app = null;
+        db = null;
+        auth = null;
+    } else {
+        try {
+            // Initialize Firebase
+            app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+            db = getDatabase(app);
+            auth = getAuth(app);
+        } catch (error: any) {
+            console.error("Firebase initialization error:", error.message);
+            // Setting these to null so the app doesn't crash, but functions will fail gracefully.
+            app = null;
+            db = null;
+            auth = null;
+        }
+    }
 }
 
 
