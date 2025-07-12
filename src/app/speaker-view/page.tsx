@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import { useTimer } from "@/context/TimerContext";
+import { TimerProvider, useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote, Info, Bot } from "lucide-react";
@@ -25,16 +25,17 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { sessionCode: validSessionCode } = useTimer();
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
+  const urlCode = searchParams.get('code');
+  const { isSessionFound } = useTimer();
 
   useEffect(() => {
     setIsClient(true);
   }, []);
-  
+
   if (!isClient) {
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
@@ -43,25 +44,53 @@ function PairingGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const urlCode = searchParams.get('code');
-  const isPaired = urlCode === validSessionCode && validSessionCode !== '';
-
-  if (isPaired) {
+  // If a valid session is found (via the context), render the display.
+  // isSessionFound becomes true when the onValue listener gets data.
+  if (urlCode && isSessionFound) {
     return <>{children}</>;
   }
 
-  const handlePair = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (code.toUpperCase() === validSessionCode) {
-        setError('');
-        router.push(`${pathname}?code=${code.toUpperCase()}`);
-    } else {
-        setError('Invalid pairing code. Please try again.');
-    }
+  // If the code is in the URL but the session isn't found (or checked yet)
+  if (urlCode && isSessionFound === false) {
+     return (
+        <div className="flex h-screen w-screen items-center justify-center bg-gray-900 p-4">
+             <Card className="w-full max-w-sm">
+                <CardHeader>
+                    <CardTitle>Session Not Found</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-destructive">The pairing code <span className="font-mono">{urlCode}</span> is invalid or has expired.</p>
+                     <Button onClick={() => router.push(pathname)} className="w-full">
+                        Try a different code
+                     </Button>
+                </CardContent>
+            </Card>
+        </div>
+     )
   }
 
-  // If there's a code in the URL but it's not valid (e.g., old session), show the form.
-  // Also show the form if there is no code in the URL at all.
+  // If there's a code in the URL but we are still checking
+  if (urlCode && isSessionFound === null) {
+      return (
+        <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
+             <div className="flex flex-col items-center gap-4 text-white">
+                <Loader className="h-12 w-12 animate-spin" />
+                <p>Connecting to session <span className="font-mono">{urlCode}</span>...</p>
+             </div>
+        </div>
+    );
+  }
+  
+  const handlePair = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.trim()) {
+        router.push(`${pathname}?code=${code.trim().toUpperCase()}`);
+    } else {
+        setError('Please enter a pairing code.');
+    }
+  }
+  
+  // No code in the URL, so show the pairing form.
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-gray-900 p-4">
         <Card className="w-full max-w-sm">
@@ -102,8 +131,7 @@ function SpeakerDisplay() {
   const timerContext = useTimer();
   const searchParams = useSearchParams();
   
-  // Demo mode is now explicitly for when no admin session is active.
-  const isDemoMode = !timerContext.sessionCode;
+  const isDemoMode = false; // Demo mode is now handled by the absence of a valid session
   
   const [demoMessage, setDemoMessage] = useState<{id: number, text: string} | null>(null);
 
@@ -119,12 +147,6 @@ function SpeakerDisplay() {
       document.body.style.overflow = "auto";
     };
   }, []);
-
-  useEffect(() => {
-    if (message) {
-      console.log("New message received by speaker:", message);
-    }
-  }, [message]);
 
   const themeClasses = {
     Classic: {
@@ -167,15 +189,6 @@ function SpeakerDisplay() {
 
   const currentTheme = themeClasses[theme] || themeClasses.Classic;
   const isQuestion = message?.text.startsWith("Q:");
-
-  const triggerDemoMessage = () => {
-    setDemoMessage({id: Date.now(), text: "You have 5 minutes remaining."});
-  }
-
-  const triggerDemoQuestion = () => {
-    setDemoMessage({id: Date.now(), text: "Q: Can you elaborate on the key findings from your research?"});
-  }
-
 
   return (
     <div
@@ -244,41 +257,27 @@ function SpeakerDisplay() {
             <Logo className={currentTheme.logo}/>
         ) : null}
       </div>
-
-      {/* Demo Controls */}
-      {isDemoMode && (
-          <div className="absolute top-4 left-5 z-20 space-y-2">
-            <Alert variant="default" className={cn("shadow-md text-xs p-2", currentTheme.alert)}>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                    Demo mode. Not connected to an admin panel.
-                </AlertDescription>
-            </Alert>
-            <Card className={cn("p-2", currentTheme.alert)}>
-                <CardHeader className="p-1 pb-2">
-                    <CardTitle className="flex items-center gap-2 text-sm">
-                        <Bot className="h-4 w-4"/> Demo Controls
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0 flex flex-col items-start gap-2">
-                    <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoMessage}>Trigger Admin Message</Button>
-                    <Button size="sm" variant="outline" className="text-xs" onClick={triggerDemoQuestion}>Trigger Audience Q&amp;A</Button>
-                </CardContent>
-            </Card>
-          </div>
-      )}
-
     </div>
   );
 }
 
+function SpeakerViewWrapper() {
+    const searchParams = useSearchParams();
+    const sessionCode = searchParams.get('code');
+
+    return (
+        <TimerProvider sessionCode={sessionCode}>
+            <PairingGate>
+                <SpeakerDisplay />
+            </PairingGate>
+        </TimerProvider>
+    )
+}
 
 export default function SpeakerViewPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
-            <PairingGate>
-                <SpeakerDisplay />
-            </PairingGate>
+            <SpeakerViewWrapper />
         </Suspense>
     )
 }

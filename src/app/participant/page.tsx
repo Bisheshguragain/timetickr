@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, Suspense, useEffect } from "react";
-import { useSearchParams } from 'next/navigation';
-import { useTimer } from "@/context/TimerContext";
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { TimerProvider, useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,8 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
 function ParticipantForm() {
-    const { sessionCode: validPairingCode, plan, submitAudienceQuestion } = useTimer();
+    const { submitAudienceQuestion, isSessionFound } = useTimer();
     const { toast } = useToast();
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const code = searchParams.get('code');
 
@@ -24,7 +26,36 @@ function ParticipantForm() {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState("");
 
-    const isPaired = code === validPairingCode;
+
+    if (isSessionFound === false) {
+        return (
+            <Card className="w-full max-w-lg">
+                <CardHeader>
+                    <CardTitle>Invalid Link</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    <p className="text-destructive">This Q&A link is invalid or has expired. Please check the link and try again.</p>
+                     <p className="text-xs text-muted-foreground">
+                        The session code <span className="font-mono">{code}</span> could not be found.
+                    </p>
+                </CardContent>
+                 <CardFooter>
+                    <Button onClick={() => router.push(pathname)} className="w-full">
+                        Try Again
+                    </Button>
+                </CardFooter>
+            </Card>
+        )
+    }
+
+    if (isSessionFound === null) {
+        return (
+             <div className="flex flex-col items-center gap-4 text-foreground">
+                <Loader className="h-8 w-8 animate-spin" />
+                <p>Connecting to session...</p>
+             </div>
+        )
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,22 +78,6 @@ function ParticipantForm() {
         } finally {
             setIsLoading(false);
         }
-    }
-
-    if (!isPaired) {
-        return (
-            <Card className="w-full max-w-lg">
-                <CardHeader>
-                    <CardTitle>Invalid Link</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    <p className="text-destructive">This Q&A link is invalid or has expired. Please check the link and try again.</p>
-                     <p className="text-xs text-muted-foreground">
-                        Note: This prototype uses browser storage for the session code. For this link to work, the admin dashboard must have been opened first in this browser to generate a session code.
-                    </p>
-                </CardContent>
-            </Card>
-        )
     }
 
     if (isSubmitted) {
@@ -135,8 +150,6 @@ function ParticipantPageContent() {
         );
     }
     
-    const showBranding = plan !== "Enterprise" || !customLogo;
-
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
             <div className="w-full max-w-lg">
@@ -145,18 +158,45 @@ function ParticipantPageContent() {
                 <div className="absolute bottom-4">
                 {customLogo && plan === "Enterprise" ? (
                     <Image src={customLogo} alt="Custom Event Logo" width={100} height={40} className="object-contain" />
-                ) : showBranding ? (
-                        <Logo className="text-muted-foreground" />
-                ) : null}
+                ) : (
+                    <Logo className="text-muted-foreground" />
+                )}
             </div>
         </div>
     );
 }
 
+function ParticipantPageWrapper() {
+    const searchParams = useSearchParams();
+    const sessionCode = searchParams.get('code');
+
+    if (!sessionCode) {
+        return (
+            <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
+                <Card className="w-full max-w-lg">
+                    <CardHeader>
+                        <CardTitle>Invalid Link</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <p className="text-destructive">This Q&A link is missing a session code. Please use the link provided by the event organizer.</p>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    return (
+        <TimerProvider sessionCode={sessionCode}>
+            <ParticipantPageContent />
+        </TimerProvider>
+    )
+}
+
+
 export default function ParticipantPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
-            <ParticipantPageContent />
+            <ParticipantPageWrapper />
         </Suspense>
     );
 }

@@ -82,7 +82,7 @@ interface TimerContextProps {
   addTimers: (quantity: number) => void;
   analytics: AnalyticsData;
   resetAnalytics: () => void;
-  sessionCode: string; // Unified code for speaker and audience
+  sessionCode: string | null; 
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
   dismissAudienceQuestion: (id: number) => void;
@@ -93,6 +93,7 @@ interface TimerContextProps {
   loadingAuth: boolean;
   customLogo: string | null;
   setCustomLogo: (logo: string | null) => void;
+  isSessionFound: boolean | null;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -115,7 +116,16 @@ const generateSessionCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
+// Overload for the TimerProvider props
+type TimerProviderProps = {
+  children: React.ReactNode;
+  // `sessionCode` is optional. If provided, the provider acts as a client.
+  // If not provided, it acts as the host (admin dashboard).
+  sessionCode?: string | null;
+};
+
+
+export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
@@ -132,23 +142,32 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
-  const [sessionCode, setSessionCode] = useState("");
+  const [sessionCode, setSessionCode] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
+
 
   const isFinished = time === 0;
 
   useEffect(() => {
     setIsClient(true);
-    const getOrCreateCode = (key: string) => {
-        let code = localStorage.getItem(key);
-        if (!code) {
-            code = generateSessionCode();
-            localStorage.setItem(key, code);
+    // Logic for setting the session code
+    if (sessionCodeFromProps) {
+        // If a code is passed via props, use it directly (for speaker/participant views)
+        setSessionCode(sessionCodeFromProps);
+    } else {
+        // Otherwise, it's the admin dashboard, so get/create from localStorage
+        const getOrCreateCode = (key: string) => {
+            let code = localStorage.getItem(key);
+            if (!code) {
+                code = generateSessionCode();
+                localStorage.setItem(key, code);
+            }
+            return code;
         }
-        return code;
+        setSessionCode(getOrCreateCode('sessionCode'));
     }
-    setSessionCode(getOrCreateCode('sessionCode'));
-  }, []);
+  }, [sessionCodeFromProps]);
 
 
   const baseTimerLimit = PLAN_LIMITS[plan];
@@ -244,6 +263,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const listener = onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
+            setIsSessionFound(true);
             isUpdatingFromDb.current = true;
             setTime(data.time ?? initialDuration);
             setIsActive(data.isActive ?? false);
@@ -268,41 +288,43 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             const dbPlan = data.plan || "Freemium";
             const selectedPlan = isClient ? localStorage.getItem('selectedPlan') : null;
 
-            // Only update plan from DB if it wasn't just set by the user during signup
-            // or if a demo user's plan isn't already set. This prevents overwrites.
             if (!selectedPlan && !(currentUser && currentUser.email?.endsWith('@gmail.com'))) {
                setPlanState(dbPlan);
             }
 
             isUpdatingFromDb.current = false;
         } else {
-            // Only set initial data if the node is truly empty
-            const initialData = {
-                time: initialDuration,
-                isActive: false,
-                initialDuration: initialDuration,
-                message: null,
-                theme: "Classic",
-                plan: "Freemium",
-                audienceQuestions: [],
-                teamMembers: teamMembers,
-                customLogo: null,
-            };
-            if(dbRef) set(dbRef, initialData);
+             // If we're a client (speaker/participant), this means the code is invalid.
+             // If we're the host, it means we need to create it.
+            if(sessionCodeFromProps){
+                setIsSessionFound(false);
+            } else {
+                setIsSessionFound(true); // Host always "finds" the session
+                const initialData = {
+                    time: initialDuration,
+                    isActive: false,
+                    initialDuration: initialDuration,
+                    message: null,
+                    theme: "Classic",
+                    plan: "Freemium",
+                    audienceQuestions: [],
+                    teamMembers: teamMembers,
+                    customLogo: null,
+                };
+                if(dbRef) set(dbRef, initialData);
+            }
         }
     });
 
     return () => {
         if(dbRef) off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, currentUser, isClient]);
+  }, [dbRef, initialDuration, currentUser, isClient, sessionCodeFromProps]);
   
   // Update DB on state change
   useEffect(() => {
-    if (isUpdatingFromDb.current || !dbRef || !isClient) return;
+    if (isUpdatingFromDb.current || !dbRef || !isClient || sessionCodeFromProps) return;
 
-    // To prevent non-admin pages from writing, check the path.
-    // A more robust solution might use user roles from the context.
     const isAdminView = window.location.pathname.includes('/dashboard');
     if (!isAdminView) return;
 
@@ -317,7 +339,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         teamMembers,
         customLogo,
     });
-  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient]);
+  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient, sessionCodeFromProps]);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
@@ -381,9 +403,8 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isActive && time > 0) {
       intervalRef.current = setInterval(() => {
-        // We only want the admin dashboard to be the source of truth for time updates
-        const isAdminView = window.location.pathname.includes('/dashboard');
-        if(isAdminView) {
+        // Only admin dashboard updates time to prevent multiple clients from decrementing
+        if (!sessionCodeFromProps) {
             setTime((prevTime) => prevTime - 1);
         }
       }, 1000);
@@ -393,7 +414,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     return () => clearInterval(intervalRef.current as NodeJS.Timeout);
-  }, [isActive, time]);
+  }, [isActive, time, sessionCodeFromProps]);
 
   const toggleTimer = () => {
     if (!isActive) {
@@ -464,10 +485,14 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const submitAudienceQuestion = (text: string) => {
-    const newQuestion = { id: Date.now(), text };
-    const newQuestions = [...audienceQuestions, newQuestion];
-    setAudienceQuestions(newQuestions);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
+    if (!dbRef) return;
+    // We get the latest questions from DB to prevent race conditions
+    get(ref(dbRef, 'audienceQuestions')).then(snapshot => {
+        const currentQuestions = snapshot.val() || [];
+        const newQuestion = { id: Date.now(), text };
+        const newQuestions = [...currentQuestions, newQuestion];
+        set(ref(dbRef, 'audienceQuestions'), newQuestions);
+    });
   };
 
   const dismissAudienceQuestion = (id: number) => {
@@ -536,6 +561,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     loadingAuth,
     customLogo,
     setCustomLogo,
+    isSessionFound,
   };
 
   return (
