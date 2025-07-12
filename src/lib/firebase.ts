@@ -1,7 +1,8 @@
+
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp, FirebaseOptions } from "firebase/app";
-import { getDatabase } from "firebase/database";
-import { getAuth } from "firebase/auth";
+import { initializeApp, getApps, getApp, FirebaseApp, FirebaseOptions } from "firebase/app";
+import { getDatabase, Database } from "firebase/database";
+import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,34 +14,21 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-const requiredEnv = [
-    'NEXT_PUBLIC_FIREBASE_API_KEY',
-    'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-    'NEXT_PUBLIC_FIREBASE_DATABASE_URL',
-    'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-    'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
-    'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-    'NEXT_PUBLIC_FIREBASE_APP_ID'
-];
+let app: FirebaseApp;
+let auth: Auth;
+let db: Database;
 
-let app, db, auth;
-
-// This check is crucial for Next.js to prevent server-side rendering errors
-// when environment variables are not yet available.
-if (typeof window !== 'undefined') {
-    const missingEnv = requiredEnv.filter(key => !process.env[key]);
-
-    if (missingEnv.length > 0) {
-        console.warn(`FIREBASE WARNING: Missing environment variables: ${missingEnv.join(', ')}. Firebase features will be disabled. Please set them in your .env.local file.`);
-        app = null;
-        db = null;
-        auth = null;
-    } else {
-        // Initialize Firebase
-        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        db = getDatabase(app);
-        auth = getAuth(app);
-    }
+// Initialize Firebase
+try {
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getDatabase(app);
+} catch (error: any) {
+    console.error("Firebase initialization error:", error.message);
+    // Provide non-functional dummies to prevent app from crashing on import
+    app = {} as FirebaseApp;
+    auth = {} as Auth;
+    db = {} as Database;
 }
 
 export { db, auth, app };
