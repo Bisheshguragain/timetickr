@@ -110,6 +110,8 @@ import Image from "next/image";
 import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
 import { updatePassword } from "firebase/auth";
+import { generateImage, GenerateImageOutput } from "@/ai/flows/generate-image-flow";
+
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -1440,11 +1442,12 @@ function CustomBrandingCard() {
     )
 }
 
-function SpeechwriterCard() {
+function AiAssistantCard() {
   const { toast } = useToast();
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<GenerateSpeechOutput | null>(null);
+  const [speechResult, setSpeechResult] = useState<GenerateSpeechOutput | null>(null);
+  const [imageResult, setImageResult] = useState<GenerateImageOutput | null>(null);
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -1452,12 +1455,19 @@ function SpeechwriterCard() {
       return;
     }
     setIsLoading(true);
-    setResult(null);
+    setSpeechResult(null);
+    setImageResult(null);
+
     try {
-      const speechResult = await generateSpeech({ topic });
-      setResult(speechResult);
+      // Run both flows in parallel
+      const [speech, image] = await Promise.all([
+        generateSpeech({ topic }),
+        generateImage({ topic })
+      ]);
+      setSpeechResult(speech);
+      setImageResult(image);
     } catch (error) {
-      console.error("Error generating speech:", error);
+      console.error("Error generating AI content:", error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not generate content. Please try again.' });
     } finally {
       setIsLoading(false);
@@ -1468,16 +1478,28 @@ function SpeechwriterCard() {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied to clipboard!", description: `${fieldName} has been copied.` });
   };
+  
+  const downloadImage = () => {
+    if (imageResult?.imageUrl) {
+        const link = document.createElement('a');
+        link.href = imageResult.imageUrl;
+        link.download = `presentation-background-${topic.replace(/\s+/g, '-').toLowerCase()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+  }
+
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Sparkles />
-          AI Speechwriter Assistant
+          AI Presentation Assistant
         </CardTitle>
         <CardDescription>
-          Get a head start on your presentation. Enter a topic and let our AI create a title, outline, and opening statement.
+          Get a head start. Enter a topic and let AI create a title, outline, opening statement, and a background image.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1495,41 +1517,64 @@ function SpeechwriterCard() {
         </div>
         <Button onClick={handleGenerate} disabled={isLoading} className="w-full">
           {isLoading ? <Loader className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
-          Generate Content
+          Generate All Content
         </Button>
-        {result && (
-          <div className="space-y-6 pt-4">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <h4 className="font-semibold text-muted-foreground">Generated Title</h4>
-                <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.title, 'Title')}>
-                    <ClipboardCopy />
-                </Button>
-              </div>
-              <p className="p-3 rounded-md bg-secondary text-lg font-bold">{result.title}</p>
+        
+        {isLoading && (
+            <div className="text-center text-muted-foreground py-4">
+                <p>Generating content... this may take a moment.</p>
             </div>
-            <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-muted-foreground">Opening Statement</h4>
-                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.openingStatement, 'Opening Statement')}>
-                        <ClipboardCopy />
+        )}
+
+        {(speechResult || imageResult) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+            {speechResult && (
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <h4 className="font-semibold text-muted-foreground">Generated Title</h4>
+                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(speechResult.title, 'Title')}>
+                            <ClipboardCopy />
+                        </Button>
+                    </div>
+                    <p className="p-3 rounded-md bg-secondary text-lg font-bold">{speechResult.title}</p>
+                    </div>
+                    <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-muted-foreground">Opening Statement</h4>
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(speechResult.openingStatement, 'Opening Statement')}>
+                                <ClipboardCopy />
+                            </Button>
+                        </div>
+                    <p className="p-3 rounded-md bg-secondary italic">"{speechResult.openingStatement}"</p>
+                    </div>
+                    <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-muted-foreground">Presentation Outline</h4>
+                            <Button variant="ghost" size="icon" onClick={() => copyToClipboard(speechResult.outline.join('\n'), 'Outline')}>
+                                <ClipboardCopy />
+                            </Button>
+                        </div>
+                    <ul className="space-y-2 p-3 rounded-md bg-secondary list-disc list-inside">
+                        {speechResult.outline.map((point, index) => (
+                        <li key={index}>{point}</li>
+                        ))}
+                    </ul>
+                    </div>
+                </div>
+            )}
+             {imageResult && (
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-muted-foreground">AI-Generated Image</h4>
+                     <div className="aspect-video w-full rounded-md border bg-secondary flex items-center justify-center overflow-hidden">
+                        <Image src={imageResult.imageUrl} alt="AI Generated Presentation Background" width={500} height={281} className="object-cover w-full h-full" />
+                    </div>
+                    <Button onClick={downloadImage} className="w-full" variant="outline">
+                        <FileDown className="mr-2" />
+                        Download Image
                     </Button>
                 </div>
-              <p className="p-3 rounded-md bg-secondary italic">"{result.openingStatement}"</p>
-            </div>
-            <div className="space-y-2">
-               <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-muted-foreground">Presentation Outline</h4>
-                    <Button variant="ghost" size="icon" onClick={() => copyToClipboard(result.outline.join('\n'), 'Outline')}>
-                        <ClipboardCopy />
-                    </Button>
-                </div>
-              <ul className="space-y-2 p-3 rounded-md bg-secondary list-disc list-inside">
-                {result.outline.map((point, index) => (
-                  <li key={index}>{point}</li>
-                ))}
-              </ul>
-            </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -1711,7 +1756,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
-                {isProOrEnterprise && <SpeechwriterCard />}
+                {isProOrEnterprise && <AiAssistantCard />}
                 <LiveMessagingCard />
                 <AudienceQuestionsCard />
                 <TeamManagementCard />
