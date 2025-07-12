@@ -1,36 +1,16 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getDatabase } from "firebase/database";
+// This hook is no longer needed for initialization as it's handled in `src/lib/firebase.ts`.
+// It can be kept for other client-side Firebase logic or removed if unused.
+// For now, we'll keep a placeholder to avoid breaking imports that might still exist.
+
+import { services } from "@/lib/firebase";
 import type { FirebaseServices } from "@/lib/firebase-types";
 
-export function useFirebase() {
-  const [services, setServices] = useState<FirebaseServices | null>(null);
-
-  useEffect(() => {
-    // This effect runs only once on the client-side after mount
-    if (typeof window !== "undefined") {
-      const app = !getApps().length
-        ? initializeApp({
-            apiKey: "AIzaSyB1Att5fmS7zFa_X9-hczg-YhhLAoWimUU",
-            authDomain: "timetickr-landing-page.firebaseapp.com",
-            databaseURL: "https://timetickr-landing-page.firebaseio.com",
-            projectId: "timetickr-landing-page",
-            storageBucket: "timetickr-landing-page.appspot.com",
-            messagingSenderId: "62667221490",
-            appId: "1:62667221490:web:f9927e4b63dc50a52be36b"
-        })
-        : getApp();
-
-      const auth = getAuth(app);
-      const db = getDatabase(app);
-      
-      setServices({ app, auth, db });
-    }
-  }, []);
-
+export function useFirebase(): FirebaseServices | null {
+  // The services are now initialized synchronously in a central file,
+  // so we can just return them. The hook remains for component-level access
+  // if needed, but the core initialization is done elsewhere.
   return services;
 }

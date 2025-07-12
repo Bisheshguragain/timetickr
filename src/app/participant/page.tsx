@@ -1,10 +1,9 @@
 
 "use client";
 
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { TimerProvider, useTimer } from "@/context/TimerContext";
-import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 
 function ParticipantForm() {
-    const { submitAudienceQuestion, isSessionFound, sessionCode } = useTimer();
+    const { submitAudienceQuestion, isSessionFound, sessionCode, plan, customLogo } = useTimer();
     const { toast } = useToast();
     const router = useRouter();
     const pathname = usePathname();
@@ -100,60 +99,37 @@ function ParticipantForm() {
     }
 
     return (
-        <Card className="w-full max-w-lg">
-            <CardHeader className="text-center">
-                <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-                    <MessageSquareQuote />
-                    Ask a Question
-                </CardTitle>
-                <CardDescription>
-                    Your question will be sent to the event moderator for review.
-                </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleSubmit}>
-                <CardContent className="space-y-4">
-                    <Textarea 
-                        placeholder="Type your question here..."
-                        rows={5}
-                        value={question}
-                        onChange={(e) => setQuestion(e.target.value)}
-                        disabled={isLoading}
-                    />
-                    {error && <p className="text-sm text-destructive">{error}</p>}
-                </CardContent>
-                <CardFooter>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading ? <Loader className="mr-2 animate-spin" /> : <Send className="mr-2" />}
-                        Send Question
-                    </Button>
-                </CardFooter>
-            </form>
-        </Card>
-    );
-}
-
-function ParticipantPageContent() {
-    const { plan, customLogo } = useTimer();
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    if (!isClient) {
-        return (
-            <div className="flex h-screen w-screen items-center justify-center">
-                <Loader className="h-8 w-8 animate-spin" />
-            </div>
-        );
-    }
-    
-    return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
-            <div className="w-full max-w-lg">
-                <ParticipantForm />
-            </div>
-                <div className="absolute bottom-4">
+        <div className="w-full max-w-lg">
+            <Card>
+                <CardHeader className="text-center">
+                    <CardTitle className="flex items-center justify-center gap-2 text-2xl">
+                        <MessageSquareQuote />
+                        Ask a Question
+                    </CardTitle>
+                    <CardDescription>
+                        Your question will be sent to the event moderator for review.
+                    </CardDescription>
+                </CardHeader>
+                <form onSubmit={handleSubmit}>
+                    <CardContent className="space-y-4">
+                        <Textarea 
+                            placeholder="Type your question here..."
+                            rows={5}
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            disabled={isLoading}
+                        />
+                        {error && <p className="text-sm text-destructive">{error}</p>}
+                    </CardContent>
+                    <CardFooter>
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? <Loader className="mr-2 animate-spin" /> : <Send className="mr-2" />}
+                            Send Question
+                        </Button>
+                    </CardFooter>
+                </form>
+            </Card>
+            <div className="flex justify-center mt-8">
                 {customLogo && plan === "Enterprise" ? (
                     <Image src={customLogo} alt="Custom Event Logo" width={100} height={40} className="object-contain" />
                 ) : (
@@ -175,7 +151,7 @@ function ParticipantPageWrapper() {
                     <CardHeader>
                         <CardTitle>Invalid Link</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent>
                         <p className="text-destructive">This Q&A link is missing a session code. Please use the link provided by the event organizer.</p>
                     </CardContent>
                 </Card>
@@ -185,7 +161,9 @@ function ParticipantPageWrapper() {
 
     return (
         <TimerProvider sessionCode={sessionCode}>
-            <ParticipantPageContent />
+             <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
+                <ParticipantForm />
+            </div>
         </TimerProvider>
     )
 }
@@ -193,7 +171,7 @@ function ParticipantPageWrapper() {
 
 export default function ParticipantPage() {
     return (
-        <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
+        <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-secondary"><Loader className="h-12 w-12 animate-spin text-foreground" /></div>}>
             <ParticipantPageWrapper />
         </Suspense>
     );

@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { onAuthStateChanged, type User, Auth } from "firebase/auth";
 import { ref, onValue, set, update, off, get, Database } from "firebase/database";
-import { useFirebase } from "@/hooks/use-firebase";
+import { auth, db } from "@/lib/firebase"; // Import singleton instances
 
 interface Message {
   id: number;
@@ -97,7 +97,7 @@ interface TimerContextProps {
   customLogo: string | null;
   setCustomLogo: (logo: string | null) => void;
   isSessionFound: boolean | null;
-  firebaseServices: { auth: Auth, db: Database } | null;
+  firebaseServices: { auth: Auth, db: Database }; // Always available
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -111,21 +111,13 @@ const initialAnalytics: AnalyticsData = {
     durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
 };
 
-const defaultTeam: TeamMember[] = [
-    { name: "You", email: "me@example.com", role: "Admin", status: "Active", avatar: "https://placehold.co/40x40.png" },
-];
-
-
 const generateSessionCode = () => {
     // This function will only be called on the client, so it's safe to use Math.random
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-// Overload for the TimerProvider props
 type TimerProviderProps = {
   children: React.ReactNode;
-  // `sessionCode` is optional. If provided, the provider acts as a client.
-  // If not provided, it acts as the host (admin dashboard).
   sessionCode?: string | null;
 };
 
@@ -150,12 +142,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
   const [sessionCode, setSessionCode] = useState<string | null>(null);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
-  const firebaseServices = useFirebase();
 
   const isFinished = time === 0;
 
   useEffect(() => {
-    // Logic for setting the session code - runs only on client
     if (sessionCodeFromProps) {
         setSessionCode(sessionCodeFromProps);
     } else if (typeof window !== 'undefined') {
@@ -171,111 +161,29 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
   }, [sessionCodeFromProps]);
 
-
-  const baseTimerLimit = PLAN_LIMITS[plan];
-  const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
-
   const dbRef = useMemo(() => {
-    if (sessionCode && firebaseServices?.db) {
-      return ref(firebaseServices.db, `sessions/${sessionCode}`);
+    if (sessionCode) {
+      return ref(db, `sessions/${sessionCode}`);
     }
     return null;
-  }, [sessionCode, firebaseServices]);
+  }, [sessionCode]);
 
-  const isUpdatingFromDb = useRef(false);
-
+  // Auth listener
   useEffect(() => {
-    if (!firebaseServices) return;
-    const { auth } = firebaseServices;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoadingAuth(false);
     });
-
     return () => unsubscribe();
-  }, [firebaseServices]);
+  }, []);
 
-  const setPlan = useCallback((newPlan: SubscriptionPlan) => {
-    if (!firebaseServices || !currentUser) return;
-    setPlanState(newPlan);
-    const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
-    set(userDbRef, newPlan);
-  }, [firebaseServices, currentUser]);
+  const isUpdatingFromDb = useRef(false);
 
+  // Firebase session listener
   useEffect(() => {
-    if (!firebaseServices || !currentUser) return;
-
-    const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
-    get(userDbRef).then(snapshot => {
-      if (snapshot.exists()) {
-        setPlanState(snapshot.val());
-      } else {
-        // If no plan is in the DB, set Freemium as default
-        set(userDbRef, "Freemium");
-        setPlanState("Freemium");
-      }
-    });
-
-    const userAsTeamMember: TeamMember = {
-        name: "You",
-        email: currentUser.email!,
-        role: "Admin",
-        status: "Active",
-        avatar: "https://placehold.co/40x40.png"
-    };
-    setTeamMembers(prev => {
-        const userExists = prev.some(m => m.email === currentUser.email);
-        if (!userExists) return [userAsTeamMember, ...prev.filter(m => m.email !== "me@example.com")];
-        return prev.map(m => m.email === currentUser.email || m.email === 'me@example.com' ? userAsTeamMember : m);
-    });
-
-  }, [firebaseServices, currentUser]);
-
-  const getFromStorage = (key: string, defaultValue: any) => {
-    if (typeof window === 'undefined') return defaultValue;
-    const saved = localStorage.getItem(key);
-    try {
-        return saved ? JSON.parse(saved) : defaultValue;
-    } catch (e) {
-        return defaultValue;
-    }
-  }
-
-  const setInStorage = (key: string, value: any) => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-
-  const getUsageFromStorage = useCallback(() => {
-    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
-    const usage = getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
-    const currentMonth = new Date().getMonth();
-    if (usage.month === currentMonth) {
-      return usage;
-    }
-    const newUsage = { used: 0, extra: 0, month: currentMonth };
-    setInStorage(usageKey, newUsage);
-    return newUsage;
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (loadingAuth || !currentUser) return;
-    const { used, extra } = getUsageFromStorage();
-    setTimersUsed(used);
-    setExtraTimers(extra);
-    const analyticsKey = `timerAnalytics_${currentUser.uid}`;
-    const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
-    setAnalytics(savedAnalytics);
-    const logoKey = `customLogo_${currentUser.uid}`;
-    const savedLogo = getFromStorage(logoKey, null);
-    if(savedLogo) setCustomLogoState(savedLogo);
-  }, [currentUser, loadingAuth, getUsageFromStorage]);
-
-  // Firebase listener
-  useEffect(() => {
-    if (!dbRef || !firebaseServices) return;
+    if (!dbRef) return;
     
-    // If we're the admin/host, make sure the session exists in Firebase.
+    // If we are the host, ensure the session exists.
     if (!sessionCodeFromProps) {
         get(dbRef).then(snapshot => {
             if (!snapshot.exists()) {
@@ -289,55 +197,51 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
                     audienceQuestions: [],
                     teamMembers: [],
                     customLogo: null,
+                    connections: { speakers: 0, participants: 0 },
                 };
-                set(dbRef, initialData);
+                set(dbRef, initialData).then(() => {
+                   setIsSessionFound(true);
+                });
+            } else {
+                setIsSessionFound(true);
             }
         });
     }
 
     const listener = onValue(dbRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            if (isSessionFound !== true) setIsSessionFound(true);
-
-            isUpdatingFromDb.current = true;
-            setTime(data.time ?? initialDuration);
-            setIsActive(data.isActive ?? false);
-            setInitialDuration(data.initialDuration ?? 900);
-            setAdminMessage(data.adminMessage || null);
-            setAudienceQuestionMessage(data.audienceQuestionMessage || null);
-            setThemeState(data.theme || "Classic");
-            setAudienceQuestions(data.audienceQuestions || []);
-            setTeamMembers(data.teamMembers || []);
-            setCustomLogoState(data.customLogo || null);
-
-            setSpeakerDevices(data.connections?.speakers || 0);
-            setParticipantDevices(data.connections?.participants || 0);
-
-            isUpdatingFromDb.current = false;
-        } else {
-            // For clients, if data is null after a short delay, assume the code is bad.
-            if (sessionCodeFromProps) {
-                setTimeout(() => {
-                    get(dbRef).then(snap => {
-                        if (!snap.exists()) {
-                            setIsSessionFound(false);
-                        }
-                    });
-                }, 1500); // Wait 1.5s to give the host time to create the session.
+        if (!snapshot.exists()) {
+            if(sessionCodeFromProps) {
+                // If it's a client and session disappears, mark as not found.
+                setIsSessionFound(false);
             }
+            return;
         }
+        
+        setIsSessionFound(true);
+        const data = snapshot.val();
+        
+        isUpdatingFromDb.current = true;
+        setTime(data.time ?? initialDuration);
+        setIsActive(data.isActive ?? false);
+        setInitialDuration(data.initialDuration ?? 900);
+        setAdminMessage(data.adminMessage || null);
+        setAudienceQuestionMessage(data.audienceQuestionMessage || null);
+        setThemeState(data.theme || "Classic");
+        setAudienceQuestions(data.audienceQuestions || []);
+        setTeamMembers(data.teamMembers || []);
+        setCustomLogoState(data.customLogo || null);
+        setSpeakerDevices(data.connections?.speakers || 0);
+        setParticipantDevices(data.connections?.participants || 0);
+        isUpdatingFromDb.current = false;
     });
 
-    return () => {
-        if(dbRef) off(dbRef, 'value', listener);
-    };
-  }, [dbRef, sessionCodeFromProps, firebaseServices, initialDuration, isSessionFound]);
+    return () => off(dbRef, 'value', listener);
+  }, [dbRef, sessionCodeFromProps, initialDuration]);
 
 
-  // Update DB on state change
+  // Update DB on state change from admin
   useEffect(() => {
-    if (isUpdatingFromDb.current || !dbRef || sessionCodeFromProps ) return;
+    if (isUpdatingFromDb.current || !dbRef || sessionCodeFromProps) return;
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard')) return;
 
     update(dbRef, {
@@ -353,13 +257,104 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     });
   }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, teamMembers, customLogo, dbRef, sessionCodeFromProps]);
 
-  const addTimers = (quantity: number) => {
+  const setPlan = useCallback((newPlan: SubscriptionPlan) => {
     if (!currentUser) return;
-    const newExtraTimers = extraTimers + quantity;
-    setExtraTimers(newExtraTimers);
-    const usageKey = `timerUsage_${currentUser.uid}`;
-    setInStorage(usageKey, { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
-  };
+    setPlanState(newPlan);
+    const userDbRef = ref(db, `users/${currentUser.uid}/plan`);
+    set(userDbRef, newPlan);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const userDbRef = ref(db, `users/${currentUser.uid}/plan`);
+    get(userDbRef).then(snapshot => {
+      if (snapshot.exists()) {
+        setPlanState(snapshot.val());
+      } else {
+        set(userDbRef, "Freemium");
+        setPlanState("Freemium");
+      }
+    });
+
+    const userAsTeamMember: TeamMember = {
+        name: "You",
+        email: currentUser.email!,
+        role: "Admin",
+        status: "Active",
+        avatar: `https://i.pravatar.cc/40?u=${currentUser.email}`
+    };
+    setTeamMembers(prev => {
+        const userExists = prev.some(m => m.email === currentUser.email);
+        if (!userExists) return [userAsTeamMember];
+        return prev.map(m => m.email === currentUser.email ? userAsTeamMember : m);
+    });
+
+  }, [currentUser]);
+
+  const getFromStorage = (key: string, defaultValue: any) => {
+    if (typeof window === 'undefined') return defaultValue;
+    const saved = localStorage.getItem(key);
+    try {
+        return saved ? JSON.parse(saved) : defaultValue;
+    } catch (e) {
+        return defaultValue;
+    }
+  }
+
+  const setInStorage = (key: string, value: any) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+  
+  const getUsageFromStorage = useCallback(() => {
+    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    const usage = getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
+    const currentMonth = new Date().getMonth();
+    if (usage.month === currentMonth) {
+      return usage;
+    }
+    const newUsage = { used: 0, extra: 0, month: currentMonth };
+    setInStorage(usageKey, newUsage);
+    return newUsage;
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (loadingAuth) return;
+    const { used, extra } = getUsageFromStorage();
+    setTimersUsed(used);
+    setExtraTimers(extra);
+    
+    if (currentUser) {
+      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+      const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
+      setAnalytics(savedAnalytics);
+      const logoKey = `customLogo_${currentUser.uid}`;
+      const savedLogo = getFromStorage(logoKey, null);
+      if(savedLogo) setCustomLogoState(savedLogo);
+    }
+  }, [currentUser, loadingAuth, getUsageFromStorage]);
+
+  const baseTimerLimit = PLAN_LIMITS[plan] ?? 3;
+  const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
+
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer logic
+  useEffect(() => {
+    if (isActive && time > 0) {
+      intervalRef.current = setInterval(() => {
+        if (!sessionCodeFromProps) { // Only admin dashboard updates time
+            setTime((prevTime) => prevTime - 1);
+        }
+      }, 1000);
+    } else if (time === 0) {
+      setIsActive(false);
+      clearInterval(intervalRef.current as NodeJS.Timeout);
+    }
+
+    return () => clearInterval(intervalRef.current as NodeJS.Timeout);
+  }, [isActive, time, sessionCodeFromProps]);
 
   const consumeTimerCredit = () => {
     if (!currentUser || (timerLimit !== -1 && timersUsed >= timerLimit)) {
@@ -371,11 +366,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: newUsage, extra: extraTimers, month: new Date().getMonth() });
 
-    // Analytics update
     const newTotalTimers = analytics.totalTimers + 1;
     const totalDuration = (analytics.avgDuration * analytics.totalTimers) + initialDuration;
     const newAvgDuration = totalDuration / newTotalTimers;
-
     const newBrackets = { ...analytics.durationBrackets };
     const durationMins = initialDuration / 60;
     if (durationMins <= 5) newBrackets["0-5"]++;
@@ -384,17 +377,132 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     else if (durationMins <= 60) newBrackets["30-60"]++;
     else newBrackets["60+"]++;
 
-    const newAnalytics = {
-      ...analytics,
-      totalTimers: newTotalTimers,
-      avgDuration: newAvgDuration,
-      durationBrackets: newBrackets,
-    }
+    const newAnalytics = { ...analytics, totalTimers: newTotalTimers, avgDuration: newAvgDuration, durationBrackets: newBrackets };
     setAnalytics(newAnalytics);
     const analyticsKey = `timerAnalytics_${currentUser.uid}`;
     setInStorage(analyticsKey, newAnalytics);
   };
+  
+  const toggleTimer = () => {
+    if (!dbRef) return;
+    if (!isActive) {
+      if (timerLimit !== -1 && timersUsed >= timerLimit) return;
+      consumeTimerCredit();
+    }
+    const newIsActive = !isActive;
+    setIsActive(newIsActive);
+    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
+  };
 
+  const resetTimer = () => {
+    if (!dbRef) return;
+    setIsActive(false);
+    setTime(initialDuration);
+    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(db, `sessions/${sessionCode}/isActive`), false);
+  };
+
+  const setDuration = (duration: number) => {
+    if (!dbRef || isActive) return;
+    setInitialDuration(duration);
+    setTime(duration);
+    set(ref(db, `sessions/${sessionCode}/time`), duration);
+    set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
+  };
+
+  const sendAdminMessage = (text: string) => {
+    if (!dbRef) throw new Error("Database connection not available.");
+    const newMessage = { id: Date.now(), text };
+    setAdminMessage(newMessage);
+    set(ref(db, `sessions/${sessionCode}/adminMessage`), newMessage);
+
+    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
+    setAnalytics(newAnalytics);
+    if(currentUser) {
+      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+      setInStorage(analyticsKey, newAnalytics);
+    }
+  };
+
+  const dismissAdminMessage = () => {
+    if (!dbRef) return;
+    setAdminMessage(null);
+    set(ref(db, `sessions/${sessionCode}/adminMessage`), null);
+  };
+
+  const sendAudienceQuestionMessage = (text: string) => {
+    if (!dbRef) throw new Error("Database connection not available.");
+    const newMessage = { id: Date.now(), text };
+    setAudienceQuestionMessage(newMessage);
+    set(ref(db, `sessions/${sessionCode}/audienceQuestionMessage`), newMessage);
+
+    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
+    setAnalytics(newAnalytics);
+     if(currentUser) {
+      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+      setInStorage(analyticsKey, newAnalytics);
+    }
+  };
+
+  const dismissAudienceQuestionMessage = () => {
+    if (!dbRef) return;
+    setAudienceQuestionMessage(null);
+    set(ref(db, `sessions/${sessionCode}/audienceQuestionMessage`), null);
+  };
+
+  const setTheme = (newTheme: TimerTheme) => {
+    if (!dbRef) return;
+    setThemeState(newTheme);
+    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
+  };
+
+  const setCustomLogo = (logo: string | null) => {
+    if (!dbRef || !currentUser) return;
+    setCustomLogoState(logo);
+    const logoKey = `customLogo_${currentUser.uid}`;
+    setInStorage(logoKey, logo);
+    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+  }
+
+  const submitAudienceQuestion = (text: string) => {
+    if (!dbRef) return;
+    get(ref(db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
+        const currentQuestions = snapshot.val() || [];
+        const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
+        set(ref(db, `sessions/${sessionCode}/audienceQuestions`), [...currentQuestions, newQuestion]);
+    });
+  };
+
+  const updateAudienceQuestionStatus = (id: number, status: AudienceQuestion['status']) => {
+    if (!dbRef) return;
+    const updatedQuestions = audienceQuestions.map(q => q.id === id ? { ...q, status } : q);
+    setAudienceQuestions(updatedQuestions);
+    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), updatedQuestions);
+  };
+
+  const inviteTeamMember = (email: string, role: TeamMember['role']) => {
+    if (!dbRef) return;
+    const newMember: TeamMember = { name: 'Invited User', email, role, status: 'Pending', avatar: `https://i.pravatar.cc/40?u=${email}` };
+    const newTeam = [...teamMembers, newMember];
+    setTeamMembers(newTeam);
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+  };
+
+  const updateMemberStatus = (email: string, status: TeamMember['status']) => {
+    if (!dbRef) return;
+    const newTeam = teamMembers.map(member => member.email === email ? { ...member, status } : member);
+    setTeamMembers(newTeam);
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+  };
+  
+  const addTimers = (quantity: number) => {
+    if (!currentUser) return;
+    const newExtraTimers = extraTimers + quantity;
+    setExtraTimers(newExtraTimers);
+    const usageKey = `timerUsage_${currentUser.uid}`;
+    setInStorage(usageKey, { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
+  };
+  
   const resetUsage = () => {
     if (!currentUser) return;
     setTimersUsed(0);
@@ -402,7 +510,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
   };
-
+  
   const resetAnalytics = () => {
     if (!currentUser || (plan !== 'Professional' && plan !== 'Enterprise')) return;
     setAnalytics(initialAnalytics);
@@ -410,195 +518,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setInStorage(analyticsKey, initialAnalytics);
   }
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Timer logic
-  useEffect(() => {
-    if (isActive && time > 0) {
-      intervalRef.current = setInterval(() => {
-        // Only admin dashboard updates time to prevent multiple clients from decrementing
-        if (!sessionCodeFromProps && dbRef) {
-            setTime((prevTime) => prevTime - 1);
-        }
-      }, 1000);
-    } else if (time === 0) {
-      setIsActive(false);
-      clearInterval(intervalRef.current as NodeJS.Timeout);
-    }
-
-    return () => clearInterval(intervalRef.current as NodeJS.Timeout);
-  }, [isActive, time, sessionCodeFromProps, dbRef]);
-
-  const toggleTimer = () => {
-    if (!dbRef || !firebaseServices) return;
-    if (!isActive) {
-      if (timerLimit !== -1 && timersUsed >= timerLimit) {
-        return;
-      }
-      consumeTimerCredit();
-    }
-    const newIsActive = !isActive;
-    setIsActive(newIsActive);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/isActive`), newIsActive);
-  };
-
-  const resetTimer = () => {
-    if (!dbRef || !firebaseServices) return;
-    setIsActive(false);
-    setTime(initialDuration);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/isActive`), false);
-  };
-
-  const setDuration = (duration: number) => {
-    if (!dbRef || !firebaseServices || isActive) return;
-    setInitialDuration(duration);
-    setTime(duration);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/time`), duration);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/initialDuration`), duration);
-  };
-
-  const sendAdminMessage = (text: string) => {
-    if (!dbRef || !firebaseServices) {
-      throw new Error("Database connection not available.");
-    }
-    const newMessage = { id: Date.now(), text };
-    setAdminMessage(newMessage);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/adminMessage`), newMessage);
-
-    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
-    setAnalytics(newAnalytics);
-    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
-    setInStorage(analyticsKey, newAnalytics);
-  };
-
-  const dismissAdminMessage = () => {
-    if (!dbRef || !firebaseServices) return;
-    setAdminMessage(null);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/adminMessage`), null);
-  };
-
-  const sendAudienceQuestionMessage = (text: string) => {
-    if (!dbRef || !firebaseServices) {
-      throw new Error("Database connection not available.");
-    }
-    const newMessage = { id: Date.now(), text };
-    setAudienceQuestionMessage(newMessage);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestionMessage`), newMessage);
-
-    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
-    setAnalytics(newAnalytics);
-    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
-    setInStorage(analyticsKey, newAnalytics);
-  };
-
-  const dismissAudienceQuestionMessage = () => {
-    if (!dbRef || !firebaseServices) return;
-    setAudienceQuestionMessage(null);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestionMessage`), null);
-  };
-
-  const setTheme = (newTheme: TimerTheme) => {
-    if (!dbRef || !firebaseServices) return;
-    setThemeState(newTheme);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/theme`), newTheme);
-  };
-
-  const setCustomLogo = (logo: string | null) => {
-    if (!dbRef || !firebaseServices) return;
-    setCustomLogoState(logo);
-    const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
-    setInStorage(logoKey, logo);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/customLogo`), logo);
-  }
-
-  const submitAudienceQuestion = (text: string) => {
-    if (!dbRef || !firebaseServices) return;
-    // We get the latest questions from DB to prevent race conditions
-    get(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
-        const currentQuestions = snapshot.val() || [];
-        const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
-        const newQuestions = [...currentQuestions, newQuestion];
-        set(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
-    });
-  };
-
-  const updateAudienceQuestionStatus = (id: number, status: AudienceQuestion['status']) => {
-    if (!dbRef || !firebaseServices) return;
-    const updatedQuestions = audienceQuestions.map(q => 
-      q.id === id ? { ...q, status } : q
-    );
-    setAudienceQuestions(updatedQuestions);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`), updatedQuestions);
-  };
-
-  const inviteTeamMember = (email: string, role: TeamMember['role']) => {
-    if (!dbRef || !firebaseServices) return;
-    if (plan === 'Freemium' && role === 'Admin') {
-        console.error("Freemium plan cannot have more than one Admin.");
-        return;
-    }
-    const newMember: TeamMember = {
-      name: 'Invited User',
-      email,
-      role,
-      status: 'Pending',
-      avatar: `https://placehold.co/40x40.png`,
-    };
-    const newTeam = [...teamMembers, newMember];
-    setTeamMembers(newTeam);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/teamMembers`), newTeam);
-  };
-
-  const updateMemberStatus = (email: string, status: TeamMember['status']) => {
-    if (!dbRef || !firebaseServices) return;
-    const newTeam = teamMembers.map(member =>
-      member.email === email ? { ...member, status } : member
-    );
-    setTeamMembers(newTeam);
-    set(ref(firebaseServices.db, `sessions/${sessionCode}/teamMembers`), newTeam);
-  };
-
   const value = {
-    time,
-    setTime,
-    isActive,
-    isFinished,
-    toggleTimer,
-    resetTimer,
-    setDuration,
-    adminMessage,
-    sendAdminMessage,
-    dismissAdminMessage,
-    audienceQuestionMessage,
-    sendAudienceQuestionMessage,
-    dismissAudienceQuestionMessage,
-    theme,
-    setTheme,
-    plan,
-    setPlan,
-    speakerDevices,
-    participantDevices,
-    timersUsed,
-    timerLimit,
-    consumeTimerCredit,
-    resetUsage,
-    addTimers,
-    analytics,
-    resetAnalytics,
-    sessionCode,
-    audienceQuestions,
-    submitAudienceQuestion,
-    updateAudienceQuestionStatus,
-    teamMembers,
-    inviteTeamMember,
-    updateMemberStatus,
-    currentUser,
-    loadingAuth,
-    customLogo,
-    setCustomLogo,
-    isSessionFound,
-    firebaseServices,
+    time, setTime, isActive, isFinished, toggleTimer, resetTimer, setDuration,
+    adminMessage, sendAdminMessage, dismissAdminMessage,
+    audienceQuestionMessage, sendAudienceQuestionMessage, dismissAudienceQuestionMessage,
+    theme, setTheme, plan, setPlan, speakerDevices, participantDevices,
+    timersUsed, timerLimit, consumeTimerCredit, resetUsage, addTimers,
+    analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
+    updateAudienceQuestionStatus, teamMembers, inviteTeamMember, updateMemberStatus,
+    currentUser, loadingAuth, customLogo, setCustomLogo, isSessionFound,
+    firebaseServices: { auth, db }
   };
 
   return (

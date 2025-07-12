@@ -5,7 +5,7 @@ import React, { useEffect, useState, Suspense } from "react";
 import { TimerProvider, useTimer } from "@/context/TimerContext";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote, Info, Bot } from "lucide-react";
+import { MessageSquare, X, MonitorPlay, Loader, MessageSquareQuote } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,30 +28,15 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
-  const [isClient, setIsClient] = useState(false);
   const { isSessionFound } = useTimer();
   const urlCode = searchParams.get('code');
 
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  if (!isClient) {
-    return (
-        <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
-            <Loader className="h-12 w-12 animate-spin text-white" />
-        </div>
-    );
-  }
-
   // If a valid session is found (via the context), render the display.
-  // isSessionFound becomes true when the onValue listener gets data.
   if (urlCode && isSessionFound) {
     return <>{children}</>;
   }
 
-  // If the code is in the URL but the session isn't found (or checked yet)
+  // If the code is in the URL but the session wasn't found
   if (urlCode && isSessionFound === false) {
      return (
         <div className="flex h-screen w-screen items-center justify-center bg-gray-900 p-4">
@@ -70,8 +55,8 @@ function PairingGate({ children }: { children: React.ReactNode }) {
      )
   }
 
-  // If there's a code in the URL but we are still checking
-  if (urlCode && isSessionFound === null) {
+  // If there's a code in the URL but we are still checking (isSessionFound is null)
+  if (urlCode) {
       return (
         <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
              <div className="flex flex-col items-center gap-4 text-white">
