@@ -1,4 +1,3 @@
-
 // This file is a central place to initialize Firebase and export services.
 // This ensures Firebase is initialized only once in the entire application.
 
@@ -7,8 +6,14 @@ import { getAuth, type Auth } from "firebase/auth";
 import { getDatabase, type Database } from "firebase/database";
 import type { FirebaseServices } from './firebase-types';
 
+const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+
+if (!firebaseApiKey) {
+    throw new Error("Firebase API key is not configured. Please add NEXT_PUBLIC_FIREBASE_API_KEY to your .env.local file and restart the server.");
+}
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: firebaseApiKey,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   // The Realtime Database SDK expects the ".firebaseio.com" URL format.
   // Using the newer ".firebasedatabase.app" URL causes a fatal parsing error.
