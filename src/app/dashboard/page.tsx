@@ -1,9 +1,9 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import Link from "next/link";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -1234,7 +1234,7 @@ function TeamManagementCard() {
                 </div>
             </CardContent>
         </Card>
-    )
+    );
 }
 
 function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
