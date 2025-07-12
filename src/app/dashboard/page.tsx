@@ -1006,7 +1006,9 @@ function AudienceQuestionsCard() {
                             </AccordionTrigger>
                             <AccordionContent className="space-y-3 pt-3">
                                {approvedQuestions.length > 0 ? (
-                                    approvedQuestions.map((q) => <QuestionItem key={q.id} question={q} />)
+                                    approvedQuestions.map((q) => (
+                                        <QuestionItem key={q.id} question={q} />
+                                    ))
                                 ) : (
                                     <p className="text-sm text-muted-foreground">No approved questions.</p>
                                 )}
