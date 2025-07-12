@@ -163,17 +163,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   useEffect(() => {
     setIsClient(true);
-    // This effect runs only on the client
-    const fb = getFirebaseInstances();
-    if(fb) {
+    const instances = getFirebaseInstances();
+    if(instances) {
       // Dynamically import firebase functions only on the client
       Promise.all([
         import('firebase/database'),
         import('firebase/auth')
       ]).then(([dbFns, authFns]) => {
         setFirebaseServices({
-          db: fb.db,
-          auth: fb.auth,
+          db: instances.db,
+          auth: instances.auth,
           ...dbFns,
           ...authFns,
         });
@@ -299,7 +298,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   // Firebase listener
   useEffect(() => {
     if (!dbRef || !firebaseServices) {
-        if (sessionCodeFromProps) {
+        if (sessionCodeFromProps && isClient) {
             setIsSessionFound(false);
         }
         return;
