@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { db, auth } from "@/lib/firebase";
+import { db, auth, app as firebaseApp } from "@/lib/firebase";
 import { ref, onValue, set, update, off, get } from "firebase/database";
 import { User, onAuthStateChanged } from "firebase/auth";
 
@@ -173,11 +173,15 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
-  const dbRef = useMemo(() => sessionCode ? ref(db, `sessions/${sessionCode}`) : null, [sessionCode]);
+  const dbRef = useMemo(() => sessionCode && db ? ref(db, `sessions/${sessionCode}`) : null, [sessionCode]);
   
   const isUpdatingFromDb = useRef(false);
 
   useEffect(() => {
+    if (!auth) {
+        setLoadingAuth(false);
+        return;
+    }
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoadingAuth(false);
@@ -259,7 +263,12 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   // Firebase listener
   useEffect(() => {
-    if (!dbRef) return;
+    if (!dbRef) {
+        if (sessionCodeFromProps) {
+            setIsSessionFound(false);
+        }
+        return;
+    };
     const listener = onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {

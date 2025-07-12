@@ -3,8 +3,8 @@ import { initializeApp, getApps, getApp, FirebaseOptions } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
 
-// Your web app's Firebase configuration
-// For security, these should be stored in environment variables
+let app, db, auth;
+
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -15,10 +15,36 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getDatabase(app);
-const auth = getAuth(app);
+const requiredEnv = [
+  'NEXT_PUBLIC_FIREBASE_API_KEY',
+  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'NEXT_PUBLIC_FIREBASE_DATABASE_URL',
+  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
+  'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'NEXT_PUBLIC_FIREBASE_APP_ID',
+];
+
+const missingEnv = requiredEnv.filter(key => !process.env[key]);
+
+if (missingEnv.length > 0) {
+    // This will log a warning in the server console during development if keys are missing
+    console.warn(`FIREBASE WARNING: Missing environment variables: ${missingEnv.join(', ')}. Please set them in your .env.local file.`);
+}
 
 
-export { db, auth };
+try {
+    // Initialize Firebase
+    app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    db = getDatabase(app);
+    auth = getAuth(app);
+} catch (error: any) {
+    console.error("Firebase initialization error:", error.message);
+    // Setting these to null so the app doesn't crash, but functions will fail gracefully.
+    app = null;
+    db = null;
+    auth = null;
+}
+
+
+export { db, auth, app };
