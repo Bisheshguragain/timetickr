@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { db, auth, app as firebaseApp } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { ref, onValue, set, update, off, get } from "firebase/database";
 import { User, onAuthStateChanged } from "firebase/auth";
 
@@ -351,20 +351,21 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient, sessionCodeFromProps]);
 
   const addTimers = (quantity: number) => {
+    if (!currentUser) return;
     const newExtraTimers = extraTimers + quantity;
     setExtraTimers(newExtraTimers);
-    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
   };
   
   const consumeTimerCredit = () => {
-    if (timerLimit !== -1 && timersUsed >= timerLimit) {
-        console.warn("Timer usage limit reached.");
-        return;
+    if (!currentUser || (timerLimit !== -1 && timersUsed >= timerLimit)) {
+      console.warn("Timer usage limit reached or no user.");
+      return;
     }
     const newUsage = timersUsed + 1;
     setTimersUsed(newUsage);
-    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: newUsage, extra: extraTimers, month: new Date().getMonth() });
     
     // Analytics update
@@ -387,23 +388,23 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       durationBrackets: newBrackets,
     }
     setAnalytics(newAnalytics);
-    const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
+    const analyticsKey = `timerAnalytics_${currentUser.uid}`;
     setInStorage(analyticsKey, newAnalytics);
   };
 
   const resetUsage = () => {
+    if (!currentUser) return;
     setTimersUsed(0);
     setExtraTimers(0);
-    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
+    const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
   };
   
   const resetAnalytics = () => {
-    if (plan === 'Professional' || plan === 'Enterprise') {
-      setAnalytics(initialAnalytics);
-      const analyticsKey = currentUser ? `timerAnalytics_${currentUser.uid}` : 'timerAnalytics_guest';
-      setInStorage(analyticsKey, initialAnalytics);
-    }
+    if (!currentUser || (plan !== 'Professional' && plan !== 'Enterprise')) return;
+    setAnalytics(initialAnalytics);
+    const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+    setInStorage(analyticsKey, initialAnalytics);
   }
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -413,7 +414,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (isActive && time > 0) {
       intervalRef.current = setInterval(() => {
         // Only admin dashboard updates time to prevent multiple clients from decrementing
-        if (!sessionCodeFromProps) {
+        if (!sessionCodeFromProps && dbRef) {
             setTime((prevTime) => prevTime - 1);
         }
       }, 1000);
@@ -423,9 +424,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
 
     return () => clearInterval(intervalRef.current as NodeJS.Timeout);
-  }, [isActive, time, sessionCodeFromProps]);
+  }, [isActive, time, sessionCodeFromProps, dbRef]);
 
   const toggleTimer = () => {
+    if (!dbRef) return;
     if (!isActive) {
       if (timerLimit !== -1 && timersUsed >= timerLimit) {
         return; 
@@ -434,27 +436,23 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    if (dbRef) set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
+    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
+    if (!dbRef) return;
     setIsActive(false);
     setTime(initialDuration);
-    if(dbRef) {
-        set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
-        set(ref(db, `sessions/${sessionCode}/isActive`), false);
-    }
+    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(db, `sessions/${sessionCode}/isActive`), false);
   };
 
   const setDuration = (duration: number) => {
-    if (!isActive) {
-      setInitialDuration(duration);
-      setTime(duration);
-      if(dbRef) {
-        set(ref(db, `sessions/${sessionCode}/time`), duration);
-        set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
-      }
-    }
+    if (!dbRef || isActive) return;
+    setInitialDuration(duration);
+    setTime(duration);
+    set(ref(db, `sessions/${sessionCode}/time`), duration);
+    set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
   };
 
   const sendMessage = (text: string) => {
@@ -475,25 +473,29 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const dismissMessage = () => {
+    if (!dbRef) return;
     setMessage(null);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/message`), null);
+    set(ref(db, `sessions/${sessionCode}/message`), null);
   };
   
   const setTheme = (newTheme: TimerTheme) => {
+    if (!dbRef) return;
     setThemeState(newTheme);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
+    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
+    if (!dbRef) return;
     setPlanState(newPlan);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
+    set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const setCustomLogo = (logo: string | null) => {
+    if (!dbRef) return;
     setCustomLogoState(logo);
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     setInStorage(logoKey, logo);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
   }
 
   const submitAudienceQuestion = (text: string) => {
@@ -508,13 +510,15 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const dismissAudienceQuestion = (id: number) => {
+    if (!dbRef) return;
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
+    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
-     if (plan === 'Freemium' && role === 'Admin') {
+    if (!dbRef) return;
+    if (plan === 'Freemium' && role === 'Admin') {
         console.error("Freemium plan cannot have more than one Admin.");
         return;
     }
@@ -527,15 +531,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
+    if (!dbRef) return;
     const newTeam = teamMembers.map(member => 
       member.email === email ? { ...member, status } : member
     );
     setTeamMembers(newTeam);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {
