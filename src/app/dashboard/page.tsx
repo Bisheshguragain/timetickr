@@ -1805,5 +1805,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
