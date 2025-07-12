@@ -18,11 +18,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "lucide-react";
 import Link from "next/link";
-import { SubscriptionPlan } from "@/context/TimerContext";
-import { auth } from "@/lib/firebase";
+import { SubscriptionPlan, useTimer } from "@/context/TimerContext";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
 function LoginContent() {
+  const { firebaseServices } = useTimer();
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -45,14 +45,14 @@ function LoginContent() {
   const handleSignUp = async () => {
     setLoading(true);
     setSignUpError(null);
-    if (!auth) {
+    if (!firebaseServices) {
       setLoading(false);
       setSignUpError("Firebase is not configured correctly.");
       return;
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
+      await createUserWithEmailAndPassword(firebaseServices.auth, signUpEmail, signUpPassword);
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
@@ -72,14 +72,14 @@ function LoginContent() {
   const handleSignIn = async () => {
     setLoading(true);
     setSignInError(null);
-    if (!auth) {
+    if (!firebaseServices) {
         setLoading(false);
         setSignInError("Firebase is not configured correctly.");
         return;
     }
     
     try {
-      await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
+      await signInWithEmailAndPassword(firebaseServices.auth, signInEmail, signInPassword);
       toast({
         title: "Signed In!",
         description: "Welcome back.",
@@ -167,10 +167,12 @@ function LoginContent() {
 
 
 export default function LoginPage() {
+  const { firebaseServices } = useTimer();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
       <Suspense fallback={<Loader className="animate-spin" />}>
-        <LoginContent />
+        {firebaseServices ? <LoginContent /> : <Loader className="animate-spin" />}
       </Suspense>
     </div>
   )

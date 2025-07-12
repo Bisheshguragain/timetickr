@@ -10,9 +10,9 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { auth, db } from "@/lib/firebase";
 import { ref, onValue, set, update, off, get, type Database } from "firebase/database";
 import { onAuthStateChanged, type User, type Auth } from "firebase/auth";
+import { getFirebaseServices, type FirebaseServices } from "@/lib/firebase";
 
 
 interface Message {
@@ -94,6 +94,7 @@ interface TimerContextProps {
   customLogo: string | null;
   setCustomLogo: (logo: string | null) => void;
   isSessionFound: boolean | null;
+  firebaseServices: FirebaseServices | null;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -127,6 +128,7 @@ type TimerProviderProps = {
 
 
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
+  const [firebaseServices, setFirebaseServices] = useState<FirebaseServices | null>(null);
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
@@ -148,6 +150,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
 
   const isFinished = time === 0;
+
+  useEffect(() => {
+      setFirebaseServices(getFirebaseServices());
+  }, []);
 
   useEffect(() => {
     setIsClient(true);
@@ -174,19 +180,20 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
   const dbRef = useMemo(() => {
-    if (sessionCode && db) {
-      return ref(db, `sessions/${sessionCode}`);
+    if (sessionCode && firebaseServices) {
+      return ref(firebaseServices.db, `sessions/${sessionCode}`);
     }
     return null;
-  }, [sessionCode]);
+  }, [sessionCode, firebaseServices]);
 
   const isUpdatingFromDb = useRef(false);
 
   useEffect(() => {
-    if (!auth) {
+    if (!firebaseServices) {
         setLoadingAuth(false);
         return;
     }
+    const { auth } = firebaseServices;
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoadingAuth(false);
@@ -224,7 +231,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [firebaseServices]);
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -441,23 +448,23 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
     if (!dbRef) return;
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(db, `sessions/${sessionCode}/isActive`), false);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/isActive`), false);
   };
 
   const setDuration = (duration: number) => {
     if (!dbRef || isActive) return;
     setInitialDuration(duration);
     setTime(duration);
-    set(ref(db, `sessions/${sessionCode}/time`), duration);
-    set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/time`), duration);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/initialDuration`), duration);
   };
 
   const sendMessage = (text: string) => {
@@ -466,7 +473,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newMessage = { id: Date.now(), text };
     setMessage(newMessage);
-    set(ref(db, `sessions/${sessionCode}/message`), newMessage);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
@@ -480,19 +487,19 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const dismissMessage = () => {
     if (!dbRef) return;
     setMessage(null);
-    set(ref(db, `sessions/${sessionCode}/message`), null);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/message`), null);
   };
 
   const setTheme = (newTheme: TimerTheme) => {
     if (!dbRef) return;
     setThemeState(newTheme);
-    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     if (!dbRef) return;
     setPlanState(newPlan);
-    set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const setCustomLogo = (logo: string | null) => {
@@ -500,13 +507,13 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setCustomLogoState(logo);
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     setInStorage(logoKey, logo);
-    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/customLogo`), logo);
   }
 
   const submitAudienceQuestion = (text: string) => {
     if (!dbRef) return;
     // We get the latest questions from DB to prevent race conditions
-    get(ref(db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
+    get(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
         const newQuestion = { id: Date.now(), text };
         const newQuestions = [...currentQuestions, newQuestion];
@@ -518,7 +525,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!dbRef) return;
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
@@ -536,7 +543,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
@@ -545,7 +552,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       member.email === email ? { ...member, status } : member
     );
     setTeamMembers(newTeam);
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(firebaseServices!.db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {
@@ -584,6 +591,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     customLogo,
     setCustomLogo,
     isSessionFound,
+    firebaseServices,
   };
 
   return (

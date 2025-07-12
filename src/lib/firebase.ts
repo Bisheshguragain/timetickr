@@ -1,39 +1,51 @@
 
 "use client";
 
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getDatabase, type Database } from "firebase/database";
+import { type FirebaseApp, getApps, initializeApp } from "firebase/app";
+import { type Auth, getAuth } from "firebase/auth";
+import { type Database, getDatabase } from "firebase/database";
 
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+// This file is now simplified to just provide the types and a constructor.
+// The actual initialization is handled in the TimerContext to ensure it only runs on the client.
+
+export type FirebaseServices = {
+  app: FirebaseApp;
+  auth: Auth;
+  db: Database;
 };
 
-// Basic check to see if the config is valid
-const isConfigValid = firebaseConfig.apiKey && firebaseConfig.projectId;
+let firebaseServices: FirebaseServices | null = null;
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Database;
+export const getFirebaseServices = (): FirebaseServices => {
+  if (firebaseServices) {
+    return firebaseServices;
+  }
 
-if (!isConfigValid) {
-    console.error("Firebase configuration is invalid or missing from .env.local. Please check your environment variables.");
-    // Assign dummy objects to prevent app crashing on import in a non-functional state.
-    app = {} as FirebaseApp;
-    auth = {} as Auth;
-    db = {} as Database;
-} else {
-    // Initialize Firebase only once
-    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getDatabase(app);
-}
+  const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
 
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.databaseURL) {
+    throw new Error("Firebase configuration is missing or invalid. Please check your .env.local file.");
+  }
 
-export { app, auth, db };
+  let app: FirebaseApp;
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+  
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+  firebaseServices = { app, auth, db };
+
+  return firebaseServices;
+};

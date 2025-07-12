@@ -99,7 +99,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import Image from "next/image";
 import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
-import { auth } from "@/lib/firebase";
 import { updatePassword } from "firebase/auth";
 
 const formatTime = (seconds: number) => {
@@ -1136,6 +1135,7 @@ function TeamManagementCard() {
 
 function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
     const { toast } = useToast();
+    const { firebaseServices } = useTimer();
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -1155,13 +1155,13 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 
         setIsLoading(true);
 
-        if (!auth) {
+        if (!firebaseServices) {
             setError("Firebase not initialized correctly.");
             setIsLoading(false);
             return;
         }
 
-        const user = auth.currentUser;
+        const user = firebaseServices.auth.currentUser;
         if (user) {
             try {
                 await updatePassword(user, newPassword);
@@ -1424,6 +1424,7 @@ export default function DashboardPage() {
     currentUser,
     loadingAuth,
     plan,
+    firebaseServices,
   } = useTimer();
 
   const router = useRouter();
@@ -1439,9 +1440,9 @@ export default function DashboardPage() {
   }, [currentUser, loadingAuth, router]);
 
   const handleSignOut = async () => {
-    if(auth) {
+    if(firebaseServices?.auth) {
         try {
-            await auth.signOut();
+            await firebaseServices.auth.signOut();
             router.push('/');
         } catch (e) {
             console.error("Logout failed", e);
@@ -1450,7 +1451,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (loadingAuth || !currentUser) {
+  if (loadingAuth || !currentUser || !firebaseServices) {
     return (
       <div className="flex h-screen w-screen items-center justify-center">
         <Loader className="h-8 w-8 animate-spin" />
