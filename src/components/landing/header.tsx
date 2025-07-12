@@ -13,9 +13,11 @@ import { auth } from "@/lib/firebase";
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isClient, setIsClient] = useState(false);
   const { currentUser, loadingAuth } = useTimer();
 
   useEffect(() => {
+    setIsClient(true);
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
         setIsDarkMode(savedTheme === 'dark');
@@ -26,6 +28,7 @@ export function Header() {
   }, []);
 
   useEffect(() => {
+    if (!isClient) return;
     const root = window.document.documentElement;
     if (isDarkMode) {
       root.classList.add("dark");
@@ -34,7 +37,7 @@ export function Header() {
       root.classList.remove("dark");
       localStorage.setItem('theme', 'light');
     }
-  }, [isDarkMode]);
+  }, [isDarkMode, isClient]);
 
   const navLinks = [
     { href: "#features", label: "Features" },
@@ -90,15 +93,17 @@ export function Header() {
               </>
             )}
 
-            <div className="flex items-center gap-2">
-                <Sun className="h-5 w-5 text-foreground/60" />
-                <Switch
-                    checked={isDarkMode}
-                    onCheckedChange={setIsDarkMode}
-                    aria-label="Toggle theme"
-                />
-                <Moon className="h-5 w-5 text-foreground/60" />
-            </div>
+            {isClient ? (
+                <div className="flex items-center gap-2">
+                    <Sun className="h-5 w-5 text-foreground/60" />
+                    <Switch
+                        checked={isDarkMode}
+                        onCheckedChange={setIsDarkMode}
+                        aria-label="Toggle theme"
+                    />
+                    <Moon className="h-5 w-5 text-foreground/60" />
+                </div>
+            ) : <div className="w-[100px] h-6" /> }
             <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>
                 <Button

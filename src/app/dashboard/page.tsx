@@ -1492,7 +1492,7 @@ export default function DashboardPage() {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={`https://placehold.co/40x40.png`} data-ai-hint="person face" />
+                                <AvatarImage src={currentUser.photoURL || `https://placehold.co/40x40.png`} data-ai-hint="person face" />
                                 <AvatarFallback>{currentUser.email?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         </Button>

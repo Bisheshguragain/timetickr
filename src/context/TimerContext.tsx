@@ -115,17 +115,6 @@ const generateSessionCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-const getOrCreateCode = (key: string) => {
-    if (typeof window === 'undefined') return '';
-    let code = localStorage.getItem(key);
-    if (!code) {
-        code = generateSessionCode();
-        localStorage.setItem(key, code);
-    }
-    return code;
-}
-
-
 export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
@@ -143,16 +132,29 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
+  const [sessionCode, setSessionCode] = useState("");
 
   const isFinished = time === 0;
 
-  const sessionCode = useMemo(() => getOrCreateCode('sessionCode'), []);
+  useEffect(() => {
+    // This effect runs only on the client, so window is available.
+    const getOrCreateCode = (key: string) => {
+        let code = localStorage.getItem(key);
+        if (!code) {
+            code = generateSessionCode();
+            localStorage.setItem(key, code);
+        }
+        return code;
+    }
+    setSessionCode(getOrCreateCode('sessionCode'));
+  }, []);
+
 
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const dbRef = useMemo(() => ref(db, `sessions/${sessionCode}`), [sessionCode]);
+  const dbRef = useMemo(() => sessionCode ? ref(db, `sessions/${sessionCode}`) : null, [sessionCode]);
   
   const isUpdatingFromDb = useRef(false);
 
@@ -199,7 +201,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
     const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : defaultValue;
+    try {
+        return saved ? JSON.parse(saved) : defaultValue;
+    } catch (e) {
+        return defaultValue;
+    }
   }
   
   const setInStorage = (key: string, value: any) => {
@@ -207,7 +213,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     localStorage.setItem(key, JSON.stringify(value));
   }
   
-  const getUsageFromStorage = () => {
+  const getUsageFromStorage = useCallback(() => {
     const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
     const usage = getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
     const currentMonth = new Date().getMonth();
@@ -217,10 +223,10 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const newUsage = { used: 0, extra: 0, month: currentMonth };
     setInStorage(usageKey, newUsage);
     return newUsage;
-  };
+  }, [currentUser]);
 
   useEffect(() => {
-    if (loadingAuth) return;
+    if (loadingAuth || typeof window === 'undefined') return;
     const { used, extra } = getUsageFromStorage();
     setTimersUsed(used);
     setExtraTimers(extra);
@@ -230,10 +236,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     const savedLogo = getFromStorage(logoKey, null);
     if(savedLogo) setCustomLogoState(savedLogo);
-  }, [currentUser, loadingAuth]);
+  }, [currentUser, loadingAuth, getUsageFromStorage]);
 
   // Firebase listener
   useEffect(() => {
+    if (!dbRef) return;
     const listener = onValue(dbRef, (snapshot) => {
         const data = snapshot.val();
         if (data) {
@@ -285,11 +292,11 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
         off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, currentUser]);
+  }, [dbRef, initialDuration, currentUser, plan, theme, teamMembers, customLogo]);
   
   // Update DB on state change
   useEffect(() => {
-    if (isUpdatingFromDb.current) return;
+    if (isUpdatingFromDb.current || !dbRef) return;
 
     const role = typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard') ? 'viewer' : 'admin';
     if (role !== 'admin') return;
@@ -386,29 +393,33 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive); // Update local state immediately for responsiveness
-    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
+    if (dbRef) set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(db, `sessions/${sessionCode}/isActive`), false);
+    if(dbRef) {
+        set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
+        set(ref(db, `sessions/${sessionCode}/isActive`), false);
+    }
   };
 
   const setDuration = (duration: number) => {
     if (!isActive) {
       setInitialDuration(duration);
       setTime(duration);
-      set(ref(db, `sessions/${sessionCode}/time`), duration);
-      set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
+      if(dbRef) {
+        set(ref(db, `sessions/${sessionCode}/time`), duration);
+        set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
+      }
     }
   };
 
   const sendMessage = (text: string) => {
     const newMessage = { id: Date.now(), text };
     setMessage(newMessage);
-    set(ref(db, `sessions/${sessionCode}/message`), newMessage);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
@@ -421,37 +432,37 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const dismissMessage = () => {
     setMessage(null);
-    set(ref(db, `sessions/${sessionCode}/message`), null);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/message`), null);
   };
   
   const setTheme = (newTheme: TimerTheme) => {
     setThemeState(newTheme);
-    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     setPlanState(newPlan);
-    set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const setCustomLogo = (logo: string | null) => {
     setCustomLogoState(logo);
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     setInStorage(logoKey, logo);
-    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
   }
 
   const submitAudienceQuestion = (text: string) => {
     const newQuestion = { id: Date.now(), text };
     const newQuestions = [...audienceQuestions, newQuestion];
     setAudienceQuestions(newQuestions); // Optimistic update
-    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
   };
 
   const dismissAudienceQuestion = (id: number) => {
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
@@ -469,7 +480,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam); // Optimistic update
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
@@ -477,7 +488,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       member.email === email ? { ...member, status } : member
     );
     setTeamMembers(newTeam); // Optimistic update
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    if(dbRef) set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {
