@@ -8,14 +8,15 @@ import { getDatabase, type Database } from "firebase/database";
 import type { FirebaseServices } from './firebase-types';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB1Att5fmS7zFa_X9-hczg-YhhLAoWimUU",
-  authDomain: "timetickr-landing-page.firebaseapp.com",
-  // IMPORTANT: Use the .firebaseio.com domain for Realtime Database SDK
-  databaseURL: "https://timetickr-landing-page.firebaseio.com",
-  projectId: "timetickr-landing-page",
-  storageBucket: "timetickr-landing-page.appspot.com",
-  messagingSenderId: "62667221490",
-  appId: "1:62667221490:web:f9927e4b63dc50a52be36b"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  // The Realtime Database SDK expects the ".firebaseio.com" URL format.
+  // Using the newer ".firebasedatabase.app" URL causes a fatal parsing error.
+  databaseURL: "https://timetickr-landing-page-default-rtdb.firebaseio.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 let app: FirebaseApp;
