@@ -11,7 +11,7 @@ import React, {
   useMemo,
 } from "react";
 import { db, auth } from "@/lib/firebase";
-import { ref, onValue, set, update, off } from "firebase/database";
+import { ref, onValue, set, update, off, get } from "firebase/database";
 import { User, onAuthStateChanged } from "firebase/auth";
 
 
@@ -133,11 +133,12 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
   const [sessionCode, setSessionCode] = useState("");
+  const [isClient, setIsClient] = useState(false);
 
   const isFinished = time === 0;
 
   useEffect(() => {
-    // This effect runs only on the client, so window is available.
+    setIsClient(true);
     const getOrCreateCode = (key: string) => {
         let code = localStorage.getItem(key);
         if (!code) {
@@ -153,7 +154,6 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const dbRef = useMemo(() => sessionCode ? ref(db, `sessions/${sessionCode}`) : null, [sessionCode]);
   
   const isUpdatingFromDb = useRef(false);
@@ -226,7 +226,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   }, [currentUser]);
 
   useEffect(() => {
-    if (loadingAuth || typeof window === 'undefined') return;
+    if (loadingAuth || !isClient) return;
     const { used, extra } = getUsageFromStorage();
     setTimersUsed(used);
     setExtraTimers(extra);
@@ -236,7 +236,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     const savedLogo = getFromStorage(logoKey, null);
     if(savedLogo) setCustomLogoState(savedLogo);
-  }, [currentUser, loadingAuth, getUsageFromStorage]);
+  }, [currentUser, loadingAuth, isClient, getUsageFromStorage]);
 
   // Firebase listener
   useEffect(() => {
@@ -265,40 +265,40 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
             setSpeakerDevices(data.connections?.speakers || 0);
             setParticipantDevices(data.connections?.participants || 0);
             
-            // Set plan from DB, but allow demo user to override
             const dbPlan = data.plan || "Freemium";
-            const selectedPlan = localStorage.getItem('selectedPlan') as SubscriptionPlan;
+            const selectedPlan = isClient ? localStorage.getItem('selectedPlan') as SubscriptionPlan : null;
+
             if (!selectedPlan && !(currentUser && currentUser.email?.endsWith('@gmail.com'))) {
                setPlanState(dbPlan);
             }
 
             isUpdatingFromDb.current = false;
         } else {
-             // If no data in DB, initialize it
-            set(dbRef, {
+            const initialData = {
                 time: initialDuration,
                 isActive: false,
-                initialDuration,
+                initialDuration: initialDuration,
                 message: null,
-                theme,
-                plan,
+                theme: theme,
+                plan: plan,
                 audienceQuestions: [],
                 teamMembers: teamMembers,
-                customLogo: null,
-            });
+                customLogo: customLogo,
+            };
+            if(dbRef) set(dbRef, initialData);
         }
     });
 
     return () => {
-        off(dbRef, 'value', listener);
+        if(dbRef) off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, currentUser, plan, theme, teamMembers, customLogo]);
+  }, [dbRef, initialDuration, currentUser, isClient]);
   
   // Update DB on state change
   useEffect(() => {
-    if (isUpdatingFromDb.current || !dbRef) return;
+    if (isUpdatingFromDb.current || !dbRef || !isClient) return;
 
-    const role = typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard') ? 'viewer' : 'admin';
+    const role = !window.location.pathname.includes('/dashboard') ? 'viewer' : 'admin';
     if (role !== 'admin') return;
 
     update(dbRef, {
@@ -306,13 +306,12 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
         isActive,
         initialDuration,
         message,
-        theme,
         plan,
         audienceQuestions,
         teamMembers,
         customLogo,
     });
-  }, [time, isActive, initialDuration, message, theme, plan, audienceQuestions, teamMembers, customLogo, dbRef]);
+  }, [time, isActive, initialDuration, message, plan, audienceQuestions, teamMembers, customLogo, dbRef, isClient]);
 
   const addTimers = (quantity: number) => {
     const newExtraTimers = extraTimers + quantity;
@@ -392,7 +391,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
       consumeTimerCredit();
     }
     const newIsActive = !isActive;
-    setIsActive(newIsActive); // Update local state immediately for responsiveness
+    setIsActive(newIsActive);
     if (dbRef) set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
@@ -455,7 +454,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
   const submitAudienceQuestion = (text: string) => {
     const newQuestion = { id: Date.now(), text };
     const newQuestions = [...audienceQuestions, newQuestion];
-    setAudienceQuestions(newQuestions); // Optimistic update
+    setAudienceQuestions(newQuestions);
     if(dbRef) set(ref(db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
   };
 
@@ -467,19 +466,18 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
      if (plan === 'Freemium' && role === 'Admin') {
-        // Silently prevent adding another admin on freemium, or show a toast.
         console.error("Freemium plan cannot have more than one Admin.");
         return;
     }
     const newMember: TeamMember = {
-      name: 'Invited User', // Placeholder name
+      name: 'Invited User',
       email,
       role,
       status: 'Pending',
       avatar: `https://placehold.co/40x40.png`,
     };
     const newTeam = [...teamMembers, newMember];
-    setTeamMembers(newTeam); // Optimistic update
+    setTeamMembers(newTeam);
     if(dbRef) set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
@@ -487,7 +485,7 @@ export const TimerProvider = ({ children }: { children: React.ReactNode }) => {
     const newTeam = teamMembers.map(member => 
       member.email === email ? { ...member, status } : member
     );
-    setTeamMembers(newTeam); // Optimistic update
+    setTeamMembers(newTeam);
     if(dbRef) set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
@@ -540,3 +538,4 @@ export const useTimer = () => {
   }
   return context;
 };
+
