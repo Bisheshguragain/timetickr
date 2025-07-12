@@ -96,7 +96,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { auth } from "@/lib/firebase";
+import { getFirebaseInstances } from "@/lib/firebase";
 import { updatePassword } from "firebase/auth";
 import Image from "next/image";
 import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
@@ -366,7 +366,7 @@ function DeviceConnectionCard() {
             <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
               {sessionCode}
             </div>
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode)}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode || "")}>
               <Copy />
             </Button>
           </div>
@@ -1151,6 +1151,7 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
         }
 
         setIsLoading(true);
+        const { auth } = getFirebaseInstances();
         const user = auth.currentUser;
         if (user) {
             try {
@@ -1429,6 +1430,7 @@ export default function DashboardPage() {
   }, [currentUser, loadingAuth, router]);
 
   const handleSignOut = async () => {
+    const { auth } = getFirebaseInstances();
     await auth.signOut();
     router.push('/');
   }

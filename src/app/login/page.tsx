@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { auth } from "@/lib/firebase";
+import { getFirebaseInstances } from "@/lib/firebase";
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword 
@@ -49,6 +49,7 @@ function LoginContent() {
     setLoading(true);
     setSignUpError(null);
     try {
+      const { auth } = getFirebaseInstances();
       await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
       toast({
         title: "Account Created!",
@@ -70,6 +71,7 @@ function LoginContent() {
     setLoading(true);
     setSignInError(null);
     try {
+      const { auth } = getFirebaseInstances();
       await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
       toast({
         title: "Signed In!",

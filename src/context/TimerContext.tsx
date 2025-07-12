@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { db, auth } from "@/lib/firebase";
+import { getFirebaseInstances } from "@/lib/firebase";
 import { ref, onValue, set, update, off, get } from "firebase/database";
 import { User, onAuthStateChanged } from "firebase/auth";
 
@@ -146,6 +146,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [isClient, setIsClient] = useState(false);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
 
+  const { db, auth } = useMemo(() => {
+    try {
+      return getFirebaseInstances();
+    } catch (error) {
+      console.error("Failed to get Firebase instances in context:", error);
+      return { db: null, auth: null };
+    }
+  }, []);
 
   const isFinished = time === 0;
 
@@ -173,7 +181,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const baseTimerLimit = PLAN_LIMITS[plan];
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
-  const dbRef = useMemo(() => sessionCode && db ? ref(db, `sessions/${sessionCode}`) : null, [sessionCode]);
+  const dbRef = useMemo(() => sessionCode && db ? ref(db, `sessions/${sessionCode}`) : null, [sessionCode, db]);
   
   const isUpdatingFromDb = useRef(false);
 
@@ -219,7 +227,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -263,7 +271,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   // Firebase listener
   useEffect(() => {
-    if (!dbRef) {
+    if (!dbRef || !db) {
         if (sessionCodeFromProps) {
             setIsSessionFound(false);
         }
@@ -328,7 +336,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     return () => {
         if(dbRef) off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, currentUser, isClient, sessionCodeFromProps]);
+  }, [dbRef, initialDuration, currentUser, isClient, sessionCodeFromProps, db]);
   
   // Update DB on state change
   useEffect(() => {
@@ -436,23 +444,23 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
+    set(ref(db!, `sessions/${sessionCode}/isActive`), newIsActive);
   };
 
   const resetTimer = () => {
     if (!dbRef) return;
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(db, `sessions/${sessionCode}/isActive`), false);
+    set(ref(db!, `sessions/${sessionCode}/time`), initialDuration);
+    set(ref(db!, `sessions/${sessionCode}/isActive`), false);
   };
 
   const setDuration = (duration: number) => {
     if (!dbRef || isActive) return;
     setInitialDuration(duration);
     setTime(duration);
-    set(ref(db, `sessions/${sessionCode}/time`), duration);
-    set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
+    set(ref(db!, `sessions/${sessionCode}/time`), duration);
+    set(ref(db!, `sessions/${sessionCode}/initialDuration`), duration);
   };
 
   const sendMessage = (text: string) => {
@@ -461,7 +469,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newMessage = { id: Date.now(), text };
     setMessage(newMessage);
-    set(ref(db, `sessions/${sessionCode}/message`), newMessage);
+    set(ref(db!, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
@@ -475,19 +483,19 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const dismissMessage = () => {
     if (!dbRef) return;
     setMessage(null);
-    set(ref(db, `sessions/${sessionCode}/message`), null);
+    set(ref(db!, `sessions/${sessionCode}/message`), null);
   };
   
   const setTheme = (newTheme: TimerTheme) => {
     if (!dbRef) return;
     setThemeState(newTheme);
-    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
+    set(ref(db!, `sessions/${sessionCode}/theme`), newTheme);
   };
 
   const setPlan = (newPlan: SubscriptionPlan) => {
     if (!dbRef) return;
     setPlanState(newPlan);
-    set(ref(db, `sessions/${sessionCode}/plan`), newPlan);
+    set(ref(db!, `sessions/${sessionCode}/plan`), newPlan);
   }
 
   const setCustomLogo = (logo: string | null) => {
@@ -495,7 +503,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setCustomLogoState(logo);
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     setInStorage(logoKey, logo);
-    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+    set(ref(db!, `sessions/${sessionCode}/customLogo`), logo);
   }
 
   const submitAudienceQuestion = (text: string) => {
@@ -513,7 +521,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!dbRef) return;
     const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
     setAudienceQuestions(filteredQuestions);
-    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
+    set(ref(db!, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
   }
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
@@ -531,7 +539,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(db!, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
@@ -540,7 +548,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       member.email === email ? { ...member, status } : member
     );
     setTeamMembers(newTeam);
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    set(ref(db!, `sessions/${sessionCode}/teamMembers`), newTeam);
   };
 
   const value = {
