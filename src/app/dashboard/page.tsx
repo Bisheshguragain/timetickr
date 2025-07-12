@@ -162,12 +162,12 @@ function LiveMessagingCard() {
                 sendMessage(messageToSend);
                 setMessage("");
             }
-        } catch (error) {
-            console.error("Error moderating message:", error);
+        } catch (error: any) {
+            console.error("Error sending message:", error);
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: "Could not send message. Please try again.",
+                description: error.message || "Could not send message. Please try again.",
             });
         } finally {
             setIsLoading(false);
@@ -875,12 +875,12 @@ function AudienceQuestionsCard() {
                 sendMessage(`Q: ${question.text}`);
                 dismissAudienceQuestion(question.id);
              }
-        } catch (error) {
-            console.error("Error moderating question:", error);
+        } catch (error: any) {
+            console.error("Error approving question:", error);
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: "Could not approve question. Please try again.",
+                description: error.message || "Could not approve question. Please try again.",
             });
         } finally {
             setApproving(null);

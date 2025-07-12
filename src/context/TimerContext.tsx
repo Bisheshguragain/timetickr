@@ -449,9 +449,12 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   };
 
   const sendMessage = (text: string) => {
+    if (!dbRef) {
+      throw new Error("Database connection not available.");
+    }
     const newMessage = { id: Date.now(), text };
     setMessage(newMessage);
-    if(dbRef) set(ref(db, `sessions/${sessionCode}/message`), newMessage);
+    set(ref(db, `sessions/${sessionCode}/message`), newMessage);
 
     const newAnalytics = {
       ...analytics,
