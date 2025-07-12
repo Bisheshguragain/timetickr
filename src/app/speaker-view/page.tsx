@@ -35,12 +35,6 @@ function PairingGate({ children }: { children: React.ReactNode }) {
     setIsClient(true);
   }, []);
   
-  const urlCode = searchParams.get('code');
-  
-  // Demo mode: if no code is in the URL, show the speaker view.
-  const isDemoMode = !urlCode;
-  const isPaired = urlCode === validSessionCode;
-
   if (!isClient) {
     return (
         <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
@@ -48,6 +42,12 @@ function PairingGate({ children }: { children: React.ReactNode }) {
         </div>
     );
   }
+
+  const urlCode = searchParams.get('code');
+  
+  // Demo mode: if no code is in the URL, show the speaker view.
+  const isDemoMode = !urlCode;
+  const isPaired = urlCode === validSessionCode;
 
   if (isPaired || isDemoMode) {
     return <>{children}</>;

@@ -38,6 +38,7 @@ function LoginContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // This logic runs only on the client, after hydration
     const plan = searchParams.get('plan') as SubscriptionPlan;
     if (plan) {
       localStorage.setItem('selectedPlan', plan);

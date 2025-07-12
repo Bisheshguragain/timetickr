@@ -320,11 +320,28 @@ function DeviceConnectionCard() {
     setIsClient(true);
   }, []);
 
-  const speakerViewUrl = isClient ? `${window.location.origin}/speaker-view?code=${sessionCode}` : '';
-  const participantUrl = isClient ? `${window.location.origin}/participant?code=${sessionCode}` : '';
+  if (!isClient) {
+    return (
+        <Card>
+            <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                    <Signal />
+                    Connect a Device
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex justify-center items-center h-40">
+                    <Loader className="animate-spin" />
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
+
+  const speakerViewUrl = `${window.location.origin}/speaker-view?code=${sessionCode}`;
+  const participantUrl = `${window.location.origin}/participant?code=${sessionCode}`;
 
   const copyToClipboard = (text: string) => {
-    if (!isClient) return;
     navigator.clipboard.writeText(text);
     toast({ title: "Copied to clipboard!", description: text });
   };
@@ -347,9 +364,9 @@ function DeviceConnectionCard() {
           </label>
           <div className="flex items-center gap-2">
             <div className="flex h-10 w-full items-center justify-center rounded-md border border-dashed bg-secondary font-mono text-lg">
-              {isClient ? sessionCode : "..."}
+              {sessionCode}
             </div>
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode)} disabled={!isClient}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(sessionCode)}>
               <Copy />
             </Button>
           </div>
@@ -363,9 +380,8 @@ function DeviceConnectionCard() {
               value={speakerViewUrl}
               readOnly
               className="truncate"
-              disabled={!isClient}
             />
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)} disabled={!isClient}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(speakerViewUrl)}>
               <Copy />
             </Button>
           </div>
@@ -379,13 +395,12 @@ function DeviceConnectionCard() {
               value={participantUrl}
               readOnly
               className="truncate"
-              disabled={!isClient}
             />
-            <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)} disabled={!isClient}>
+            <Button variant="outline" size="icon" onClick={() => copyToClipboard(participantUrl)}>
               <Copy />
             </Button>
           </div>
-          <Button asChild variant="secondary" className="w-full mt-2" disabled={!isClient}>
+          <Button asChild variant="secondary" className="w-full mt-2">
               <Link href={participantUrl} target="_blank">
                 <ExternalLink className="mr-2" />
                 Open Q&A Page
@@ -399,13 +414,13 @@ function DeviceConnectionCard() {
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="flex items-center gap-2">
               <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                <span className="font-bold text-primary">{isClient ? speakerDevices : "-"}</span>
+                <span className="font-bold text-primary">{speakerDevices}</span>
               </div>
               <p className="text-sm text-muted-foreground">{speakerDevices === 1 ? "Speaker" : "Speakers"} Online</p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-                <span className="font-bold text-primary">{isClient ? participantDevices : "-"}</span>
+                <span className="font-bold text-primary">{participantDevices}</span>
               </div>
               <p className="text-sm text-muted-foreground">{participantDevices === 1 ? "Participant" : "Participants"} Online</p>
             </div>
@@ -413,7 +428,7 @@ function DeviceConnectionCard() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button asChild className="w-full" disabled={!isClient}>
+        <Button asChild className="w-full">
           <Link href={speakerViewUrl} target="_blank">
             <MonitorPlay className="mr-2" />
             Open New Speaker View
@@ -1647,5 +1662,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    

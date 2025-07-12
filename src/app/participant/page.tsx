@@ -23,11 +23,6 @@ function ParticipantForm() {
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [error, setError] = useState("");
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
 
     const isPaired = code === validPairingCode;
 
@@ -52,21 +47,6 @@ function ParticipantForm() {
         } finally {
             setIsLoading(false);
         }
-    }
-
-    if (!isClient) {
-        return (
-            <Card className="w-full max-w-lg">
-                <CardHeader>
-                    <CardTitle>Loading...</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex justify-center items-center py-8">
-                        <Loader className="h-8 w-8 animate-spin" />
-                    </div>
-                </CardContent>
-            </Card>
-        );
     }
 
     if (!isPaired) {
@@ -139,24 +119,44 @@ function ParticipantForm() {
     );
 }
 
-export default function ParticipantPage() {
+function ParticipantPageContent() {
     const { plan, customLogo } = useTimer();
-    const showBranding = plan !== "Enterprise" || !customLogo;
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    if (!isClient) {
+        return (
+            <div className="flex h-screen w-screen items-center justify-center">
+                <Loader className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
     
+    const showBranding = plan !== "Enterprise" || !customLogo;
+
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
+            <div className="w-full max-w-lg">
+                <ParticipantForm />
+            </div>
+                <div className="absolute bottom-4">
+                {customLogo && plan === "Enterprise" ? (
+                    <Image src={customLogo} alt="Custom Event Logo" width={100} height={40} className="object-contain" />
+                ) : showBranding ? (
+                        <Logo className="text-muted-foreground" />
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
+export default function ParticipantPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
-            <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
-                <div className="w-full max-w-lg">
-                    <ParticipantForm />
-                </div>
-                 <div className="absolute bottom-4">
-                    {customLogo && plan === "Enterprise" ? (
-                        <Image src={customLogo} alt="Custom Event Logo" width={100} height={40} className="object-contain" />
-                    ) : showBranding ? (
-                         <Logo className="text-muted-foreground" />
-                    ) : null}
-                </div>
-            </div>
+            <ParticipantPageContent />
         </Suspense>
     );
 }
