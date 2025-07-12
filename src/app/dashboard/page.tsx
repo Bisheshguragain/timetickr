@@ -1222,7 +1222,7 @@ function TeamManagementCard() {
                                                 <Send className="mr-2"/> Resend Invitation
                                             </DropdownMenuItem>
                                         )}
-                                        <DropdownMenuItem onClick={()={() => updateMemberStatus(member.email, member.status === 'Active' ? 'Inactive' : 'Active')}>
+                                        <DropdownMenuItem onClick={() => updateMemberStatus(member.email, member.status === 'Active' ? 'Inactive' : 'Active')}>
                                             <Check className="mr-2"/> Mark as {member.status === 'Active' ? 'Inactive' : 'Active'}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem className="text-destructive">
