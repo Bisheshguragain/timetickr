@@ -1,3 +1,4 @@
+
 // This file is a central place to initialize Firebase and export services.
 // This ensures Firebase is initialized only once in the entire application.
 
@@ -9,7 +10,7 @@ import type { FirebaseServices } from './firebase-types';
 const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
 if (!firebaseApiKey) {
-    throw new Error("Firebase API key is not configured. Please add NEXT_PUBLIC_FIREBASE_API_KEY to your .env.local file and restart the server.");
+    throw new Error("Firebase API key is not configured. Please create a .env.local file, add your NEXT_PUBLIC_FIREBASE_API_KEY, and restart the server.");
 }
 
 const firebaseConfig = {
