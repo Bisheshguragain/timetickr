@@ -1,28 +1,11 @@
-// src/lib/firebase.ts
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getDatabase, Database } from "firebase/database";
-import { getAuth, Auth } from "firebase/auth";
 
-// This object will hold the initialized Firebase services to ensure it's a singleton.
-let firebaseInstances: { app: FirebaseApp; auth: Auth; db: Database } | null = null;
+"use client";
 
-// This function provides a single point of entry for getting Firebase instances.
-// It ensures that Firebase is initialized only once and only on the client-side.
-export function getFirebaseInstances() {
-  if (typeof window === "undefined") {
-    // This function should not be called on the server.
-    // If it is, it's a bug in the calling code.
-    return null;
-  }
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getDatabase, type Database } from "firebase/database";
 
-  // If we already have instances, return them
-  if (firebaseInstances) {
-    return firebaseInstances;
-  }
-
-  // Define the config object directly inside the function
-  // to ensure env vars are read on the client.
-  const firebaseConfig = {
+const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
@@ -30,23 +13,27 @@ export function getFirebaseInstances() {
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  };
-  
-  // Check if all required environment variables are present.
-  if (!firebaseConfig.apiKey || !firebaseConfig.databaseURL || !firebaseConfig.projectId) {
-     console.error("Firebase configuration is missing or invalid. Check your .env.local file and ensure all NEXT_PUBLIC_FIREBASE_ variables are set.");
-     return null;
-  }
+};
 
-  try {
-    const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+// Basic check to see if the config is valid
+const isConfigValid = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-    firebaseInstances = { app, auth, db };
-    return firebaseInstances;
-  } catch (error: any) {
-    console.error("Firebase initialization error:", error.message);
-    return null;
-  }
+let app: FirebaseApp;
+let auth: Auth;
+let db: Database;
+
+if (!isConfigValid) {
+    console.error("Firebase configuration is invalid or missing from .env.local. Please check your environment variables.");
+    // Assign dummy objects to prevent app crashing on import in a non-functional state.
+    app = {} as FirebaseApp;
+    auth = {} as Auth;
+    db = {} as Database;
+} else {
+    // Initialize Firebase only once
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getDatabase(app);
 }
+
+
+export { app, auth, db };

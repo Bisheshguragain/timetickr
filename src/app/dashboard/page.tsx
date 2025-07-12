@@ -96,10 +96,11 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { getFirebaseInstances } from "@/lib/firebase";
 import Image from "next/image";
 import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech-flow";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
+import { auth } from "@/lib/firebase";
+import { updatePassword } from "firebase/auth";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -196,7 +197,7 @@ function LiveMessagingCard() {
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-2">
-                    <Textarea 
+                    <Textarea
                         placeholder="Type your custom message here..."
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
@@ -524,7 +525,7 @@ function PurchaseTimersDialog({
     setIsLoading(true);
 
     try {
-      const { sessionId, error: sessionError } = await createStripeCheckoutSession({ 
+      const { sessionId, error: sessionError } = await createStripeCheckoutSession({
           priceId: timerAddonPriceId,
           userId: currentUser.uid,
           userEmail: currentUser.email!,
@@ -641,10 +642,10 @@ function AnalyticsCard() {
             ["Durations: 60+ mins", durationBrackets["60+"]],
         ];
 
-        let csvContent = "data:text/csv;charset=utf-8," 
-            + headers.join(",") + "\n" 
+        let csvContent = "data:text/csv;charset=utf-8,"
+            + headers.join(",") + "\n"
             + rows.map(e => e.join(",")).join("\n");
-        
+
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -652,7 +653,7 @@ function AnalyticsCard() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         toast({
             title: "Export Started",
             description: "Your analytics data is being downloaded."
@@ -704,8 +705,8 @@ function AnalyticsCard() {
                     <ChartContainer config={chartConfig} className="h-40 w-full">
                       <BarChartRechart accessibilityLayer data={chartData} layout="vertical" margin={{ left: -10 }}>
                         <XAxis type="number" dataKey="count" hide />
-                        <YAxis 
-                          dataKey="name" 
+                        <YAxis
+                          dataKey="name"
                           type="category"
                           tickLine={false}
                           axisLine={false}
@@ -948,7 +949,7 @@ function TeamManagementCard() {
 
     const isFreemium = plan === 'Freemium';
     const isStarter = plan === 'Starter';
-    
+
     // Freemium: 1 Admin + unlimited Speaker/Viewer
     // Starter: 3 members total
     const memberLimit = isStarter ? 3 : -1; // -1 for unlimited (for Pro/Enterprise/Freemium)
@@ -956,7 +957,7 @@ function TeamManagementCard() {
 
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (isStarter && !canInvite) {
             setAlertMessage("You have reached the 3-member limit for the Starter plan.");
             setShowAlert(true);
@@ -966,7 +967,7 @@ function TeamManagementCard() {
         const formData = new FormData(e.target as HTMLFormElement);
         const email = formData.get("email") as string;
         const role = formData.get("role") as TeamMember['role'];
-        
+
         if (teamMembers.some(m => m.email.toLowerCase() === email.toLowerCase())) {
              toast({
                 variant: 'destructive',
@@ -984,7 +985,7 @@ function TeamManagementCard() {
         });
         setOpen(false);
     }
-    
+
     const resendInvitation = (email: string) => {
         toast({
             title: "Invitation Resent!",
@@ -1153,16 +1154,14 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
         }
 
         setIsLoading(true);
-        const firebase = getFirebaseInstances();
-        
-        if (!firebase) {
+
+        if (!auth) {
             setError("Firebase not initialized correctly.");
             setIsLoading(false);
             return;
         }
-        const { updatePassword } = await import('firebase/auth');
 
-        const user = firebase.auth.currentUser;
+        const user = auth.currentUser;
         if (user) {
             try {
                 await updatePassword(user, newPassword);
@@ -1440,10 +1439,9 @@ export default function DashboardPage() {
   }, [currentUser, loadingAuth, router]);
 
   const handleSignOut = async () => {
-    const firebase = getFirebaseInstances();
-    if(firebase?.auth) {
+    if(auth) {
         try {
-            await firebase.auth.signOut();
+            await auth.signOut();
             router.push('/');
         } catch (e) {
             console.error("Logout failed", e);

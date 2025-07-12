@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, TimerIcon, Moon, Sun, LogOut } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTimer } from "@/context/TimerContext";
-import { getFirebaseInstances } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -48,8 +48,9 @@ export function Header() {
 
   const handleSignOut = () => {
     try {
-      const { auth } = getFirebaseInstances();
-      auth.signOut();
+      if (auth) {
+        auth.signOut();
+      }
     } catch(e) {
       console.error("Error signing out:", e);
     }

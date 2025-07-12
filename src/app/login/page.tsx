@@ -15,12 +15,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getFirebaseInstances } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader } from "lucide-react";
 import Link from "next/link";
 import { SubscriptionPlan } from "@/context/TimerContext";
-import type { Auth, UserCredential } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
 function LoginContent() {
   const [signInEmail, setSignInEmail] = useState("");
@@ -45,16 +45,14 @@ function LoginContent() {
   const handleSignUp = async () => {
     setLoading(true);
     setSignUpError(null);
-    const firebase = getFirebaseInstances();
-    if (!firebase) {
+    if (!auth) {
       setLoading(false);
       setSignUpError("Firebase is not configured correctly.");
       return;
     }
-    const { createUserWithEmailAndPassword } = await import('firebase/auth');
 
     try {
-      await createUserWithEmailAndPassword(firebase.auth, signUpEmail, signUpPassword);
+      await createUserWithEmailAndPassword(auth, signUpEmail, signUpPassword);
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
@@ -74,16 +72,14 @@ function LoginContent() {
   const handleSignIn = async () => {
     setLoading(true);
     setSignInError(null);
-    const firebase = getFirebaseInstances();
-    if (!firebase) {
+    if (!auth) {
         setLoading(false);
         setSignInError("Firebase is not configured correctly.");
         return;
     }
-    const { signInWithEmailAndPassword } = await import('firebase/auth');
     
     try {
-      await signInWithEmailAndPassword(firebase.auth, signInEmail, signInPassword);
+      await signInWithEmailAndPassword(auth, signInEmail, signInPassword);
       toast({
         title: "Signed In!",
         description: "Welcome back.",
