@@ -93,10 +93,15 @@ export function Pricing() {
   const { toast } = useToast();
 
   const handleCheckout = async (plan: typeof plans[0]) => {
-    if (!plan.priceId) return;
+    if (!plan.priceId) {
+        if (plan.href === "#contact") {
+            router.push(plan.href);
+        }
+        return;
+    }
 
     if (!currentUser) {
-      router.push(`/login?plan=${plan.name}`);
+      router.push(plan.href);
       return;
     }
     
@@ -168,14 +173,14 @@ export function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              {plan.priceId ? (
+              {plan.name === 'Freemium' ? (
+                 <Button asChild className="w-full" variant="outline">
+                    <Link href={plan.href}>{plan.cta}</Link>
+                </Button>
+              ) : (
                 <Button onClick={() => handleCheckout(plan)} className="w-full" variant={plan.popular ? "default" : "outline"} disabled={loading === plan.name}>
                    {loading === plan.name ? <Loader className="mr-2 animate-spin"/> : null}
                    {plan.cta}
-                </Button>
-              ) : (
-                <Button asChild className="w-full" variant="outline">
-                    <Link href={plan.href}>{plan.cta}</Link>
                 </Button>
               )}
             </CardFooter>
@@ -185,3 +190,5 @@ export function Pricing() {
     </div>
   );
 }
+
+    

@@ -1,16 +1,32 @@
 
-// src/app/api/stripe-webhook/route.ts
 import { NextResponse, NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { db } from '@/lib/firebase';
-import { ref, update } from 'firebase/database';
+import { ref, update, get } from 'firebase/database';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+// Helper function to find user ID by email in team members list
+const findUserIdByEmail = async (sessionCode: string, email: string) => {
+    // This is a placeholder. In a real app, you'd have a more direct way
+    // to look up users, probably from a central /users/{userId} node.
+    // For now, we search within the session's team members.
+    const teamRef = ref(db, `sessions/${sessionCode}/teamMembers`);
+    const snapshot = await get(teamRef);
+    if (snapshot.exists()) {
+        const teamMembers = snapshot.val();
+        const member = Object.values(teamMembers).find((m: any) => m.email === email);
+        // This is tricky because we don't have a stable userId here.
+        // We are using client_reference_id instead.
+    }
+    return null; 
+}
+
 
 export async function POST(req: NextRequest) {
   const sig = headers().get('stripe-signature');
@@ -32,30 +48,52 @@ export async function POST(req: NextRequest) {
       
       console.log('Checkout session completed:', session);
 
-      // This is a placeholder for your business logic.
-      // In a real app, you would:
-      // 1. Get the userId from session.client_reference_id or session.metadata.userId
-      // 2. Look up the user in your database (e.g., Firebase Auth/Firestore)
-      // 3. Update their subscription plan or add credits based on the purchase.
-      // For this demo, we'll just log the information.
-
       const userId = session.client_reference_id || session.metadata?.userId;
-      if (userId) {
-          console.log(`Fulfilling order for user: ${userId}`);
-          
-          // Example: Update a 'plan' field in Firebase Realtime Database
-          // Note: This is a simplified example. You might need a more complex user model.
-          const userSessionRef = ref(db, `sessions/${userId}`); // This assumes sessionCode is the userId, which may not be the case. Adjust as needed.
-          
-          // A more robust way would be to have a /users/{userId} node
-          // const userRef = ref(db, `users/${userId}`);
-          
-          // For now, let's log what we *would* do
-           console.log("In a real app, you'd now update the user's plan in the database.");
-      } else {
+
+      if (!userId) {
         console.warn("Webhook received but no userId found in session.");
+        return NextResponse.json({ error: "Webhook Error: No user ID provided." }, { status: 400 });
       }
       
+      console.log(`Fulfilling order for user: ${userId}`);
+
+      // Now, let's determine what was purchased.
+      const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+      
+      for (const item of lineItems.data) {
+        const priceId = item.price?.id;
+        
+        // This is a simplified mapping. In a real app, you might store this in your DB.
+        const PLAN_MAP: Record<string, string> = {
+            'price_1RjjsqJKlah40zYD9kzCBaLp': 'Starter',
+            'price_1Rjjt0JKlah40zYDMo3ROCAn': 'Professional',
+            'price_1RjjtcJKlah40zYDHjeNdXAV': 'Enterprise',
+        };
+        const TIMER_ADDON_PRICE_ID = 'price_1Rjju3JKlah40zYDFMQtGHhF';
+
+        if (priceId && PLAN_MAP[priceId]) {
+            const newPlan = PLAN_MAP[priceId];
+            console.log(`Updating user ${userId} to plan: ${newPlan}`);
+            // In a real app, you would update the user's plan in a central /users/{userId} node.
+            // For this demo, we can't reliably find the user's session, so we'll log it.
+            // Example of what you WOULD do:
+            // const userRef = ref(db, `users/${userId}`);
+            // await update(userRef, { plan: newPlan });
+             console.log(`ACTION (DEMO): Would update user ${userId} to plan ${newPlan}.`);
+
+        } else if (priceId === TIMER_ADDON_PRICE_ID) {
+            const quantity = item.quantity || 0;
+            console.log(`Adding ${quantity} timer credits to user ${userId}`);
+            // This is also tricky. We need to find the right session/user to update.
+            // Example of what you WOULD do:
+            // const userUsageRef = ref(db, `users/${userId}/usage`);
+            // const snapshot = await get(userUsageRef);
+            // const currentExtra = snapshot.val()?.extra || 0;
+            // await update(userUsageRef, { extra: currentExtra + quantity });
+             console.log(`ACTION (DEMO): Would add ${quantity} extra timers to user ${userId}.`);
+        }
+      }
+
       break;
     default:
       console.log(`Unhandled event type ${event.type}`);
@@ -63,3 +101,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ received: true });
 }
+
+    

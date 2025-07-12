@@ -1,6 +1,8 @@
 
 'use server';
 
+import { Stripe } from 'stripe';
+
 interface CreateCheckoutSessionArgs {
     priceId: string;
     userId: string;
@@ -10,19 +12,14 @@ interface CreateCheckoutSessionArgs {
 }
 
 /**
- * Creates a Stripe Checkout session by calling a secure backend API route.
+ * Creates a Stripe Checkout session.
  * 
- * IMPORTANT: This function is now a CLIENT-SIDE action that calls your backend.
- * The actual Stripe API call with your secret key must happen on the server.
+ * IMPORTANT: This function is a SERVER-SIDE action.
+ * The actual Stripe API call with your secret key happens here.
  * 
- * To make this work:
- * 1. Create a Next.js API route (e.g., at `src/app/api/create-checkout-session/route.ts`).
- * 2. In that API route, use the Stripe Node.js library with your SECRET KEY to create a session.
- * 3. The secret key must be stored as an environment variable (e.g., process.env.STRIPE_SECRET_KEY).
- * 4. This function will now call that API route.
- * 5. You will also need to set up a Stripe webhook to listen for `checkout.session.completed`
- *    events. This webhook will update your Firebase database (using the Firebase Admin SDK) 
- *    with the user's new plan or add credits to their account.
+ * You must set up a Stripe webhook to listen for `checkout.session.completed`
+ * events. This webhook will update your Firebase database (using the Firebase Admin SDK) 
+ * with the user's new plan or add credits to their account.
  */
 export async function createStripeCheckoutSession(
     args: CreateCheckoutSessionArgs
@@ -30,28 +27,45 @@ export async function createStripeCheckoutSession(
 
     console.log(`Requesting checkout session for user ${args.userId} with price ${args.priceId}`);
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+        throw new Error('STRIPE_SECRET_KEY is not set in the environment.');
+    }
+    
+    // In a real app, you'd get the base URL from the environment or request headers
+    const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment_success=true` : 'http://localhost:9002/dashboard?payment_success=true';
+    const cancelUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment_canceled=true` : 'http://localhost:9002/dashboard?payment_canceled=true';
+
     try {
-        // In a real app, you'd get the base URL from the environment
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9002';
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
         
-        const response = await fetch(`${apiBaseUrl}/api/create-checkout-session`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price: args.priceId,
+                    quantity: args.quantity || 1,
+                },
+            ],
+            mode: args.mode || 'subscription',
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            customer_email: args.userEmail,
+            client_reference_id: args.userId, // Pass the user ID to the session
+            metadata: {
+                userId: args.userId, // Also store in metadata for the webhook
             },
-            body: JSON.stringify(args),
         });
 
-        if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(errorBody.error || 'Failed to create checkout session');
+        if (!session.id) {
+            throw new Error('Failed to create a checkout session.');
         }
 
-        const { sessionId } = await response.json();
-        return { sessionId };
+        return { sessionId: session.id };
 
     } catch (error: any) {
         console.error("Error creating Stripe checkout session:", error);
         return { error: error.message };
     }
 }
+
+    
