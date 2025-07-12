@@ -1,11 +1,11 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
-import {next as genkitNext} from '@genkit-ai/next';
+import {next} from '@genkit-ai/next/plugin';
 
 export const ai = genkit({
   plugins: [
     googleAI(),
-    genkitNext({
+    next({
       // By default, the dev server will be served on port 4000.
       // We can configure the port if we want to.
     }),
