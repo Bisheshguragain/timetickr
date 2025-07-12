@@ -10,9 +10,10 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { ref, onValue, set, update, off, get, type Database } from "firebase/database";
-import { onAuthStateChanged, type User, type Auth } from "firebase/auth";
-import { getFirebaseServices, type FirebaseServices } from "@/lib/firebase";
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import { getAuth, onAuthStateChanged, type User, type Auth } from "firebase/auth";
+import { ref, onValue, set, update, off, get, getDatabase, type Database } from "firebase/database";
+import type { FirebaseServices } from "@/lib/firebase";
 
 
 interface Message {
@@ -146,18 +147,37 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
   const [sessionCode, setSessionCode] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
 
   const isFinished = time === 0;
 
   useEffect(() => {
-    // Initialize Firebase on the client
-    setFirebaseServices(getFirebaseServices());
-  }, []);
+    // This effect runs only once on the client to initialize Firebase
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
 
-  useEffect(() => {
-    setIsClient(true);
+    if (firebaseConfig.apiKey && firebaseConfig.databaseURL) {
+        let app: FirebaseApp;
+        if (getApps().length === 0) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            app = getApps()[0];
+        }
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        setFirebaseServices({ app, auth, db });
+    } else {
+        console.error("Firebase configuration is missing or invalid.");
+        setLoadingAuth(false);
+    }
+
     // Logic for setting the session code
     if (sessionCodeFromProps) {
         // If a code is passed via props, use it directly (for speaker/participant views)
@@ -262,7 +282,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [currentUser]);
 
   useEffect(() => {
-    if (loadingAuth || !isClient) return;
+    if (loadingAuth || !firebaseServices) return;
     const { used, extra } = getUsageFromStorage();
     setTimersUsed(used);
     setExtraTimers(extra);
@@ -272,12 +292,12 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const logoKey = currentUser ? `customLogo_${currentUser.uid}` : 'customLogo_guest';
     const savedLogo = getFromStorage(logoKey, null);
     if(savedLogo) setCustomLogoState(savedLogo);
-  }, [currentUser, loadingAuth, isClient, getUsageFromStorage]);
+  }, [currentUser, loadingAuth, firebaseServices, getUsageFromStorage]);
 
   // Firebase listener
   useEffect(() => {
     if (!dbRef) {
-        if (sessionCodeFromProps && isClient) {
+        if (sessionCodeFromProps && firebaseServices) {
             setIsSessionFound(false);
         }
         return;
@@ -308,7 +328,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
             setParticipantDevices(data.connections?.participants || 0);
 
             const dbPlan = data.plan || "Freemium";
-            const selectedPlan = isClient ? localStorage.getItem('selectedPlan') : null;
+            const selectedPlan = typeof window !== "undefined" ? localStorage.getItem('selectedPlan') : null;
 
             if (!selectedPlan && !(currentUser && currentUser.email?.endsWith('@gmail.com'))) {
                setPlanState(dbPlan);
@@ -341,11 +361,11 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     return () => {
         if(dbRef) off(dbRef, 'value', listener);
     };
-  }, [dbRef, initialDuration, currentUser, isClient, sessionCodeFromProps]);
+  }, [dbRef, initialDuration, currentUser, firebaseServices, sessionCodeFromProps]);
 
   // Update DB on state change
   useEffect(() => {
-    if (isUpdatingFromDb.current || !dbRef || !isClient || sessionCodeFromProps ) return;
+    if (isUpdatingFromDb.current || !dbRef || !firebaseServices || sessionCodeFromProps ) return;
 
     // This logic should only run on the admin dashboard
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard')) return;
@@ -361,7 +381,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         teamMembers,
         customLogo,
     });
-  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, isClient, sessionCodeFromProps]);
+  }, [time, isActive, initialDuration, message, plan, theme, audienceQuestions, teamMembers, customLogo, dbRef, firebaseServices, sessionCodeFromProps]);
 
   const addTimers = (quantity: number) => {
     if (!currentUser) return;
