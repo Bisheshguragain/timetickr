@@ -1,18 +1,15 @@
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
-import {next} from '@genkit-ai/next/plugin';
 
 export const ai = genkit({
   plugins: [
     googleAI(),
-    next({
-      // By default, the dev server will be served on port 4000.
-      // We can configure the port if we want to.
-    }),
+    // The @genkit-ai/next plugin is not needed for this dev setup and was causing build issues.
+    // CORS is handled directly below.
   ],
   model: 'googleai/gemini-2.0-flash',
-  // We need to allow requests from the Next.js dev server.
-  // This is required for the browser to be able to make requests to the Genkit dev server.
+  // We need to allow requests from the Next.js dev server (localhost:9002)
+  // to the Genkit dev server (localhost:4000).
   cors: {
     origin: '*', // In production, you should restrict this to your app's domain.
   },
