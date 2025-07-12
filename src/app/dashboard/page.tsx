@@ -519,7 +519,7 @@ function PurchaseTimersDialog({
   const [isLoading, setIsLoading] = useState(false);
   const pricePerTimer = 2; // Display only
   const totalCost = quantity * pricePerTimer;
-  const timerAddonPriceId = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID!;
+  const timerAddonPriceId = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID;
 
   const handlePurchase = async () => {
     if (!currentUser) {
@@ -527,6 +527,14 @@ function PurchaseTimersDialog({
         variant: 'destructive',
         title: 'Not Logged In',
         description: 'You must be logged in to make a purchase.',
+      });
+      return;
+    }
+    if (!timerAddonPriceId) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description: 'Timer purchases are not configured. Please contact support.',
       });
       return;
     }
@@ -544,7 +552,7 @@ function PurchaseTimersDialog({
       if (sessionError) throw new Error(sessionError);
 
       const stripe = (await import('@/lib/stripe-client')).default;
-      const { error } = await stripe.redirectToCheckout({ sessionId });
+      const { error } = await stripe.redirectToCheckout({ sessionId: sessionId! });
 
       if (error) {
         console.error("Stripe redirect error:", error);
@@ -1792,8 +1800,4 @@ export default function DashboardPage() {
       />
       <ChangePasswordDialog
         open={showSettingsDialog}
-        onOpenChange={setShowSettingsDialog}
-      />
-    </>
-  );
-}
+        onOpenChange={setShowSettings

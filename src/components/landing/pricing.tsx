@@ -32,7 +32,7 @@ const plans = [
   },
   {
     name: "Starter",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID!,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
     price: "£7",
     period: "/month",
     description: "For small teams and regular events.",
@@ -50,7 +50,7 @@ const plans = [
   },
   {
     name: "Professional",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID!,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID,
     price: "£12",
     period: "/month",
     description: "For growing businesses with multiple events.",
@@ -68,7 +68,7 @@ const plans = [
   },
   {
     name: "Enterprise",
-    priceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID!,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
     price: "£29",
     period: "/month",
     description: "For large-scale operations with specific needs.",
@@ -128,7 +128,7 @@ export function Pricing() {
       }
 
       const stripe = (await import('@/lib/stripe-client')).default;
-      const { error } = await stripe.redirectToCheckout({ sessionId });
+      const { error } = await stripe.redirectToCheckout({ sessionId: sessionId! });
 
       if (error) {
         console.error("Stripe redirect error:", error);

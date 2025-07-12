@@ -7,28 +7,25 @@ import { getAuth, type Auth } from "firebase/auth";
 import { getDatabase, type Database } from "firebase/database";
 import type { FirebaseServices } from './firebase-types';
 
-const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-
-if (!firebaseApiKey) {
-    throw new Error("Firebase API key is not configured. Please create a .env.local file, add your NEXT_PUBLIC_FIREBASE_API_KEY, and restart the server.");
-}
-
+// --- IMPORTANT ---
+// These environment variables must be defined in your .env.local file.
+// See the project README for more details.
 const firebaseConfig = {
-  apiKey: firebaseApiKey,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  // The Realtime Database SDK expects the ".firebaseio.com" URL format.
-  // Using the newer ".firebasedatabase.app" URL causes a fatal parsing error.
-  databaseURL: "https://timetickr-landing-page-default-rtdb.firebaseio.com",
+  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
+// Check if all required environment variables are set.
+if (!firebaseConfig.apiKey) {
+    throw new Error("Firebase configuration is not complete. Please create a .env.local file and add all the required NEXT_PUBLIC_FIREBASE_... variables.");
+}
+
 let app: FirebaseApp;
-let auth: Auth;
-let db: Database;
-let services: FirebaseServices;
 
 // Initialize Firebase only if it hasn't been initialized yet.
 // This is safe to run on both server and client, and ensures a singleton instance.
@@ -38,9 +35,7 @@ if (!getApps().length) {
     app = getApp();
 }
 
-auth = getAuth(app);
-db = getDatabase(app);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-services = { app, auth, db };
-
-export { services, app, auth, db };
+export { app, auth, db };
