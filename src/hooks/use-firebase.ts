@@ -21,7 +21,7 @@ export function useFirebase() {
       const firebaseConfig = {
         apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
         authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-        // Construct the correct databaseURL format. This is the key fix.
+        // Construct the correct databaseURL format as per Firebase requirements for RTDB SDK
         databaseURL: projectId ? `https://${projectId}.firebaseio.com` : undefined,
         projectId: projectId,
         storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
