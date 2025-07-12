@@ -22,6 +22,7 @@ interface Message {
 export interface AudienceQuestion {
     id: number;
     text: string;
+    status: 'pending' | 'approved' | 'dismissed';
 }
 
 export interface TeamMember {
@@ -87,7 +88,7 @@ interface TimerContextProps {
   sessionCode: string | null;
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
-  dismissAudienceQuestion: (id: number) => void;
+  updateAudienceQuestionStatus: (id: number, status: AudienceQuestion['status']) => void;
   teamMembers: TeamMember[];
   inviteTeamMember: (email: string, role: TeamMember['role']) => void;
   updateMemberStatus: (email: string, status: TeamMember['status']) => void;
@@ -527,18 +528,20 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     // We get the latest questions from DB to prevent race conditions
     get(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
-        const newQuestion = { id: Date.now(), text };
+        const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
         const newQuestions = [...currentQuestions, newQuestion];
         set(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`), newQuestions);
     });
   };
 
-  const dismissAudienceQuestion = (id: number) => {
+  const updateAudienceQuestionStatus = (id: number, status: AudienceQuestion['status']) => {
     if (!dbRef) return;
-    const filteredQuestions = audienceQuestions.filter(q => q.id !== id);
-    setAudienceQuestions(filteredQuestions);
-    set(ref(firebaseServices!.db, `sessions/${sessionCode}/audienceQuestions`), filteredQuestions);
-  }
+    const updatedQuestions = audienceQuestions.map(q => 
+      q.id === id ? { ...q, status } : q
+    );
+    setAudienceQuestions(updatedQuestions);
+    // No need for a separate `set` call here as the main `useEffect` for DB updates will handle it.
+  };
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
     if (!dbRef) return;
@@ -597,7 +600,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     sessionCode,
     audienceQuestions,
     submitAudienceQuestion,
-    dismissAudienceQuestion,
+    updateAudienceQuestionStatus,
     teamMembers,
     inviteTeamMember,
     updateMemberStatus,
@@ -621,5 +624,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
-    

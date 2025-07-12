@@ -42,6 +42,12 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Play,
   Pause,
   RotateCcw,
@@ -82,6 +88,10 @@ import {
   FileDown,
   Sparkles,
   ClipboardCopy,
+  Undo2,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -851,7 +861,7 @@ function SmartAlertsCard() {
 }
 
 function AudienceQuestionsCard() {
-    const { audienceQuestions, dismissAudienceQuestion, sendAudienceQuestionMessage, plan } = useTimer();
+    const { audienceQuestions, updateAudienceQuestionStatus, sendAudienceQuestionMessage, plan } = useTimer();
     const { toast } = useToast();
     const [approving, setApproving] = useState<number | null>(null);
     const canUseAi = plan === 'Professional' || plan === 'Enterprise';
@@ -859,24 +869,23 @@ function AudienceQuestionsCard() {
     const handleApprove = async (question: AudienceQuestion) => {
         setApproving(question.id);
         try {
-             if (canUseAi) {
+            if (canUseAi) {
                 const moderationResult = await moderateMessage({ message: question.text });
                 if (moderationResult.isSafe) {
                     sendAudienceQuestionMessage(question.text);
-                    dismissAudienceQuestion(question.id);
+                    updateAudienceQuestionStatus(question.id, 'approved');
                 } else {
                     toast({
                         variant: "destructive",
                         title: "Question Blocked",
                         description: `Reason: ${moderationResult.reason}`,
                     });
-                     // Dismiss the blocked question from the queue
-                    dismissAudienceQuestion(question.id);
+                    updateAudienceQuestionStatus(question.id, 'dismissed');
                 }
-             } else {
+            } else {
                 sendAudienceQuestionMessage(question.text);
-                dismissAudienceQuestion(question.id);
-             }
+                updateAudienceQuestionStatus(question.id, 'approved');
+            }
         } catch (error: any) {
             console.error("Error approving question:", error);
             toast({
@@ -887,7 +896,53 @@ function AudienceQuestionsCard() {
         } finally {
             setApproving(null);
         }
+    };
+    
+    const handleDismiss = (id: number) => {
+        updateAudienceQuestionStatus(id, 'dismissed');
     }
+
+    const handleRestore = (id: number) => {
+        updateAudienceQuestionStatus(id, 'pending');
+    }
+    
+    const pendingQuestions = audienceQuestions.filter(q => q.status === 'pending');
+    const approvedQuestions = audienceQuestions.filter(q => q.status === 'approved');
+    const dismissedQuestions = audienceQuestions.filter(q => q.status === 'dismissed');
+
+    const QuestionItem = ({ question }: { question: AudienceQuestion }) => (
+        <div className="p-3 rounded-lg border bg-secondary/30 space-y-3">
+            <p className="text-sm">{question.text}</p>
+            <div className="flex justify-end gap-2">
+                {question.status === 'pending' && (
+                    <>
+                        <Button size="sm" variant="outline" onClick={() => handleDismiss(question.id)} disabled={approving === question.id}>
+                            <ThumbsDown className="mr-2" />
+                            Dismiss
+                        </Button>
+                        <Button size="sm" onClick={() => handleApprove(question)} disabled={approving === question.id}>
+                            {approving === question.id ? <Loader className="mr-2 animate-spin" /> : <ThumbsUp className="mr-2" />}
+                            Approve & Send
+                        </Button>
+                    </>
+                )}
+                 {question.status === 'approved' && (
+                    <>
+                        <Button size="sm" variant="outline" onClick={() => sendAudienceQuestionMessage(question.text)}>
+                            <Send className="mr-2" />
+                            Send Again
+                        </Button>
+                    </>
+                )}
+                {question.status === 'dismissed' && (
+                     <Button size="sm" variant="outline" onClick={() => handleRestore(question.id)}>
+                        <Undo2 className="mr-2" />
+                        Restore
+                    </Button>
+                )}
+            </div>
+        </div>
+    );
 
     return (
         <Card>
@@ -897,8 +952,8 @@ function AudienceQuestionsCard() {
                     Audience Questions
                 </CardTitle>
                 <CardDescription>
-                    Review and approve questions from the audience.
-                      {canUseAi ? (
+                    Review and manage questions from the audience.
+                    {canUseAi ? (
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
                             <ShieldCheck className="text-green-500" /> AI Moderation is active.
                         </span>
@@ -909,30 +964,60 @@ function AudienceQuestionsCard() {
                     )}
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
                 {audienceQuestions.length === 0 ? (
                     <div className="text-center text-muted-foreground py-8">
                         <p>No questions yet.</p>
                         <p className="text-xs">Share the Q&A link to get started.</p>
                     </div>
                 ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                        {audienceQuestions.map((q) => (
-                            <div key={q.id} className="p-3 rounded-lg border bg-secondary/30 space-y-3">
-                                <p className="text-sm">{q.text}</p>
-                                <div className="flex justify-end gap-2">
-                                    <Button size="sm" variant="outline" onClick={() => dismissAudienceQuestion(q.id)} disabled={approving === q.id}>
-                                        <ThumbsDown className="mr-2" />
-                                        Dismiss
-                                    </Button>
-                                    <Button size="sm" onClick={() => handleApprove(q)} disabled={approving === q.id}>
-                                        {approving === q.id ? <Loader className="mr-2 animate-spin" /> : <ThumbsUp className="mr-2" />}
-                                        Approve & Send
-                                    </Button>
+                    <Accordion type="multiple" defaultValue={['pending']} className="w-full">
+                        <AccordionItem value="pending">
+                            <AccordionTrigger>
+                                <div className="flex items-center gap-2">
+                                    <Clock />
+                                    Pending ({pendingQuestions.length})
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-3 pt-3">
+                                {pendingQuestions.length > 0 ? (
+                                    pendingQuestions.map((q) => <QuestionItem key={q.id} question={q} />)
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No pending questions.</p>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="approved">
+                             <AccordionTrigger>
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="text-green-500" />
+                                    Approved ({approvedQuestions.length})
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-3 pt-3">
+                               {approvedQuestions.length > 0 ? (
+                                    approvedQuestions.map((q) => <QuestionItem key={q.id} question={q} />)
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No approved questions.</p>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+                        <AccordionItem value="dismissed">
+                            <AccordionTrigger>
+                                <div className="flex items-center gap-2">
+                                    <XCircle className="text-destructive" />
+                                    Dismissed ({dismissedQuestions.length})
+                                </div>
+                            </AccordionTrigger>
+                           <AccordionContent className="space-y-3 pt-3">
+                                {dismissedQuestions.length > 0 ? (
+                                    dismissedQuestions.map((q) => <QuestionItem key={q.id} question={q} />)
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">No dismissed questions.</p>
+                                )}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 )}
             </CardContent>
         </Card>
@@ -1680,5 +1765,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
-    
