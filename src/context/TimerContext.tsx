@@ -10,10 +10,10 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, onAuthStateChanged, type User, type Auth } from "firebase/auth";
-import { ref, onValue, set, update, off, get, getDatabase, type Database } from "firebase/database";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { ref, onValue, set, update, off, get, getDatabase } from "firebase/database";
 import type { FirebaseServices } from "@/lib/firebase";
+import { useFirebase } from "@/hooks/use-firebase";
 
 
 interface Message {
@@ -129,7 +129,7 @@ type TimerProviderProps = {
 
 
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
-  const [firebaseServices, setFirebaseServices] = useState<FirebaseServices | null>(null);
+  const { services: firebaseServices, loading: loadingFirebase } = useFirebase();
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
@@ -152,38 +152,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const isFinished = time === 0;
 
   useEffect(() => {
-    // This effect runs only once on the client to initialize Firebase
-    const firebaseConfig = {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    };
-
-    if (firebaseConfig.apiKey && firebaseConfig.databaseURL) {
-        let app: FirebaseApp;
-        if (getApps().length === 0) {
-            app = initializeApp(firebaseConfig);
-        } else {
-            app = getApps()[0];
-        }
-        const auth = getAuth(app);
-        const db = getDatabase(app);
-        setFirebaseServices({ app, auth, db });
-    } else {
-        console.error("Firebase configuration is missing or invalid.");
-        setLoadingAuth(false);
-    }
-
-    // Logic for setting the session code
+    // Logic for setting the session code - runs only on client
     if (sessionCodeFromProps) {
-        // If a code is passed via props, use it directly (for speaker/participant views)
         setSessionCode(sessionCodeFromProps);
     } else {
-        // Otherwise, it's the admin dashboard, so get/create from localStorage
         const getOrCreateCode = (key: string) => {
             let code = localStorage.getItem(key);
             if (!code) {
@@ -211,7 +183,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   useEffect(() => {
     if (!firebaseServices) {
-        setLoadingAuth(false);
+        if (!loadingFirebase) setLoadingAuth(false);
         return;
     }
     const { auth } = firebaseServices;
@@ -252,7 +224,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     });
 
     return () => unsubscribe();
-  }, [firebaseServices]);
+  }, [firebaseServices, loadingFirebase]);
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -608,7 +580,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     inviteTeamMember,
     updateMemberStatus,
     currentUser,
-    loadingAuth,
+    loadingAuth: loadingAuth || loadingFirebase,
     customLogo,
     setCustomLogo,
     isSessionFound,
