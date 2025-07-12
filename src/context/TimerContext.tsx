@@ -232,10 +232,18 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         setCustomLogoState(data.customLogo || null);
         setSpeakerDevices(data.connections?.speakers || 0);
         setParticipantDevices(data.connections?.participants || 0);
-        isUpdatingFromDb.current = false;
+        
+        // Use a short timeout to allow state to propagate before unlocking
+        setTimeout(() => {
+            isUpdatingFromDb.current = false;
+        }, 10);
     });
 
-    return () => off(dbRef, 'value', listener);
+    return () => {
+        if (dbRef) {
+            off(dbRef, 'value', listener);
+        }
+    };
   }, [dbRef, sessionCodeFromProps, initialDuration]);
 
 
@@ -353,7 +361,11 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       clearInterval(intervalRef.current as NodeJS.Timeout);
     }
 
-    return () => clearInterval(intervalRef.current as NodeJS.Timeout);
+    return () => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+        }
+    };
   }, [isActive, time, sessionCodeFromProps]);
 
   const consumeTimerCredit = () => {
@@ -391,30 +403,28 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
-    set(ref(db, `sessions/${sessionCode}/isActive`), newIsActive);
+    update(dbRef, { isActive: newIsActive });
   };
 
   const resetTimer = () => {
     if (!dbRef) return;
     setIsActive(false);
     setTime(initialDuration);
-    set(ref(db, `sessions/${sessionCode}/time`), initialDuration);
-    set(ref(db, `sessions/${sessionCode}/isActive`), false);
+    update(dbRef, { time: initialDuration, isActive: false });
   };
 
   const setDuration = (duration: number) => {
     if (!dbRef || isActive) return;
     setInitialDuration(duration);
     setTime(duration);
-    set(ref(db, `sessions/${sessionCode}/time`), duration);
-    set(ref(db, `sessions/${sessionCode}/initialDuration`), duration);
+    update(dbRef, { time: duration, initialDuration: duration });
   };
 
   const sendAdminMessage = (text: string) => {
     if (!dbRef) throw new Error("Database connection not available.");
     const newMessage = { id: Date.now(), text };
     setAdminMessage(newMessage);
-    set(ref(db, `sessions/${sessionCode}/adminMessage`), newMessage);
+    update(dbRef, { adminMessage: newMessage });
 
     const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
     setAnalytics(newAnalytics);
@@ -427,14 +437,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const dismissAdminMessage = () => {
     if (!dbRef) return;
     setAdminMessage(null);
-    set(ref(db, `sessions/${sessionCode}/adminMessage`), null);
+    update(dbRef, { adminMessage: null });
   };
 
   const sendAudienceQuestionMessage = (text: string) => {
     if (!dbRef) throw new Error("Database connection not available.");
     const newMessage = { id: Date.now(), text };
     setAudienceQuestionMessage(newMessage);
-    set(ref(db, `sessions/${sessionCode}/audienceQuestionMessage`), newMessage);
+    update(dbRef, { audienceQuestionMessage: newMessage });
 
     const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
     setAnalytics(newAnalytics);
@@ -447,13 +457,13 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const dismissAudienceQuestionMessage = () => {
     if (!dbRef) return;
     setAudienceQuestionMessage(null);
-    set(ref(db, `sessions/${sessionCode}/audienceQuestionMessage`), null);
+    update(dbRef, { audienceQuestionMessage: null });
   };
 
   const setTheme = (newTheme: TimerTheme) => {
     if (!dbRef) return;
     setThemeState(newTheme);
-    set(ref(db, `sessions/${sessionCode}/theme`), newTheme);
+    update(dbRef, { theme: newTheme });
   };
 
   const setCustomLogo = (logo: string | null) => {
@@ -461,7 +471,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setCustomLogoState(logo);
     const logoKey = `customLogo_${currentUser.uid}`;
     setInStorage(logoKey, logo);
-    set(ref(db, `sessions/${sessionCode}/customLogo`), logo);
+    update(dbRef, { customLogo: logo });
   }
 
   const submitAudienceQuestion = (text: string) => {
@@ -469,7 +479,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     get(ref(db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
         const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
-        set(ref(db, `sessions/${sessionCode}/audienceQuestions`), [...currentQuestions, newQuestion]);
+        update(dbRef, { audienceQuestions: [...currentQuestions, newQuestion] });
     });
   };
 
@@ -477,7 +487,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!dbRef) return;
     const updatedQuestions = audienceQuestions.map(q => q.id === id ? { ...q, status } : q);
     setAudienceQuestions(updatedQuestions);
-    set(ref(db, `sessions/${sessionCode}/audienceQuestions`), updatedQuestions);
+    update(dbRef, { audienceQuestions: updatedQuestions });
   };
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
@@ -485,14 +495,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const newMember: TeamMember = { name: 'Invited User', email, role, status: 'Pending', avatar: `https://i.pravatar.cc/40?u=${email}` };
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    update(dbRef, { teamMembers: newTeam });
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
     if (!dbRef) return;
     const newTeam = teamMembers.map(member => member.email === email ? { ...member, status } : member);
     setTeamMembers(newTeam);
-    set(ref(db, `sessions/${sessionCode}/teamMembers`), newTeam);
+    update(dbRef, { teamMembers: newTeam });
   };
   
   const addTimers = (quantity: number) => {
