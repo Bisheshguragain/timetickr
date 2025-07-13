@@ -4,19 +4,18 @@ This guide provides the commands needed to upload your existing application code
 
 ## Prerequisites
 
-1.  **Git Installed**: You must have Git installed on your computer. If not, download it from [git-scm.com](https://git-scm.com/).
-2.  **GitHub Account**: You need a GitHub account.
-3.  **New GitHub Repository**: You must have already created a new, **empty** repository on GitHub. Do not initialize it with a README or .gitignore file.
+1.  **GitHub Account**: You need a free GitHub account.
+2.  **New GitHub Repository**: You must have already created a new, **empty** repository on GitHub. Do not initialize it with a README or .gitignore file.
 
 ## Step-by-Step Commands
 
-Open a terminal or command prompt **in your project's root directory** (the same directory where this file is located) and run the following commands one by one.
+Open the terminal **within Firebase Studio** and run the following commands one by one.
 
 ---
 
 ### 1. Initialize the Git Repository
 
-This command creates a new Git repository in your current directory. The `-b main` part sets the default branch name to `main`, which is the standard.
+This command prepares your project folder here in the cloud.
 
 ```bash
 git init -b main
@@ -26,7 +25,7 @@ git init -b main
 
 ### 2. Add All Files for Tracking
 
-This command stages all the files in your project, preparing them to be saved in your first commit. The `.` means "all files and folders in the current directory".
+This command stages all your project files, getting them ready to be saved.
 
 ```bash
 git add .
@@ -36,7 +35,7 @@ git add .
 
 ### 3. Create Your First Commit
 
-A commit is a snapshot of your code at a specific point in time. This command saves your staged files with a descriptive message.
+This command saves your files with a message.
 
 ```bash
 git commit -m "Initial commit of TimeTickR application"
@@ -46,9 +45,9 @@ git commit -m "Initial commit of TimeTickR application"
 
 ### 4. Link to Your GitHub Repository
 
-This command tells your local Git repository where the remote repository on GitHub is located.
+This command tells your project where your GitHub repository is.
 
-**Important**: You must replace `YOUR_USERNAME` and `YOUR_REPOSITORY.git` with your actual GitHub username and the name of the repository you created.
+**Important**: Replace `YOUR_USERNAME` and `YOUR_REPOSITORY.git` with your actual GitHub username and repository name.
 
 ```bash
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
@@ -59,10 +58,8 @@ git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
 
 ### 5. Push Your Code to GitHub
 
-This final command uploads your committed code from your local `main` branch to the `origin` remote (which is your GitHub repository).
+This final command uploads your code. After running this, you can refresh your GitHub page to see all your project files.
 
 ```bash
 git push -u origin main
 ```
-
-After running this command, you can refresh your GitHub repository page in the browser, and you will see all of your project files.
