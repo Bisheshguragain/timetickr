@@ -10,9 +10,10 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { onAuthStateChanged, type User, Auth } from "firebase/auth";
-import { ref, onValue, set, update, off, get, Database } from "firebase/database";
-import { auth, db } from "@/lib/firebase"; // Import singleton instances
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { ref, onValue, set, update, off, get, type Database } from "firebase/database";
+import { useFirebase } from "@/hooks/use-firebase"; // Import the new hook
+import type { FirebaseServices } from "@/lib/firebase-types";
 
 interface Message {
   id: number;
@@ -97,7 +98,7 @@ interface TimerContextProps {
   customLogo: string | null;
   setCustomLogo: (logo: string | null) => void;
   isSessionFound: boolean | null;
-  firebaseServices: { auth: Auth, db: Database }; // Always available
+  firebaseServices: FirebaseServices;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -123,6 +124,7 @@ type TimerProviderProps = {
 
 
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
+  const firebaseServices = useFirebase();
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
@@ -163,19 +165,19 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   const dbRef = useMemo(() => {
     if (sessionCode) {
-      return ref(db, `sessions/${sessionCode}`);
+      return ref(firebaseServices.db, `sessions/${sessionCode}`);
     }
     return null;
-  }, [sessionCode]);
+  }, [sessionCode, firebaseServices.db]);
 
   // Auth listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(firebaseServices.auth, (user) => {
       setCurrentUser(user);
       setLoadingAuth(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [firebaseServices.auth]);
 
   const isUpdatingFromDb = useRef(false);
 
@@ -268,14 +270,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
     if (!currentUser) return;
     setPlanState(newPlan);
-    const userDbRef = ref(db, `users/${currentUser.uid}/plan`);
+    const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
     set(userDbRef, newPlan);
-  }, [currentUser]);
+  }, [currentUser, firebaseServices.db]);
 
   useEffect(() => {
     if (!currentUser) return;
 
-    const userDbRef = ref(db, `users/${currentUser.uid}/plan`);
+    const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
     get(userDbRef).then(snapshot => {
       if (snapshot.exists()) {
         setPlanState(snapshot.val());
@@ -298,7 +300,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         return prev.map(m => m.email === currentUser.email ? userAsTeamMember : m);
     });
 
-  }, [currentUser]);
+  }, [currentUser, firebaseServices.db]);
 
   const getFromStorage = (key: string, defaultValue: any) => {
     if (typeof window === 'undefined') return defaultValue;
@@ -391,8 +393,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
     const newAnalytics = { ...analytics, totalTimers: newTotalTimers, avgDuration: newAvgDuration, durationBrackets: newBrackets };
     setAnalytics(newAnalytics);
-    const analyticsKey = `timerAnalytics_${currentUser.uid}`;
-    setInStorage(analyticsKey, newAnalytics);
+    if(currentUser) {
+      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+      setInStorage(analyticsKey, newAnalytics);
+    }
   };
   
   const toggleTimer = () => {
@@ -469,14 +473,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const setCustomLogo = (logo: string | null) => {
     if (!dbRef || !currentUser) return;
     setCustomLogoState(logo);
-    const logoKey = `customLogo_${currentUser.uid}`;
-    setInStorage(logoKey, logo);
+    if(currentUser) {
+      const logoKey = `customLogo_${currentUser.uid}`;
+      setInStorage(logoKey, logo);
+    }
     update(dbRef, { customLogo: logo });
   }
 
   const submitAudienceQuestion = (text: string) => {
     if (!dbRef) return;
-    get(ref(db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
+    get(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
         const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
         update(dbRef, { audienceQuestions: [...currentQuestions, newQuestion] });
@@ -524,8 +530,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const resetAnalytics = () => {
     if (!currentUser || (plan !== 'Professional' && plan !== 'Enterprise')) return;
     setAnalytics(initialAnalytics);
-    const analyticsKey = `timerAnalytics_${currentUser.uid}`;
-    setInStorage(analyticsKey, initialAnalytics);
+    if(currentUser) {
+      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+      setInStorage(analyticsKey, initialAnalytics);
+    }
   }
 
   const value = {
@@ -537,7 +545,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
     updateAudienceQuestionStatus, teamMembers, inviteTeamMember, updateMemberStatus,
     currentUser, loadingAuth, customLogo, setCustomLogo, isSessionFound,
-    firebaseServices: { auth, db }
+    firebaseServices
   };
 
   return (
@@ -552,5 +560,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
-    

@@ -8,6 +8,7 @@ import {
   RadioTower,
   ShieldCheck,
   Users,
+  Volume2,
 } from "lucide-react";
 
 const features = [
@@ -88,6 +89,17 @@ const features = [
         "Customizable reports"
     ]
   },
+   {
+    icon: <Volume2 className="h-8 w-8 text-primary" />,
+    title: "AI-Powered Text-to-Speech",
+    description: "Convert your generated presentation script into natural-sounding audio for practice or accessibility.",
+     subFeatures: [
+        "Generate audio from scripts",
+        "Practice talk timing and delivery",
+        "Create accessible content",
+        "High-quality, natural voices"
+    ]
+  },
 ];
 
 export function Features() {
@@ -101,7 +113,7 @@ export function Features() {
           Everything you need for flawless event timing and presentation management
         </p>
       </div>
-      <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => (
           <Card key={feature.title} className="flex flex-col bg-secondary/30 border-secondary hover:border-primary/50 transition-colors duration-300">
             <CardHeader className="flex flex-row items-center gap-4 pb-2">

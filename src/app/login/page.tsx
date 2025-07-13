@@ -20,9 +20,11 @@ import { Loader } from "lucide-react";
 import Link from "next/link";
 import { SubscriptionPlan, useTimer } from "@/context/TimerContext";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { useFirebase } from "@/hooks/use-firebase";
 
 function LoginContent() {
-  const { firebaseServices, setPlan } = useTimer();
+  const firebaseServices = useFirebase();
+  const { setPlan } = useTimer();
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
   const [signUpEmail, setSignUpEmail] = useState("");
