@@ -1,0 +1,1 @@
+The complete, new content of the file.
