@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -93,6 +94,7 @@ import {
   XCircle,
   Clock,
   Volume2,
+  ListPlus,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -765,11 +767,11 @@ function AnalyticsCard() {
 
 function SmartAlertsCard() {
   const { toast } = useToast();
-  const { plan } = useTimer();
+  const { plan, setScheduledAlerts } = useTimer();
   const [duration, setDuration] = useState(30);
   const [speakers, setSpeakers] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
-  const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput | null>(null);
+  const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
   
   const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
 
@@ -803,13 +805,22 @@ function SmartAlertsCard() {
     setGeneratedAlerts(null);
     try {
         const result = await generateAlerts({ durationInMinutes: duration, numberOfSpeakers: speakers });
-        setGeneratedAlerts(result);
+        setGeneratedAlerts(result.alerts);
     } catch(error) {
         console.error("Error generating smart alerts:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not generate alerts. Please try again.' });
     } finally {
         setIsLoading(false);
     }
+  }
+
+  const handleLoadSchedule = () => {
+    if (!generatedAlerts) return;
+    setScheduledAlerts(generatedAlerts);
+    toast({
+        title: "Schedule Loaded",
+        description: "The smart alerts will be sent automatically when you start the timer."
+    })
   }
 
   const getIconForType = (type: string) => {
@@ -873,7 +884,7 @@ function SmartAlertsCard() {
             <div className="space-y-3 pt-4">
                  <h4 className="text-sm font-medium text-muted-foreground">Generated Alert Schedule</h4>
                  <div className="space-y-2 rounded-lg border p-3 max-h-60 overflow-y-auto">
-                 {generatedAlerts.alerts.sort((a,b) => a.time - b.time).map((alert, index) => (
+                 {generatedAlerts.sort((a,b) => a.time - b.time).map((alert, index) => (
                     <div key={index} className="flex items-start gap-3">
                         <div className="flex h-8 w-16 flex-shrink-0 items-center justify-center rounded-md bg-secondary text-sm font-mono">
                            {formatTime(alert.time)}
@@ -885,12 +896,9 @@ function SmartAlertsCard() {
                     </div>
                  ))}
                  </div>
-                 <Alert>
-                    <AlertTitle>This is a demonstration</AlertTitle>
-                    <AlertDescription>
-                        In a full implementation, these alerts would be automatically sent to the speaker at the specified times.
-                    </AlertDescription>
-                 </Alert>
+                 <Button onClick={handleLoadSchedule} className="w-full">
+                    <ListPlus className="mr-2" /> Load Schedule into Timer
+                 </Button>
             </div>
         )}
       </CardContent>

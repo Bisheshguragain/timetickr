@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, {
@@ -14,6 +15,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { ref, onValue, set, update, off, get, type Database } from "firebase/database";
 import { useFirebase } from "@/hooks/use-firebase"; // Import the new hook
 import type { FirebaseServices } from "@/lib/firebase-types";
+import type { GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
 
 interface Message {
   id: number;
@@ -99,6 +101,8 @@ interface TimerContextProps {
   setCustomLogo: (logo: string | null) => void;
   isSessionFound: boolean | null;
   firebaseServices: FirebaseServices;
+  scheduledAlerts: GenerateAlertsOutput['alerts'] | null;
+  setScheduledAlerts: (alerts: GenerateAlertsOutput['alerts'] | null) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -144,8 +148,10 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
   const [sessionCode, setSessionCode] = useState<string | null>(null);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
+  const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
 
   const isFinished = time === 0;
+  const alertTimeouts = useRef<NodeJS.Timeout[]>([]);
 
   useEffect(() => {
     if (sessionCodeFromProps) {
@@ -199,6 +205,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
                     audienceQuestions: [],
                     teamMembers: [],
                     customLogo: null,
+                    scheduledAlerts: null,
                     connections: { speakers: 0, participants: 0 },
                 };
                 set(dbRef, initialData).then(() => {
@@ -232,6 +239,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         setAudienceQuestions(data.audienceQuestions || []);
         setTeamMembers(data.teamMembers || []);
         setCustomLogoState(data.customLogo || null);
+        setScheduledAlerts(data.scheduledAlerts || null);
         setSpeakerDevices(data.connections?.speakers || 0);
         setParticipantDevices(data.connections?.participants || 0);
         
@@ -264,8 +272,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         audienceQuestions,
         teamMembers,
         customLogo,
+        scheduledAlerts,
     });
-  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, teamMembers, customLogo, dbRef, sessionCodeFromProps]);
+  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, teamMembers, customLogo, scheduledAlerts, dbRef, sessionCodeFromProps]);
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
     if (!currentUser) return;
@@ -350,25 +359,47 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Timer logic
+  const clearAlertTimeouts = () => {
+    alertTimeouts.current.forEach(clearTimeout);
+    alertTimeouts.current = [];
+  };
+
+  // Timer and alert logic
   useEffect(() => {
+    clearAlertTimeouts();
+
     if (isActive && time > 0) {
+      // Main countdown timer
       intervalRef.current = setInterval(() => {
         if (!sessionCodeFromProps) { // Only admin dashboard updates time
             setTime((prevTime) => prevTime - 1);
         }
       }, 1000);
+      
+      // Schedule the smart alerts
+      if (scheduledAlerts && !sessionCodeFromProps) {
+        const remainingTime = time;
+        scheduledAlerts.forEach(alert => {
+            const timeUntilAlert = remainingTime - (initialDuration - alert.time);
+            if (timeUntilAlert > 0) {
+                const timeoutId = setTimeout(() => {
+                    sendAdminMessage(alert.message);
+                }, timeUntilAlert * 1000);
+                alertTimeouts.current.push(timeoutId);
+            }
+        });
+      }
+
     } else if (time === 0) {
       setIsActive(false);
       clearInterval(intervalRef.current as NodeJS.Timeout);
     }
 
     return () => {
-        if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-        }
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        clearAlertTimeouts();
     };
-  }, [isActive, time, sessionCodeFromProps]);
+  }, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration]);
 
   const consumeTimerCredit = () => {
     if (!currentUser || (timerLimit !== -1 && timersUsed >= timerLimit)) {
@@ -545,7 +576,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
     updateAudienceQuestionStatus, teamMembers, inviteTeamMember, updateMemberStatus,
     currentUser, loadingAuth, customLogo, setCustomLogo, isSessionFound,
-    firebaseServices
+    firebaseServices, scheduledAlerts, setScheduledAlerts
   };
 
   return (
