@@ -9,8 +9,11 @@ export const ai = genkit({
   ],
   model: 'googleai/gemini-2.0-flash',
   // We need to allow requests from the Next.js dev server (localhost:9002)
-  // to the Genkit dev server (localhost:4000).
+  // to the Genkit dev server (localhost:4000). In production, this must be updated.
   cors: {
-    origin: '*', // In production, you should restrict this to your app's domain.
+    origin: [
+      'http://localhost:9002', // For local development
+      process.env.NEXT_PUBLIC_APP_URL || 'https://your-production-app-url.com', // For production
+    ],
   },
 });

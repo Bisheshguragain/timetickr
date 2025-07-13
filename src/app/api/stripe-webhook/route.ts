@@ -1,14 +1,14 @@
-
 import { NextResponse, NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { db } from '@/lib/firebase';
-import { ref, update, get } from 'firebase/database';
+import { ref, update, get, serverTimestamp } from 'firebase/database';
 
-// Note: This webhook is a simplified example. In a real-world application,
-// you would want to use the Firebase Admin SDK for secure database writes
-// from a serverless function, rather than relying on client-side SDK rules.
-// This approach is for demonstration purposes within this project's structure.
+// Note: This webhook is a simplified example. For hardened production use, it's
+// best practice to run fulfillment logic in a secure serverless environment
+// (like a Cloud Function for Firebase) using the Firebase Admin SDK, which provides
+// elevated privileges and doesn't rely on database security rules.
+// This implementation uses the client-side SDK for demonstration purposes within this project's structure.
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2024-06-20',
@@ -45,43 +45,45 @@ export async function POST(req: NextRequest) {
       }
       
       console.log(`Fulfilling order for user: ${userId}`);
-
-      const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
       
-      for (const item of lineItems.data) {
-        const priceId = item.price?.id;
+      try {
+        const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
         
-        // This mapping connects Stripe Price IDs to your internal plan names.
-        const PLAN_MAP: Record<string, string> = {
-            [process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID!]: 'Starter',
-            [process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID!]: 'Professional',
-            [process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID!]: 'Enterprise',
-        };
-        const TIMER_ADDON_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID!;
+        for (const item of lineItems.data) {
+          const priceId = item.price?.id;
+          
+          const PLAN_MAP: Record<string, string> = {
+              [process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID!]: 'Starter',
+              [process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID!]: 'Professional',
+              [process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID!]: 'Enterprise',
+          };
+          const TIMER_ADDON_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID!;
 
-        if (priceId && PLAN_MAP[priceId]) {
-            const newPlan = PLAN_MAP[priceId];
-            console.log(`Updating user ${userId} to plan: ${newPlan}`);
+          if (priceId && PLAN_MAP[priceId]) {
+              const newPlan = PLAN_MAP[priceId];
+              console.log(`Updating user ${userId} to plan: ${newPlan}`);
+              
+              const userPlanRef = ref(db, `users/${userId}/plan`);
+              await set(userPlanRef, newPlan);
+              
+              // Optional: Reset timer usage when a new subscription is created
+              const userUsageRef = ref(db, `users/${userId}/usage`);
+              await set(userUsageRef, { used: 0, extra: 0, month: new Date().getMonth() });
 
-            // This is a simplified demo. We can't directly update a session from here.
-            // In a real app, you would have a `/users/{userId}` node to store plan info.
-            // For now, we log the action.
-            console.log(`ACTION (DEMO): Would update user ${userId} to plan ${newPlan}.`);
-            // Example of what you would do with Firebase Admin SDK in a function:
-            // await admin.database().ref(`users/${userId}`).update({ plan: newPlan });
 
-        } else if (priceId === TIMER_ADDON_PRICE_ID) {
-            const quantity = item.quantity || 0;
-            console.log(`Adding ${quantity} timer credits to user ${userId}`);
-            
-            // This is also a demo. A real app would update a central user usage node.
-            console.log(`ACTION (DEMO): Would add ${quantity} extra timers to user ${userId}.`);
-             // Example of what you would do with Firebase Admin SDK:
-            // const userUsageRef = admin.database().ref(`users/${userId}/usage`);
-            // const snapshot = await userUsageRef.once('value');
-            // const currentExtra = snapshot.val()?.extra || 0;
-            // await userUsageRef.update({ extra: currentExtra + quantity });
+          } else if (priceId === TIMER_ADDON_PRICE_ID) {
+              const quantity = item.quantity || 0;
+              console.log(`Adding ${quantity} timer credits to user ${userId}`);
+              
+              const userUsageRef = ref(db, `users/${userId}/usage`);
+              const snapshot = await get(userUsageRef);
+              const currentExtra = snapshot.val()?.extra || 0;
+              await update(userUsageRef, { extra: currentExtra + quantity });
+          }
         }
+      } catch (dbError: any) {
+        console.error(`Error fulfilling order for user ${userId}:`, dbError);
+        return NextResponse.json({ error: `Database update failed: ${dbError.message}` }, { status: 500 });
       }
 
       break;
