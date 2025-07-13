@@ -10,7 +10,7 @@ This guide provides the commands needed to upload your existing application code
 
 ## Step-by-Step Commands
 
-Open a terminal or command prompt in your project's root directory on your computer (the same directory where this file is located) and run the following commands one by one.
+Open a terminal or command prompt **in your project's root directory on your computer** (the same directory where this file is located) and run the following commands one by one.
 
 ---
 
@@ -31,6 +31,8 @@ This command stages all the files in your project, preparing them to be saved in
 ```bash
 git add .
 ```
+
+**Note for macOS Users:** If your project is in a protected folder (like `Documents` or `Desktop`), macOS may show a security prompt asking if you want to allow "Terminal" to access files. This is expected. It's safe to click **"OK" or "Allow"** to proceed. You are only granting access to the folder where you are running the command, not your entire computer.
 
 ---
 
