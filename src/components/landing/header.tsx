@@ -5,38 +5,18 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, TimerIcon, Moon, Sun, LogOut } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { Menu, TimerIcon, LogOut } from "lucide-react";
 import { useTimer } from "@/context/TimerContext";
+import { ThemeToggle } from "../ui/theme-toggle";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const { currentUser, loadingAuth, firebaseServices } = useTimer();
 
   useEffect(() => {
     setIsClient(true);
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-        setIsDarkMode(savedTheme === 'dark');
-    } else {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        setIsDarkMode(prefersDark);
-    }
   }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
-    const root = window.document.documentElement;
-    if (isDarkMode) {
-      root.classList.add("dark");
-      localStorage.setItem('theme', 'dark');
-    } else {
-      root.classList.remove("dark");
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDarkMode, isClient]);
 
   const navLinks = [
     { href: "#features", label: "Features" },
@@ -79,7 +59,7 @@ export function Header() {
             </nav>
             <div className="flex items-center gap-4">
             
-            {!loadingAuth && (
+            {isClient && !loadingAuth && (
               <>
                 {currentUser ? (
                   <>
@@ -98,17 +78,8 @@ export function Header() {
               </>
             )}
 
-            {isClient ? (
-                <div className="flex items-center gap-2">
-                    <Sun className="h-5 w-5 text-foreground/60" />
-                    <Switch
-                        checked={isDarkMode}
-                        onCheckedChange={setIsDarkMode}
-                        aria-label="Toggle theme"
-                    />
-                    <Moon className="h-5 w-5 text-foreground/60" />
-                </div>
-            ) : <div className="w-[100px] h-6" /> }
+            {isClient ? <ThemeToggle /> : <div className="w-[100px] h-6" /> }
+
             <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>
                 <Button
@@ -136,7 +107,7 @@ export function Header() {
                         {link.label}
                         </Link>
                     ))}
-                     {!loadingAuth && (
+                     {isClient && !loadingAuth && (
                       <>
                         {currentUser ? (
                           <Link href="/dashboard" className="text-foreground" onClick={() => setMenuOpen(false)}>Dashboard</Link>
