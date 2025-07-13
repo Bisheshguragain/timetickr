@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, {
@@ -10,7 +9,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
+import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { ref, onValue, set, update, off, get, type Database } from "firebase/database";
 import { useFirebase } from "@/hooks/use-firebase"; // Import the new hook
 import type { FirebaseServices } from "@/lib/firebase-types";
@@ -102,6 +101,7 @@ interface TimerContextProps {
   firebaseServices: FirebaseServices;
   scheduledAlerts: GenerateAlertsOutput['alerts'] | null;
   setScheduledAlerts: (alerts: GenerateAlertsOutput['alerts'] | null) => void;
+  logout: () => Promise<void>;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -575,6 +575,30 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
   }
 
+  const logout = async () => {
+    try {
+      const uid = currentUser?.uid; // Capture uid before user becomes null
+      await signOut(firebaseServices.auth);
+      setCurrentUser(null);
+      setPlanState("Freemium");
+      setTeamMembers([]);
+      setCustomLogoState(null);
+      setScheduledAlerts(null);
+      setAudienceQuestions([]);
+      setAdminMessage(null);
+      setAudienceQuestionMessage(null);
+      setAnalytics(initialAnalytics);
+      resetUsage(); // This will clear guest usage if any
+      if (typeof window !== "undefined" && uid) {
+        localStorage.removeItem(`timerAnalytics_${uid}`);
+        localStorage.removeItem(`timerUsage_${uid}`);
+        localStorage.removeItem(`customLogo_${uid}`);
+      }
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   const value = {
     time, setTime, isActive, isFinished, toggleTimer, resetTimer, setDuration,
     adminMessage, sendAdminMessage, dismissAdminMessage,
@@ -584,7 +608,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
     updateAudienceQuestionStatus, teamMembers, inviteTeamMember, updateMemberStatus,
     currentUser, loadingAuth, customLogo, setCustomLogo, isSessionFound,
-    firebaseServices, scheduledAlerts, setScheduledAlerts
+    firebaseServices, scheduledAlerts, setScheduledAlerts, logout
   };
 
   return (

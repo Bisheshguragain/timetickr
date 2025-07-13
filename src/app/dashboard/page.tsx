@@ -525,7 +525,6 @@ function PurchaseTimersDialog({
   const [isLoading, setIsLoading] = useState(false);
   const pricePerTimer = 2; // Display only
   const totalCost = quantity * pricePerTimer;
-  const timerAddonPriceId = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID;
 
   const handlePurchase = async () => {
     if (!currentUser) {
@@ -536,23 +535,15 @@ function PurchaseTimersDialog({
       });
       return;
     }
-    if (!timerAddonPriceId) {
-      toast({
-        variant: 'destructive',
-        title: 'Configuration Error',
-        description: 'Timer purchases are not configured. Please contact support.',
-      });
-      return;
-    }
+    
     setIsLoading(true);
 
     try {
       const { sessionId, error: sessionError } = await createStripeCheckoutSession({
-          priceId: timerAddonPriceId,
+          plan: 'TimerAddon', // Special plan name for this action
           userId: currentUser.uid,
           userEmail: currentUser.email!,
           quantity: quantity,
-          mode: 'payment' // one-time purchase
        });
 
       if (sessionError) throw new Error(sessionError);
@@ -1704,6 +1695,7 @@ export default function DashboardPage() {
     loadingAuth,
     plan,
     firebaseServices,
+    logout,
   } = useTimer();
 
   const router = useRouter();
@@ -1718,15 +1710,8 @@ export default function DashboardPage() {
   }, [currentUser, loadingAuth, router]);
 
   const handleSignOut = async () => {
-    if(firebaseServices?.auth) {
-        try {
-            await firebaseServices.auth.signOut();
-            router.push('/');
-        } catch (e) {
-            console.error("Logout failed", e);
-            toast({variant: "destructive", title: "Logout failed", description: "Could not sign out."})
-        }
-    }
+    await logout();
+    router.push('/');
   }
 
   if (loadingAuth || !currentUser || !firebaseServices) {
@@ -1958,4 +1943,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
