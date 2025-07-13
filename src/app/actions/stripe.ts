@@ -3,8 +3,11 @@
 
 import { Stripe } from 'stripe';
 
+// Define a type for the plan names for type safety
+type SubscriptionPlan = 'Starter' | 'Professional' | 'Enterprise';
+
 interface CreateCheckoutSessionArgs {
-    priceId: string;
+    plan: SubscriptionPlan;
     userId: string;
     userEmail: string;
     mode?: 'subscription' | 'payment';
@@ -15,21 +18,34 @@ interface CreateCheckoutSessionArgs {
  * Creates a Stripe Checkout session.
  * 
  * IMPORTANT: This function is a SERVER-SIDE action.
- * The actual Stripe API call with your secret key happens here.
+ * It securely looks up the Price ID based on the plan name.
  * 
  * You must set up a Stripe webhook to listen for `checkout.session.completed`
  * events. This webhook will update your Firebase database (using the Firebase Admin SDK) 
- * with the user's new plan or add credits to their account.
+ * with the user's new plan.
  */
 export async function createStripeCheckoutSession(
     args: CreateCheckoutSessionArgs
 ): Promise<{ sessionId?: string; error?: string; }> {
 
-    console.log(`Requesting checkout session for user ${args.userId} with price ${args.priceId}`);
+    console.log(`Requesting checkout session for user ${args.userId} for plan ${args.plan}`);
 
     if (!process.env.STRIPE_SECRET_KEY) {
         console.error('STRIPE_SECRET_KEY is not set in the environment.');
         return { error: 'Server configuration error. Please contact support.' };
+    }
+
+    const PLAN_TO_PRICE_ID_MAP: Record<SubscriptionPlan, string | undefined> = {
+        Starter: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
+        Professional: process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID,
+        Enterprise: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
+    };
+
+    const priceId = PLAN_TO_PRICE_ID_MAP[args.plan];
+
+    if (!priceId) {
+        console.error(`No price ID found for plan: ${args.plan}`);
+        return { error: 'Invalid plan specified. Please contact support.' };
     }
     
     const successUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment_success=true` : 'http://localhost:9002/dashboard?payment_success=true';
@@ -42,7 +58,7 @@ export async function createStripeCheckoutSession(
             payment_method_types: ['card'],
             line_items: [
                 {
-                    price: args.priceId,
+                    price: priceId,
                     quantity: args.quantity || 1,
                 },
             ],
@@ -67,5 +83,3 @@ export async function createStripeCheckoutSession(
         return { error: error.message };
     }
 }
-
-    

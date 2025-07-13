@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, Suspense } from "react";
@@ -22,215 +23,128 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { useFirebase } from "@/hooks/use-firebase";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
 
-function isStrongPassword(password: string): boolean {
-  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password);
-}
-
-function getPriceIdForPlan(plan: SubscriptionPlan): string | null {
-  const priceMap: Partial<Record<SubscriptionPlan, string | undefined>> = {
-    Starter: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
-    Professional: process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID,
-    Enterprise: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
-  };
-  return priceMap[plan] ?? null;
-}
-
 function LoginContent() {
-  const firebaseServices = useFirebase();
+  const { auth } = useFirebase();
   const { setPlan } = useTimer();
-  const [signInEmail, setSignInEmail] = useState("");
-  const [signInPassword, setSignInPassword] = useState("");
-  const [signUpEmail, setSignUpEmail] = useState("");
-  const [signUpPassword, setSignUpPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [signInError, setSignInError] = useState<string | null>(null);
-  const [signUpError, setSignUpError] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const selectedPlan = searchParams.get("plan") as SubscriptionPlan | null;
 
-  const selectedPlan = searchParams.get('plan') as SubscriptionPlan | null;
-
-  const handleSignUp = async () => {
+  const handleAuth = async () => {
     setLoading(true);
-    setSignUpError(null);
+    setErrorMsg(null);
 
-    if (!firebaseServices) {
+    if (!auth) {
       setLoading(false);
-      setSignUpError("Internal error: Firebase not initialized.");
-      return;
-    }
-
-    if (!isStrongPassword(signUpPassword)) {
-      setLoading(false);
-      setSignUpError("Password must be at least 8 characters with uppercase, lowercase, and a number.");
+      setErrorMsg("Firebase is not configured.");
       return;
     }
 
     try {
-      const { user } = await createUserWithEmailAndPassword(firebaseServices.auth, signUpEmail, signUpPassword);
-
-      toast({
-        title: "Account Created",
-        description: "Welcome to TimeTickR!",
-      });
-
-      if (selectedPlan && selectedPlan !== 'Freemium') {
-        const priceId = getPriceIdForPlan(selectedPlan);
-        if (!priceId) {
-          toast({
-            variant: "destructive",
-            title: "Plan Error",
-            description: "Invalid plan selected. Defaulting to Freemium.",
-          });
-          setPlan("Freemium");
-          router.push("/dashboard");
+      if (isSignUp) {
+        // Password validation before attempting to create a user
+        if (password.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
+          setLoading(false);
+          setErrorMsg("Password must be at least 8 characters with uppercase, lowercase, and a number.");
           return;
         }
 
-        const { sessionId, error: sessionError } = await createStripeCheckoutSession({
-          priceId,
-          userId: user.uid,
-          userEmail: user.email!,
-        });
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = credential.user;
 
-        if (sessionError) throw new Error(sessionError);
+        toast({ title: "Account Created!", description: "You're successfully signed up." });
 
-        const stripe = (await import("@/lib/stripe-client")).default;
-        const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: sessionId! });
-        if (stripeError) throw stripeError;
+        if (selectedPlan && selectedPlan !== "Freemium") {
+          // The server action now takes the plan name directly
+          const { sessionId, error: sessionError } = await createStripeCheckoutSession({
+            plan: selectedPlan,
+            userId: user.uid,
+            userEmail: user.email!,
+          });
 
+          if (sessionError) throw new Error(sessionError);
+
+          const stripe = (await import("@/lib/stripe-client")).default;
+          if (!stripe || !sessionId) throw new Error("Stripe or Session ID not available");
+          
+          const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
+          if (stripeError) throw stripeError;
+          // User is redirected to Stripe, no further action here
+          return; 
+        } else {
+          // For Freemium or no plan selected
+          if (selectedPlan) setPlan(selectedPlan);
+          router.push("/dashboard");
+        }
       } else {
-        setPlan(selectedPlan ?? 'Freemium');
+        // Sign In logic
+        await signInWithEmailAndPassword(auth, email, password);
+        toast({ title: "Signed In!", description: "Welcome back." });
         router.push("/dashboard");
       }
     } catch (err: any) {
-      const knownErrors: Record<string, string> = {
-        'auth/email-already-in-use': "Email already registered. Try signing in.",
-      };
-      setSignUpError(knownErrors[err.code] ?? err.message ?? "Something went wrong.");
+      const code = err.code || "";
+      if (code.includes("email-already-in-use")) {
+        setErrorMsg("Email already in use. Try signing in.");
+      } else if (code.includes("invalid-credential") || code.includes("user-not-found") || code.includes("wrong-password")) {
+        setErrorMsg("Invalid email or password.");
+      } else {
+        setErrorMsg(err.message || "An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignIn = async () => {
-    setLoading(true);
-    setSignInError(null);
-
-    if (!firebaseServices) {
-      setLoading(false);
-      setSignInError("Firebase services not initialized.");
-      return;
-    }
-
-    try {
-      await signInWithEmailAndPassword(firebaseServices.auth, signInEmail, signInPassword);
-
-      toast({
-        title: "Signed In!",
-        description: "Welcome back.",
-      });
-
-      router.push("/dashboard");
-    } catch (err: any) {
-      const knownErrors: Record<string, string> = {
-        'auth/invalid-credential': "Invalid credentials.",
-        'auth/user-not-found': "No account found with that email.",
-        'auth/wrong-password': "Incorrect password.",
-      };
-      setSignInError(knownErrors[err.code] ?? err.message ?? "Login failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const currentMode = isSignUp ? 'signup' : 'signin';
 
   return (
-    <Tabs defaultValue="signin" className="w-full max-w-sm">
+    <Tabs value={currentMode} onValueChange={(value) => setIsSignUp(value === 'signup')} className="w-full max-w-sm">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="signin">Sign In</TabsTrigger>
         <TabsTrigger value="signup">Sign Up</TabsTrigger>
       </TabsList>
-      <TabsContent value="signin">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email-signin">Email</Label>
-              <Input
-                id="email-signin"
-                type="email"
-                placeholder="m@example.com"
-                value={signInEmail}
-                onChange={(e) => setSignInEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-signin">Password</Label>
-              <Input
-                id="password-signin"
-                type="password"
-                value={signInPassword}
-                onChange={(e) => setSignInPassword(e.target.value)}
-                required
-              />
-            </div>
-            {signInError && <p className="text-sm text-destructive">{signInError}</p>}
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-            <Button onClick={handleSignIn} className="w-full" disabled={loading}>
-              {loading && <Loader className="mr-2 animate-spin" />}
-              Sign In
-            </Button>
-          </CardFooter>
-        </Card>
-      </TabsContent>
-      <TabsContent value="signup">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardDescription>
-              {selectedPlan
-                ? `Create an account to start your ${selectedPlan} plan.`
-                : "Create an account to get started with TimeTickR."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email-signup">Email</Label>
-              <Input
-                id="email-signup"
-                type="email"
-                placeholder="m@example.com"
-                value={signUpEmail}
-                onChange={(e) => setSignUpEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password-signup">Password</Label>
-              <Input
-                id="password-signup"
-                type="password"
-                value={signUpPassword}
-                onChange={(e) => setSignUpPassword(e.target.value)}
-                required
-              />
-            </div>
-            {signUpError && <p className="text-sm text-destructive">{signUpError}</p>}
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-            <Button onClick={handleSignUp} className="w-full" disabled={loading}>
-              {loading && <Loader className="mr-2 animate-spin" />}
-              {selectedPlan && selectedPlan !== "Freemium" ? "Proceed to Payment" : "Sign Up"}
-            </Button>
-          </CardFooter>
-        </Card>
-      </TabsContent>
+        <TabsContent value={currentMode}>
+          <Card>
+            <CardHeader>
+              <CardTitle>{isSignUp ? "Sign Up" : "Sign In"}</CardTitle>
+              <CardDescription>
+                {isSignUp
+                  ? selectedPlan
+                    ? `Create an account to start your ${selectedPlan} plan.`
+                    : "Create a new account to get started."
+                  : "Enter your credentials to access your dashboard."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor={`email-${currentMode}`}>Email</Label>
+                <Input id={`email-${currentMode}`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="m@example.com" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`password-${currentMode}`}>Password</Label>
+                <Input id={`password-${currentMode}`} type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              </div>
+              {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
+            </CardContent>
+            <CardFooter className="flex-col gap-4">
+              <Button onClick={handleAuth} className="w-full" disabled={loading}>
+                {loading && <Loader className="mr-2 animate-spin" />}
+                {isSignUp
+                  ? selectedPlan && selectedPlan !== "Freemium"
+                    ? "Proceed to Payment"
+                    : "Sign Up"
+                  : "Sign In"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
       <div className="mt-4 text-center text-sm">
         <Link href="/" className="underline text-muted-foreground">
           Back to Home
@@ -241,11 +155,11 @@ function LoginContent() {
 }
 
 export default function LoginPage() {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
-        <Suspense fallback={<Loader className="animate-spin" />}>
-          <LoginContent />
-        </Suspense>
-      </div>
-    )
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-secondary p-4">
+      <Suspense fallback={<Loader className="animate-spin" />}>
+        <LoginContent />
+      </Suspense>
+    </div>
+  );
 }
