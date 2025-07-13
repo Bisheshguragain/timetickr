@@ -7,15 +7,23 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import React, { useState, useEffect } from "react";
 
 export function TermsOfServiceDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  useEffect(() => {
+    // This ensures the date is only rendered on the client, avoiding hydration mismatch.
+    setLastUpdated(new Date().toLocaleDateString());
+  }, []);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Terms of Service</DialogTitle>
           <DialogDescription>
-            Last Updated: {new Date().toLocaleDateString()}
+            Last Updated: {lastUpdated}
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-[60vh] pr-6">
