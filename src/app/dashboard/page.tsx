@@ -1081,6 +1081,7 @@ function TeamManagementCard() {
 
     const isFreemium = plan === 'Freemium';
     const isStarter = plan === 'Starter';
+    const isEnterprise = plan === 'Enterprise';
 
     // Freemium: 1 Admin (owner) + unlimited Speaker/Viewer
     // Starter: 3 members total
@@ -1207,6 +1208,14 @@ function TeamManagementCard() {
                                     <Info className="h-4 w-4" />
                                     <AlertDescription>
                                         Your Starter plan includes up to 3 team members. ({teamMembers.length} / 3)
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            {(plan === 'Professional' || isEnterprise) && (
+                                 <Alert variant="default" className="col-span-4">
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription>
+                                        Your plan includes unlimited team members. You currently have {teamMembers.length} members.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -1381,8 +1390,9 @@ function CustomBrandingCard() {
     const { customLogo, setCustomLogo, plan } = useTimer();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isEnterprise = plan === 'Enterprise';
 
-    if (plan !== 'Enterprise') {
+    if (!isEnterprise) {
         return (
             <Card>
                 <CardHeader>
