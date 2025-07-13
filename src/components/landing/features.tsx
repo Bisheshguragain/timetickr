@@ -115,17 +115,17 @@ export function Features() {
       </div>
       <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => (
-          <Card key={feature.title} className="flex flex-col bg-secondary/30 border-secondary hover:border-primary/50 transition-colors duration-300">
+          <Card key={feature.title} className="flex flex-col bg-card/50 hover:bg-card transition-colors duration-300 transform-gpu hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center gap-4 pb-2">
               {feature.icon}
               <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col flex-1">
+            <CardContent className="flex flex-col flex-1 pt-4">
               <p className="text-foreground/80">{feature.description}</p>
               <ul className="mt-6 space-y-3 flex-1">
                 {feature.subFeatures.map((subFeature) => (
                   <li key={subFeature} className="flex items-start">
-                    <Check className="mr-3 h-5 w-5 flex-shrink-0 text-green-500" />
+                    <Check className="mr-3 h-5 w-5 flex-shrink-0 text-primary" />
                     <span className="text-foreground/80">{subFeature}</span>
                   </li>
                 ))}

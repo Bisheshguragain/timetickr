@@ -1,7 +1,6 @@
 import { Header } from "@/components/landing/header";
 import { Hero } from "@/components/landing/hero";
 import { Features } from "@/components/landing/features";
-import { TimerDemo } from "@/components/landing/timer-demo";
 import { Pricing } from "@/components/landing/pricing";
 import { Contact } from "@/components/landing/contact";
 import { Footer } from "@/components/landing/footer";
@@ -13,16 +12,13 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
-        <section id="features" className="py-20 md:py-28">
+        <section id="features" className="py-20 md:py-28 bg-card/20">
           <Features />
-        </section>
-        <section id="demo" className="py-20 md:py-28 bg-secondary/30">
-          <TimerDemo />
         </section>
         <section className="py-20 md:py-28 ">
           <AiDemo />
         </section>
-        <section id="pricing" className="py-20 md:py-28 bg-secondary/30">
+        <section id="pricing" className="py-20 md:py-28 bg-card/20">
           <Pricing />
         </section>
         <section id="contact" className="py-20 md:py-28">
