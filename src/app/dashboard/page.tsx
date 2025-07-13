@@ -629,7 +629,7 @@ function PurchaseTimersDialog({
 function AnalyticsCard() {
     const { analytics, resetAnalytics, plan } = useTimer();
     const { toast } = useToast();
-    const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
+    const isEnterprise = plan === 'Enterprise';
     const { totalTimers, avgDuration, messagesSent, durationBrackets, maxAudience, maxSpeakers } = analytics;
 
     const chartData = [
@@ -685,10 +685,10 @@ function AnalyticsCard() {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <BarChart />
-                    {isProOrEnterprise ? "Advanced Analytics" : "Basic Analytics"}
+                    {isEnterprise ? "Advanced Analytics" : "Basic Analytics"}
                 </CardTitle>
                 <CardDescription>
-                    {isProOrEnterprise
+                    {isEnterprise
                         ? "In-depth summary of timer usage and event engagement."
                         : "Summary of timer and message usage for this event."
                     }
@@ -718,7 +718,7 @@ function AnalyticsCard() {
                     </div>
                 </div>
 
-                {isProOrEnterprise && (
+                {isEnterprise && (
                   <div>
                       <p className="mb-2 text-sm font-medium text-muted-foreground">
                           Duration Breakdown
@@ -744,7 +744,7 @@ function AnalyticsCard() {
                   </div>
                 )}
 
-                 {isProOrEnterprise ? (
+                 {isEnterprise ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
                             <RefreshCcw className="mr-2" /> Reset analytics
@@ -755,7 +755,7 @@ function AnalyticsCard() {
                     </div>
                  ) : (
                     <p className="text-xs text-muted-foreground text-center">
-                        <Link href="/#pricing" className="underline font-medium">Upgrade to Professional</Link> for detailed reporting and data export.
+                        <Link href="/#pricing" className="underline font-medium">Upgrade to Enterprise</Link> for detailed reporting and data export.
                     </p>
                  )}
             </CardContent>
@@ -1692,7 +1692,6 @@ export default function DashboardPage() {
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const { toast } = useToast();
-  const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
 
   useEffect(() => {
     if (!loadingAuth && !currentUser) {
