@@ -765,10 +765,34 @@ function AnalyticsCard() {
 
 function SmartAlertsCard() {
   const { toast } = useToast();
+  const { plan } = useTimer();
   const [duration, setDuration] = useState(30);
   const [speakers, setSpeakers] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput | null>(null);
+  
+  const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
+
+  if (!isProOrEnterprise) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <FileClock />
+                    AI-Generated Smart Alerts
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-center text-muted-foreground p-4 bg-secondary rounded-lg">
+                    <p>This feature is available on Professional and Enterprise plans.</p>
+                    <Button asChild variant="link" className="p-0 h-auto">
+                        <Link href="/#pricing">Upgrade to generate smart schedules</Link>
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
 
   const handleGenerateAlerts = async () => {
     if (duration <= 0 || speakers <= 0) {
@@ -1454,7 +1478,29 @@ function AiAssistantCard() {
   const [imageResult, setImageResult] = useState<GenerateImageOutput | null>(null);
   const [audioResult, setAudioResult] = useState<GenerateSpeechAudioOutput | null>(null);
 
+  const canUseAi = plan === 'Professional' || plan === 'Enterprise';
   const canUseTts = plan === 'Enterprise';
+
+  if (!canUseAi) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Sparkles />
+                    AI Presentation Assistant
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-center text-muted-foreground p-4 bg-secondary rounded-lg">
+                    <p>This feature is available on Professional and Enterprise plans.</p>
+                    <Button asChild variant="link" className="p-0 h-auto">
+                        <Link href="/#pricing">Upgrade to use the AI Assistant</Link>
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+  }
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -1799,7 +1845,7 @@ export default function DashboardPage() {
                     </div>
                 </CardContent>
                 </Card>
-                {isProOrEnterprise && <AiAssistantCard />}
+                <AiAssistantCard />
                 <LiveMessagingCard />
                 <AudienceQuestionsCard />
                 <TeamManagementCard />
@@ -1896,4 +1942,3 @@ export default function DashboardPage() {
   );
 }
 
-    
