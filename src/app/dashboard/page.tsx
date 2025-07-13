@@ -1081,17 +1081,17 @@ function TeamManagementCard() {
 
     const isFreemium = plan === 'Freemium';
     const isStarter = plan === 'Starter';
-    const isEnterprise = plan === 'Enterprise';
+    const canInviteAdmins = plan === 'Professional' || plan === 'Enterprise';
 
-    // Freemium: 1 Admin (owner) + unlimited Speaker/Viewer
+    // Freemium: 1 Admin (owner)
     // Starter: 3 members total
     const memberLimit = isStarter ? 3 : -1; // -1 for unlimited
-    const canInvite = (memberLimit === -1) || (teamMembers.length < memberLimit);
+    const canInviteMoreMembers = (memberLimit === -1) || (teamMembers.length < memberLimit);
 
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (isStarter && !canInvite) {
+        if (isStarter && !canInviteMoreMembers) {
             setAlertMessage("You have reached the 3-member limit for the Starter plan.");
             setShowAlert(true);
             return;
@@ -1189,7 +1189,7 @@ function TeamManagementCard() {
                                         <SelectValue placeholder="Select a role" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Admin" disabled={isFreemium}>Admin (Full control)</SelectItem>
+                                        <SelectItem value="Admin" disabled={!canInviteAdmins}>Admin (Full control)</SelectItem>
                                         <SelectItem value="Speaker">Speaker (View-only)</SelectItem>
                                         <SelectItem value="Viewer">Viewer (Display mode)</SelectItem>
                                     </SelectContent>
@@ -1199,7 +1199,7 @@ function TeamManagementCard() {
                                 <Alert variant="default" className="col-span-4">
                                     <Info className="h-4 w-4" />
                                     <AlertDescription>
-                                        Your Freemium plan only allows inviting members with 'Speaker' or 'Viewer' roles. <Link href="/#pricing" className="font-bold underline">Upgrade</Link> to unlock more roles.
+                                        Your Freemium plan only allows inviting members with 'Speaker' or 'Viewer' roles. <Link href="/#pricing" className="font-bold underline">Upgrade</Link> to unlock Admin roles.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -1211,7 +1211,7 @@ function TeamManagementCard() {
                                     </AlertDescription>
                                 </Alert>
                             )}
-                            {(plan === 'Professional' || isEnterprise) && (
+                            {(plan === 'Professional' || plan === 'Enterprise') && (
                                  <Alert variant="default" className="col-span-4">
                                     <Info className="h-4 w-4" />
                                     <AlertDescription>
