@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, {
@@ -135,7 +134,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [adminMessage, setAdminMessage] = useState<Message | null>(null);
   const [audienceQuestionMessage, setAudienceQuestionMessage] = useState<Message | null>(null);
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
-  const [plan, setPlanState] = useState<SubscriptionPlan>("Freemium");
+  const [plan, setPlanState] = useState<SubscriptionPlan>("Enterprise");
   const [speakerDevices, setSpeakerDevices] = useState(0);
   const [participantDevices, setParticipantDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
@@ -277,8 +276,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, teamMembers, customLogo, scheduledAlerts, dbRef, sessionCodeFromProps]);
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
-    if (!currentUser) return;
     setPlanState(newPlan);
+    if (!currentUser) return;
     const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
     set(userDbRef, newPlan);
   }, [currentUser, firebaseServices.db]);
@@ -291,8 +290,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       if (snapshot.exists()) {
         setPlanState(snapshot.val());
       } else {
-        set(userDbRef, "Freemium");
-        setPlanState("Freemium");
+        // Forcing enterprise for this case, can be changed to "Freemium" for default signup
+        set(userDbRef, "Enterprise");
+        setPlanState("Enterprise");
       }
     });
 
@@ -591,3 +591,5 @@ export const useTimer = () => {
   }
   return context;
 };
+
+    
