@@ -12,7 +12,8 @@ const firebaseConfig = {
   projectId: "timetickr-landing-page",
   storageBucket: "timetickr-landing-page.appspot.com",
   messagingSenderId: "62667221490",
-  appId: "1:62667221490:web:f9927e4b63dc50a52be36b"
+  appId: "1:62667221490:web:f9927e4b63dc50a52be36b",
+  measurementId: "G-R5Z29285RE"
 };
 
 
