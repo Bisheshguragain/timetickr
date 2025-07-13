@@ -21,6 +21,7 @@ import Link from "next/link";
 import { SubscriptionPlan, useTimer } from "@/context/TimerContext";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { useFirebase } from "@/hooks/use-firebase";
+import { createStripeCheckoutSession } from "@/app/actions/stripe";
 
 function LoginContent() {
   const firebaseServices = useFirebase();
@@ -36,15 +37,17 @@ function LoginContent() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
 
-  // Store the selected plan from the URL in a ref to persist it across re-renders.
-  const selectedPlanRef = React.useRef<SubscriptionPlan | null>(null);
-  
-  useEffect(() => {
-    const plan = searchParams.get('plan') as SubscriptionPlan;
-    if (plan && ['Starter', 'Professional', 'Enterprise'].includes(plan)) {
-      selectedPlanRef.current = plan;
-    }
-  }, [searchParams]);
+  const selectedPlan = searchParams.get('plan') as SubscriptionPlan | null;
+
+  const getPriceIdForPlan = (plan: SubscriptionPlan): string | null => {
+      switch(plan) {
+          case 'Starter': return process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID!;
+          case 'Professional': return process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID!;
+          case 'Enterprise': return process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID!;
+          default: return null;
+      }
+  }
+
 
   const handleSignUp = async () => {
     setLoading(true);
@@ -57,18 +60,37 @@ function LoginContent() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(firebaseServices.auth, signUpEmail, signUpPassword);
+      const user = userCredential.user;
       
-      // If a plan was selected before signing up, apply it now.
-      if (selectedPlanRef.current) {
-        setPlan(selectedPlanRef.current);
-        console.log(`New user ${userCredential.user.uid} signed up for plan: ${selectedPlanRef.current}`);
-      }
-
       toast({
         title: "Account Created!",
         description: "You have been successfully signed up.",
       });
-      router.push("/dashboard");
+
+      if (selectedPlan && selectedPlan !== 'Freemium') {
+        const priceId = getPriceIdForPlan(selectedPlan);
+        if (!priceId) {
+             toast({ variant: 'destructive', title: 'Plan Error', description: 'Could not find the selected plan.' });
+             router.push("/dashboard");
+             return;
+        }
+
+        const { sessionId, error: sessionError } = await createStripeCheckoutSession({ 
+          priceId: priceId,
+          userId: user.uid,
+          userEmail: user.email!,
+       });
+
+       if (sessionError) throw new Error(sessionError);
+
+       const stripe = (await import('@/lib/stripe-client')).default;
+       const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: sessionId! });
+       if (stripeError) throw stripeError;
+
+      } else {
+        if(selectedPlan) setPlan(selectedPlan);
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') {
         setSignUpError("This email is already in use. Please sign in instead.");
@@ -146,8 +168,8 @@ function LoginContent() {
             <CardHeader>
               <CardTitle>Sign Up</CardTitle>
               <CardDescription>
-                {selectedPlanRef.current 
-                    ? `Create an account to start your ${selectedPlanRef.current} plan.`
+                {selectedPlan
+                    ? `Create an account to start your ${selectedPlan} plan.`
                     : "Create an account to get started with TimeTickR."
                 }
               </CardDescription>
@@ -166,7 +188,7 @@ function LoginContent() {
             <CardFooter className="flex-col gap-4">
               <Button onClick={handleSignUp} className="w-full" disabled={loading}>
                  {loading && <Loader className="mr-2 animate-spin" />}
-                Sign Up
+                 {selectedPlan && selectedPlan !== 'Freemium' ? 'Proceed to Payment' : 'Sign Up'}
               </Button>
             </CardFooter>
           </Card>
