@@ -1446,12 +1446,15 @@ function CustomBrandingCard() {
 
 function AiAssistantCard() {
   const { toast } = useToast();
+  const { plan } = useTimer();
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [speechResult, setSpeechResult] = useState<GenerateSpeechOutput | null>(null);
   const [imageResult, setImageResult] = useState<GenerateImageOutput | null>(null);
   const [audioResult, setAudioResult] = useState<GenerateSpeechAudioOutput | null>(null);
+
+  const canUseTts = plan === 'Enterprise';
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -1583,11 +1586,16 @@ function AiAssistantCard() {
                     </ul>
                     </div>
                     <div>
-                         <Button onClick={handleGenerateAudio} disabled={isGeneratingAudio} className="w-full">
+                        <Button onClick={handleGenerateAudio} disabled={isGeneratingAudio || !canUseTts} className="w-full">
                             {isGeneratingAudio ? <Loader className="mr-2 animate-spin" /> : <Volume2 className="mr-2" />}
-                            {isGeneratingAudio ? "Generating Audio..." : "Generate Audio"}
+                            {isGeneratingAudio ? "Generating Audio..." : "Generate Audio (Enterprise Only)"}
                         </Button>
-                         {audioResult && (
+                        {!canUseTts && (
+                            <p className="text-xs text-center text-muted-foreground mt-2">
+                                <Link href="/#pricing" className="underline font-medium">Upgrade to Enterprise</Link> to unlock Text-to-Speech.
+                            </p>
+                        )}
+                        {audioResult && canUseTts && (
                             <div className="mt-4">
                                 <audio controls className="w-full">
                                     <source src={audioResult.audioUrl} type="audio/wav" />
@@ -1887,3 +1895,5 @@ export default function DashboardPage() {
     </>
   );
 }
+
+    
