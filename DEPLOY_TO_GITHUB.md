@@ -10,7 +10,7 @@ This guide provides the commands needed to upload your existing application code
 
 ## Step-by-Step Commands
 
-Open a terminal or command prompt in your project's root directory (the same directory where this file is located) and run the following commands one by one.
+Open a terminal or command prompt in your project's root directory on your computer (the same directory where this file is located) and run the following commands one by one.
 
 ---
 
