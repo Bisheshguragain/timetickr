@@ -116,7 +116,6 @@ const initialAnalytics: AnalyticsData = {
 };
 
 const generateSessionCode = () => {
-    // This function will only be called on the client, so it's safe to use Math.random
     return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
@@ -145,7 +144,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
-  const [sessionCode, setSessionCode] = useState<string | null>(null);
+  const [sessionCode, setSessionCode] = useState<string | null>(sessionCodeFromProps || null);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
 
@@ -155,7 +154,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   useEffect(() => {
     if (sessionCodeFromProps) {
         setSessionCode(sessionCodeFromProps);
-    } else if (typeof window !== 'undefined') {
+    } else if (!sessionCode) {
+        // This now runs only on the client, after the initial render, preventing hydration mismatch
         const getOrCreateCode = (key: string) => {
             let code = localStorage.getItem(key);
             if (!code) {
@@ -166,7 +166,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         }
         setSessionCode(getOrCreateCode('sessionCode'));
     }
-  }, [sessionCodeFromProps]);
+  }, [sessionCodeFromProps, sessionCode]);
 
   const dbRef = useMemo(() => {
     if (sessionCode) {
@@ -313,7 +313,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     };
     setTeamMembers(prev => {
         const userExists = prev.some(m => m.email === currentUser.email);
-        if (!userExists) return [userAsTeamMember];
+        if (!userExists) return [userAsTeamMember, ...prev.filter(m => m.email !== currentUser.email)];
         return prev.map(m => m.email === currentUser.email ? userAsTeamMember : m);
     });
 
