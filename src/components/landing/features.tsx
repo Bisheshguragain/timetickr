@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   BarChartBig,
@@ -115,12 +116,13 @@ export function Features() {
       </div>
       <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => (
-          <Card key={feature.title} className="flex flex-col bg-card/50 hover:bg-card transition-colors duration-300 transform-gpu hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center gap-4 pb-2">
+          <Card key={feature.title} className="flex flex-col bg-card/50 hover:bg-card transition-colors duration-300 transform-gpu hover:-translate-y-1 group border-transparent hover:border-primary/20">
+             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <CardHeader className="flex flex-row items-center gap-4 pb-2 z-10">
               {feature.icon}
               <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col flex-1 pt-4">
+            <CardContent className="flex flex-col flex-1 pt-4 z-10">
               <p className="text-foreground/80">{feature.description}</p>
               <ul className="mt-6 space-y-3 flex-1">
                 {feature.subFeatures.map((subFeature) => (

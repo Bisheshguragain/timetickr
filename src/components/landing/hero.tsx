@@ -26,11 +26,11 @@ export function Hero() {
               <p className="mt-6 text-lg text-foreground/80">
                 TimeTickR helps event professionals manage time effectively with beautiful, customizable countdown timers that work seamlessly across all devices.
               </p>
-              <div className="mt-10 flex items-center justify-center gap-x-4">
-                <Button asChild size="lg" className="font-semibold">
+              <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button asChild size="lg" className="font-semibold w-full sm:w-auto">
                   <Link href="/dashboard">Get Started Free <ArrowRight className="ml-2 h-5 w-5" /></Link>
                 </Button>
-                 <Button asChild size="lg" variant="outline" className="font-semibold">
+                 <Button asChild size="lg" variant="outline" className="font-semibold w-full sm:w-auto">
                   <Link href="#features">Learn More</Link>
                 </Button>
               </div>
