@@ -92,6 +92,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Volume2,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
 import { moderateMessage } from "@/ai/flows/moderate-message";
@@ -111,6 +112,7 @@ import { generateSpeech, GenerateSpeechOutput } from "@/ai/flows/generate-speech
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
 import { updatePassword } from "firebase/auth";
 import { generateImage, GenerateImageOutput } from "@/ai/flows/generate-image-flow";
+import { generateSpeechAudio, GenerateSpeechAudioOutput } from "@/ai/flows/generate-speech-audio-flow";
 
 
 const formatTime = (seconds: number) => {
@@ -1446,8 +1448,10 @@ function AiAssistantCard() {
   const { toast } = useToast();
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [speechResult, setSpeechResult] = useState<GenerateSpeechOutput | null>(null);
   const [imageResult, setImageResult] = useState<GenerateImageOutput | null>(null);
+  const [audioResult, setAudioResult] = useState<GenerateSpeechAudioOutput | null>(null);
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -1457,9 +1461,9 @@ function AiAssistantCard() {
     setIsLoading(true);
     setSpeechResult(null);
     setImageResult(null);
+    setAudioResult(null);
 
     try {
-      // Run both flows in parallel
       const [speech, image] = await Promise.all([
         generateSpeech({ topic }),
         generateImage({ topic })
@@ -1471,6 +1475,23 @@ function AiAssistantCard() {
       toast({ variant: 'destructive', title: 'Error', description: 'Could not generate content. Please try again.' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateAudio = async () => {
+    if (!speechResult) return;
+    setIsGeneratingAudio(true);
+    setAudioResult(null);
+    
+    try {
+        const fullText = `${speechResult.title}. ${speechResult.openingStatement}. ${speechResult.outline.join('. ')}`;
+        const result = await generateSpeechAudio({ text: fullText });
+        setAudioResult(result);
+    } catch (error) {
+         console.error("Error generating audio:", error);
+         toast({ variant: 'destructive', title: 'Audio Error', description: 'Could not generate audio. Please try again.' });
+    } finally {
+        setIsGeneratingAudio(false);
     }
   };
 
@@ -1560,6 +1581,20 @@ function AiAssistantCard() {
                         <li key={index}>{point}</li>
                         ))}
                     </ul>
+                    </div>
+                    <div>
+                         <Button onClick={handleGenerateAudio} disabled={isGeneratingAudio} className="w-full">
+                            {isGeneratingAudio ? <Loader className="mr-2 animate-spin" /> : <Volume2 className="mr-2" />}
+                            {isGeneratingAudio ? "Generating Audio..." : "Generate Audio"}
+                        </Button>
+                         {audioResult && (
+                            <div className="mt-4">
+                                <audio controls className="w-full">
+                                    <source src={audioResult.audioUrl} type="audio/wav" />
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
