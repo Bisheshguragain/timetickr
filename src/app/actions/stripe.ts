@@ -10,8 +10,6 @@ interface CreateCheckoutSessionArgs {
     plan: SubscriptionPlan;
     userId: string;
     userEmail: string;
-    mode?: 'subscription' | 'payment';
-    quantity?: number;
 }
 
 /**
@@ -59,10 +57,10 @@ export async function createStripeCheckoutSession(
             line_items: [
                 {
                     price: priceId,
-                    quantity: args.quantity || 1,
+                    quantity: 1,
                 },
             ],
-            mode: args.mode || 'subscription',
+            mode: 'subscription',
             success_url: successUrl,
             cancel_url: cancelUrl,
             customer_email: args.userEmail,
