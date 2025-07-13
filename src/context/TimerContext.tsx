@@ -134,7 +134,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [adminMessage, setAdminMessage] = useState<Message | null>(null);
   const [audienceQuestionMessage, setAudienceQuestionMessage] = useState<Message | null>(null);
   const [theme, setThemeState] = useState<TimerTheme>("Classic");
-  const [plan, setPlanState] = useState<SubscriptionPlan>("Enterprise");
+  const [plan, setPlanState] = useState<SubscriptionPlan>("Freemium");
   const [speakerDevices, setSpeakerDevices] = useState(0);
   const [participantDevices, setParticipantDevices] = useState(0);
   const [timersUsed, setTimersUsed] = useState(0);
@@ -285,16 +285,24 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   useEffect(() => {
     if (!currentUser) return;
 
-    const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
-    get(userDbRef).then(snapshot => {
-      if (snapshot.exists()) {
-        setPlanState(snapshot.val());
-      } else {
-        // Forcing enterprise for this case, can be changed to "Freemium" for default signup
-        set(userDbRef, "Enterprise");
-        setPlanState("Enterprise");
-      }
-    });
+    // Special override for the enterprise user for testing purposes
+    if (currentUser.email === 'enterprise@gmail.com') {
+      const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
+      set(userDbRef, 'Enterprise');
+      setPlanState('Enterprise');
+    } else {
+        const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
+        get(userDbRef).then(snapshot => {
+          if (snapshot.exists()) {
+            setPlanState(snapshot.val());
+          } else {
+            // New user, assign Freemium by default
+            const newPlan = "Freemium";
+            set(userDbRef, newPlan);
+            setPlanState(newPlan);
+          }
+        });
+    }
 
     const userAsTeamMember: TeamMember = {
         name: "You",
@@ -591,5 +599,3 @@ export const useTimer = () => {
   }
   return context;
 };
-
-    
