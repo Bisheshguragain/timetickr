@@ -35,13 +35,14 @@ export interface TeamMember {
 }
 
 export type TimerTheme = "Classic" | "Modern" | "Minimalist" | "Industrial";
-export type SubscriptionPlan = "Freemium" | "Starter" | "Professional" | "Enterprise";
+export type SubscriptionPlan = "Freemium" | "Starter" | "Professional" | "Enterprise" | "TimerAddon";
 
 const PLAN_LIMITS: Record<SubscriptionPlan, number> = {
     Freemium: 3,
     Starter: 10,
     Professional: 50,
     Enterprise: -1, // -1 for unlimited
+    TimerAddon: 0,
 };
 
 interface AnalyticsData {
@@ -588,7 +589,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       setAdminMessage(null);
       setAudienceQuestionMessage(null);
       setAnalytics(initialAnalytics);
-      resetUsage(); // This will clear guest usage if any
+      resetUsage();
       if (typeof window !== "undefined" && uid) {
         localStorage.removeItem(`timerAnalytics_${uid}`);
         localStorage.removeItem(`timerUsage_${uid}`);
