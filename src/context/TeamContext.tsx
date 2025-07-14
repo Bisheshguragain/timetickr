@@ -22,6 +22,7 @@ interface TeamContextProps {
   customLogo: string | null;
   setCustomLogo: (logo: string | null) => void;
   currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
   teamId: string | null;
   setTeamId: (teamId: string | null) => void;
 }
@@ -63,13 +64,6 @@ export const TeamProvider = ({ children }: TeamProviderProps) => {
         setTeamId(getOrCreateCode('sessionCode'));
     }
   }, [teamId]);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseServices.auth, (user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubscribe();
-  }, [firebaseServices.auth]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -155,6 +149,7 @@ export const TeamProvider = ({ children }: TeamProviderProps) => {
     customLogo,
     setCustomLogo,
     currentUser,
+    setCurrentUser,
     teamId,
     setTeamId,
   };

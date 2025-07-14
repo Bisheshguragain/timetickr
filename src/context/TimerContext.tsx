@@ -126,7 +126,7 @@ type TimerProviderProps = {
 
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
   const firebaseServices = useFirebase();
-  const { teamId: sessionCode } = useTeam();
+  const { teamId: sessionCode, currentUser, setCurrentUser } = useTeam();
   
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
@@ -141,7 +141,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
@@ -269,12 +268,22 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseServices.auth, (user) => {
-      setCurrentUser(user);
-      setLoadingAuth(false);
+    const unsubscribe = onAuthStateChanged(firebaseServices.auth, async (user) => {
+        if (user) {
+            // User is signed in, now fetch their plan.
+            const planRef = ref(firebaseServices.db, `users/${user.uid}/plan`);
+            const snapshot = await get(planRef);
+            setPlanState(snapshot.val() || "Freemium");
+            setCurrentUser(user);
+        } else {
+            // User is signed out.
+            setCurrentUser(null);
+            setPlanState("Freemium");
+        }
+        setLoadingAuth(false);
     });
     return () => unsubscribe();
-  }, [firebaseServices.auth]);
+  }, [firebaseServices.auth, firebaseServices.db, setCurrentUser]);
 
   useEffect(() => {
     if (!dbRef) return;
@@ -586,7 +595,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       const uid = currentUser?.uid;
       await signOut(firebaseServices.auth);
       // Clear all local state
-      setCurrentUser(null);
       setPlanState("Freemium");
       setScheduledAlerts(null);
       setAudienceQuestions([]);
