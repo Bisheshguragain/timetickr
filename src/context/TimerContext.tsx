@@ -154,24 +154,41 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
   
   const { toast } = useToast();
+  
   const isFinished = time === 0;
   const alertTimeouts = useRef<NodeJS.Timeout[]>([]);
   const lastActionTimestamps = useRef<Record<string, number>>({});
   const isUpdatingFromDb = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  const ACTION_COOLDOWNS = {
-    send_message: 3000, // 3 seconds
-    generate_alerts: 10000, // 10 seconds
-    approve_question: 3000, // 3 seconds
-  };
-
   const dbRef = useMemo(() => {
     if (sessionCode) {
       return ref(firebaseServices.db, `sessions/${sessionCode}`);
     }
     return null;
   }, [sessionCode, firebaseServices.db]);
+  
+  const logAudit = useCallback((event: { action: string; metadata?: Record<string, any> }) => {
+    if (!currentUser || !firebaseServices?.db) return;
+    
+    try {
+      const logRef = push(ref(firebaseServices.db, `auditLogs/${currentUser.uid}`));
+      set(logRef, {
+        actor: currentUser.email,
+        timestamp: Date.now(),
+        ...event,
+      });
+    } catch (error) {
+      console.error("Failed to write to audit log:", error);
+    }
+  }, [currentUser, firebaseServices]);
+
+  const ACTION_COOLDOWNS = {
+    send_message: 3000, // 3 seconds
+    generate_alerts: 10000, // 10 seconds
+    approve_question: 3000, // 3 seconds
+    submit_question: 5000, // 5 seconds
+  };
 
   const isActionAllowed = (action: keyof typeof ACTION_COOLDOWNS) => {
     const now = Date.now();
@@ -183,34 +200,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     return true;
   };
 
-  const clearAlertTimeouts = useCallback(() => {
-    alertTimeouts.current.forEach(clearTimeout);
-    alertTimeouts.current = [];
-  }, []);
-  
-  const logAudit = useCallback((action: string, metadata: Record<string, any> = {}) => {
-    if (!sessionCode || !currentUser) return;
-    const auditLogRef = ref(firebaseServices.db, `audit_logs/${sessionCode}`);
-    const logEntry = {
-        action,
-        userId: currentUser.uid,
-        userEmail: currentUser.email,
-        timestamp: serverTimestamp(),
-        ...metadata,
-    };
-    push(auditLogRef, logEntry);
-  }, [sessionCode, currentUser, firebaseServices.db]);
-
   const sendAdminMessage = useCallback(async (text: string) => {
     if (!dbRef) throw new Error("Database connection not available.");
     if (!isActionAllowed('send_message')) throw new Error("Please wait before sending another message.");
     
     const canUseAi = plan === "Professional" || plan === "Enterprise";
     if (canUseAi) {
-        logAudit('message_moderation_started', { message: text });
+        logAudit({ action: 'message_moderation_started', metadata: { message: text }});
         const moderationResult = await moderateMessage({ message: text });
         if (!moderationResult.isSafe) {
-            logAudit('message_blocked', { message: text, reason: moderationResult.reason });
+            logAudit({ action: 'message_blocked', metadata: { message: text, reason: moderationResult.reason }});
             toast({
                 variant: "destructive",
                 title: "Message Blocked",
@@ -223,7 +222,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const newMessage = { id: Date.now(), text };
     setAdminMessage(newMessage);
     await update(dbRef, { adminMessage: newMessage });
-    logAudit('admin_message_sent', { message: text });
+    logAudit({ action: 'admin_message_sent', metadata: { message: text }});
 
     const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
     setAnalytics(newAnalytics);
@@ -232,6 +231,43 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       setInStorage(analyticsKey, newAnalytics);
     }
   }, [dbRef, plan, analytics, currentUser, logAudit, toast]);
+
+  const clearAlertTimeouts = useCallback(() => {
+    alertTimeouts.current.forEach(clearTimeout);
+    alertTimeouts.current = [];
+  }, []);
+
+  useEffect(() => {
+    if (isActive && time > 0) {
+        intervalRef.current = setInterval(() => {
+            if (!sessionCodeFromProps) { 
+                setTime((prevTime) => prevTime - 1);
+            }
+        }, 1000);
+
+        if (scheduledAlerts && !sessionCodeFromProps) {
+            clearAlertTimeouts(); // Clear any old timeouts before setting new ones
+            const remainingTime = time;
+            scheduledAlerts.forEach(alert => {
+                const timeUntilAlert = remainingTime - (initialDuration - alert.time);
+                if (timeUntilAlert > 0) {
+                    const timeoutId = setTimeout(async () => {
+                       await sendAdminMessage(`(AUTO) ${alert.message}`);
+                    }, timeUntilAlert * 1000);
+                    alertTimeouts.current.push(timeoutId);
+                }
+            });
+        }
+    } else if (time === 0) {
+        setIsActive(false);
+        clearInterval(intervalRef.current as NodeJS.Timeout);
+    }
+
+    return () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        clearAlertTimeouts();
+    };
+}, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration, sendAdminMessage, clearAlertTimeouts]);
 
 
   useEffect(() => {
@@ -385,41 +421,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const baseTimerLimit = PLAN_LIMITS[plan] ?? 3;
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
-
-  useEffect(() => {
-    clearAlertTimeouts();
-
-    if (isActive && time > 0) {
-      intervalRef.current = setInterval(() => {
-        if (!sessionCodeFromProps) { 
-            setTime((prevTime) => prevTime - 1);
-        }
-      }, 1000);
-      
-      if (scheduledAlerts && !sessionCodeFromProps) {
-        const remainingTime = time;
-        scheduledAlerts.forEach(alert => {
-            const timeUntilAlert = remainingTime - (initialDuration - alert.time);
-            if (timeUntilAlert > 0) {
-                const timeoutId = setTimeout(async () => {
-                   await sendAdminMessage(`(AUTO) ${alert.message}`);
-                }, timeUntilAlert * 1000);
-                alertTimeouts.current.push(timeoutId);
-            }
-        });
-      }
-
-    } else if (time === 0) {
-      setIsActive(false);
-      clearInterval(intervalRef.current as NodeJS.Timeout);
-    }
-
-    return () => {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        clearAlertTimeouts();
-    };
-  }, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration, sendAdminMessage, clearAlertTimeouts]);
-
   const consumeTimerCredit = () => {
     if (!currentUser || (timerLimit !== -1 && timersUsed >= timerLimit)) {
       console.warn("Timer usage limit reached or no user.");
@@ -456,9 +457,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!isActive) {
       if (timerLimit !== -1 && timersUsed >= timerLimit) return;
       consumeTimerCredit();
-      logAudit('timer_started', { duration: initialDuration });
+      logAudit({ action: 'timer_started', metadata: { duration: initialDuration }});
     } else {
-      logAudit('timer_paused', { time_remaining: time });
+      logAudit({ action: 'timer_paused', metadata: { time_remaining: time }});
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
@@ -470,7 +471,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setIsActive(false);
     setTime(initialDuration);
     update(dbRef, { time: initialDuration, isActive: false });
-    logAudit('timer_reset');
+    logAudit({ action: 'timer_reset' });
   };
 
   const setDuration = (duration: number) => {
@@ -484,6 +485,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!dbRef) return;
     setAdminMessage(null);
     update(dbRef, { adminMessage: null });
+    logAudit({ action: 'admin_message_dismissed' });
   };
 
   const updateAudienceQuestionStatus = useCallback((id: number, status: AudienceQuestion['status']) => {
@@ -491,7 +493,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const updatedQuestions = audienceQuestions.map(q => q.id === id ? { ...q, status } : q);
     setAudienceQuestions(updatedQuestions);
     update(dbRef, { audienceQuestions: updatedQuestions });
-    logAudit('question_status_updated', { questionId: id, status: status });
+    logAudit({ action: 'question_status_updated', metadata: { questionId: id, newStatus: status }});
   }, [dbRef, audienceQuestions, logAudit]);
 
   const sendAudienceQuestionMessage = useCallback(async (question: AudienceQuestion, resend: boolean = false) => {
@@ -500,11 +502,11 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
     const canUseAi = plan === "Professional" || plan === "Enterprise";
     if (canUseAi && !resend) {
-        logAudit('question_moderation_started', { questionId: question.id, questionText: question.text });
+        logAudit({ action: 'question_moderation_started', metadata: { questionId: question.id, text: question.text }});
         const moderationResult = await moderateMessage({ message: question.text });
         if (!moderationResult.isSafe) {
             updateAudienceQuestionStatus(question.id, 'dismissed');
-            logAudit('question_blocked', { questionId: question.id, reason: moderationResult.reason });
+            logAudit({ action: 'question_blocked_by_ai', metadata: { questionId: question.id, reason: moderationResult.reason }});
             toast({
                 variant: "destructive",
                 title: "Question Blocked",
@@ -520,9 +522,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     
     if (!resend) {
         updateAudienceQuestionStatus(question.id, 'approved');
-        logAudit('question_approved_sent', { questionId: question.id, questionText: question.text });
+        logAudit({ action: 'question_approved_and_sent', metadata: { questionId: question.id, text: question.text }});
     } else {
-        logAudit('question_resent', { questionId: question.id, questionText: question.text });
+        logAudit({ action: 'question_resent', metadata: { questionId: question.id, text: question.text }});
     }
 
     const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1 };
@@ -538,6 +540,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!dbRef) return;
     setAudienceQuestionMessage(null);
     update(dbRef, { audienceQuestionMessage: null });
+    logAudit({ action: 'audience_question_dismissed_from_view' });
   };
 
   const setTheme = (newTheme: TimerTheme) => {
@@ -558,11 +561,21 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   const submitAudienceQuestion = (text: string) => {
     if (!dbRef) return;
+    if (!isActionAllowed('submit_question')) {
+        toast({ variant: "destructive", title: "Slow down!", description: "Please wait a moment before submitting another question."});
+        return;
+    }
+
+    if (text.length > 300) {
+        toast({ variant: "destructive", title: "Question too long", description: "Please keep questions under 300 characters."});
+        return;
+    }
+
     get(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
         const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
         update(dbRef, { audienceQuestions: [...currentQuestions, newQuestion] });
-        logAudit('question_submitted', { questionText: text });
+        logAudit({ action: 'question_submitted_by_audience', metadata: { text: text }});
     });
   };
 
@@ -572,7 +585,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
     update(dbRef, { teamMembers: newTeam });
-    logAudit('team_member_invited', { invitedEmail: email, role: role });
+    logAudit({ action: 'team_member_invited', metadata: { invitedEmail: email, role: role }});
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
@@ -612,17 +625,17 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       const analyticsKey = `timerAnalytics_${currentUser.uid}`;
       setInStorage(analyticsKey, initialAnalytics);
     }
-    logAudit('analytics_reset');
+    logAudit({ action: 'analytics_reset' });
   }
 
   const generateAndLoadAlerts = useCallback(async (input: GenerateAlertsInput): Promise<GenerateAlertsOutput> => {
     if (!isActionAllowed('generate_alerts')) {
         throw new Error("Please wait before generating another schedule.");
     }
-    logAudit('alerts_generation_started', { input });
+    logAudit({ action: 'alerts_generation_started', metadata: { input }});
     const result = await generateAlerts(input);
     setScheduledAlerts(result.alerts);
-    logAudit('alerts_generation_finished', { alertCount: result.alerts.length });
+    logAudit({ action: 'alerts_generation_finished', metadata: { alertCount: result.alerts.length }});
     return result;
   }, [logAudit]);
   
