@@ -118,6 +118,8 @@ import ProtectedLayout from "@/components/layouts/ProtectedLayout";
 import { usePlanGate } from "@/hooks/use-plan-gate";
 import { useUsageReset } from "@/hooks/use-usage-reset";
 import { usePlanSync } from "@/hooks/use-plan-sync";
+import { useTimerPersistence } from "@/hooks/use-timer-persistence";
+import { useStripeRecovery } from "@/hooks/use-stripe-recovery";
 
 
 const formatTime = (seconds: number) => {
@@ -1676,6 +1678,8 @@ function AiAssistantCard() {
 function DashboardContent() {
   useUsageReset();
   usePlanSync();
+  useTimerPersistence();
+  useStripeRecovery();
   
   const {
     time,
