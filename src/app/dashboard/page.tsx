@@ -96,7 +96,6 @@ import {
   ListPlus,
 } from "lucide-react";
 import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
-import { moderateMessage } from "@/ai/flows/moderate-message";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -165,22 +164,8 @@ function LiveMessagingCard() {
         setIsLoading(true);
         setLoadingMessage(messageToSend);
         try {
-            if(canUseAi) {
-                const moderationResult = await moderateMessage({ message: messageToSend });
-                if (moderationResult.isSafe) {
-                    sendAdminMessage(messageToSend);
-                    setMessage("");
-                } else {
-                    toast({
-                        variant: "destructive",
-                        title: "Message Blocked",
-                        description: `Reason: ${moderationResult.reason}`,
-                    });
-                }
-            } else {
-                sendAdminMessage(messageToSend);
-                setMessage("");
-            }
+            await sendAdminMessage(messageToSend);
+            setMessage(""); // Clear input on success
         } catch (error: any) {
             console.error("Error sending message:", error);
             toast({
@@ -763,7 +748,7 @@ function AnalyticsCard() {
 
 function SmartAlertsCard() {
   const { toast } = useToast();
-  const { setScheduledAlerts } = useTimer();
+  const { generateAndLoadAlerts } = useTimer();
   const { hasSmartAlerts } = usePlanGate();
   const [duration, setDuration] = useState(30);
   const [speakers, setSpeakers] = useState(3);
@@ -799,23 +784,18 @@ function SmartAlertsCard() {
     setIsLoading(true);
     setGeneratedAlerts(null);
     try {
-        const result = await generateAlerts({ durationInMinutes: duration, numberOfSpeakers: speakers });
+        const result = await generateAndLoadAlerts({ durationInMinutes: duration, numberOfSpeakers: speakers });
         setGeneratedAlerts(result.alerts);
-    } catch(error) {
+        toast({
+            title: "Schedule Loaded",
+            description: "The smart alerts will be sent automatically when you start the timer."
+        });
+    } catch(error: any) {
         console.error("Error generating smart alerts:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not generate alerts. Please try again.' });
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'Could not generate alerts. Please try again.' });
     } finally {
         setIsLoading(false);
     }
-  }
-
-  const handleLoadSchedule = () => {
-    if (!generatedAlerts) return;
-    setScheduledAlerts(generatedAlerts);
-    toast({
-        title: "Schedule Loaded",
-        description: "The smart alerts will be sent automatically when you start the timer."
-    })
   }
 
   const getIconForType = (type: string) => {
@@ -835,7 +815,7 @@ function SmartAlertsCard() {
             AI-Generated Smart Alerts
         </CardTitle>
         <CardDescription>
-            Automatically generate a schedule of timed alerts to keep speakers on track.
+            Automatically generate and load a schedule of timed alerts to keep speakers on track.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -872,8 +852,8 @@ function SmartAlertsCard() {
             </div>
         </div>
         <Button onClick={handleGenerateAlerts} disabled={isLoading} className="w-full">
-            {isLoading ? <Loader className="mr-2 animate-spin" /> : null}
-            Generate Schedule
+            {isLoading ? <Loader className="mr-2 animate-spin" /> : <ListPlus className="mr-2" />}
+            Generate & Load Schedule
         </Button>
         {generatedAlerts && (
             <div className="space-y-3 pt-4">
@@ -891,9 +871,6 @@ function SmartAlertsCard() {
                     </div>
                  ))}
                  </div>
-                 <Button onClick={handleLoadSchedule} className="w-full">
-                    <ListPlus className="mr-2" /> Load Schedule into Timer
-                 </Button>
             </div>
         )}
       </CardContent>
@@ -910,23 +887,7 @@ function AudienceQuestionsCard() {
     const handleApprove = async (question: AudienceQuestion) => {
         setApproving(question.id);
         try {
-            if (canUseAi) {
-                const moderationResult = await moderateMessage({ message: question.text });
-                if (moderationResult.isSafe) {
-                    sendAudienceQuestionMessage(question.text);
-                    updateAudienceQuestionStatus(question.id, 'approved');
-                } else {
-                    toast({
-                        variant: "destructive",
-                        title: "Question Blocked",
-                        description: `Reason: ${moderationResult.reason}`,
-                    });
-                    updateAudienceQuestionStatus(question.id, 'dismissed');
-                }
-            } else {
-                sendAudienceQuestionMessage(question.text);
-                updateAudienceQuestionStatus(question.id, 'approved');
-            }
+            await sendAudienceQuestionMessage(question);
         } catch (error: any) {
             console.error("Error approving question:", error);
             toast({
@@ -969,7 +930,7 @@ function AudienceQuestionsCard() {
                 )}
                  {question.status === 'approved' && (
                     <>
-                        <Button size="sm" variant="outline" onClick={() => sendAudienceQuestionMessage(question.text)}>
+                        <Button size="sm" variant="outline" onClick={() => sendAudienceQuestionMessage(question, true)}>
                             <Send className="mr-2" />
                             Send Again
                         </Button>
@@ -1830,7 +1791,7 @@ function DashboardContent() {
                 </Card>
                 <AiAssistantCard />
                 <LiveMessagingCard />
-                <AudienceQuestionsCard />
+                <AudienceQuestionsCard data-testid="audience-questions-card" />
                 <TeamManagementCard />
                 <AnalyticsCard />
             </div>
@@ -1906,7 +1867,7 @@ function DashboardContent() {
                     </div>
                 </CardContent>
                 </Card>
-                <SmartAlertsCard />
+                <SmartAlertsCard data-testid="smart-alerts-card" />
                 <ThemeSelectorCard />
                 <DeviceConnectionCard />
             </div>
@@ -1932,5 +1893,6 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
+
 
 

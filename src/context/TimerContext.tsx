@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, {
@@ -10,11 +11,13 @@ import React, {
   useMemo,
 } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { ref, onValue, set, update, off, get, type Database } from "firebase/database";
+import { ref, onValue, set, update, off, get, type Database, push, serverTimestamp } from "firebase/database";
 import { useFirebase } from "@/hooks/use-firebase"; // Import the new hook
 import type { FirebaseServices } from "@/lib/firebase-types";
-import type { GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
+import { generateAlerts, GenerateAlertsInput, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
+import { moderateMessage } from "@/ai/flows/moderate-message";
 import { getFromStorage, setInStorage } from "@/lib/storage-utils";
+import { useToast } from "@/hooks/use-toast";
 
 
 interface Message {
@@ -71,10 +74,10 @@ interface TimerContextProps {
   resetTimer: () => void;
   setDuration: (duration: number) => void;
   adminMessage: Message | null;
-  sendAdminMessage: (text: string) => void;
+  sendAdminMessage: (text: string) => Promise<void>;
   dismissAdminMessage: () => void;
   audienceQuestionMessage: Message | null;
-  sendAudienceQuestionMessage: (text: string) => void;
+  sendAudienceQuestionMessage: (question: AudienceQuestion, resend?: boolean) => Promise<void>;
   dismissAudienceQuestionMessage: () => void;
   theme: TimerTheme;
   setTheme: (theme: TimerTheme) => void;
@@ -102,8 +105,7 @@ interface TimerContextProps {
   setCustomLogo: (logo: string | null) => void;
   isSessionFound: boolean | null;
   firebaseServices: FirebaseServices;
-  scheduledAlerts: GenerateAlertsOutput['alerts'] | null;
-  setScheduledAlerts: (alerts: GenerateAlertsOutput['alerts'] | null) => void;
+  generateAndLoadAlerts: (input: GenerateAlertsInput) => Promise<GenerateAlertsOutput>;
   logout: () => Promise<void>;
 }
 
@@ -150,15 +152,92 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [sessionCode, setSessionCode] = useState<string | null>(sessionCodeFromProps || null);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
-
+  
+  const { toast } = useToast();
   const isFinished = time === 0;
   const alertTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const lastActionTimestamps = useRef<Record<string, number>>({});
+  const isUpdatingFromDb = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const ACTION_COOLDOWNS = {
+    send_message: 3000, // 3 seconds
+    generate_alerts: 10000, // 10 seconds
+    approve_question: 3000, // 3 seconds
+  };
+
+  const dbRef = useMemo(() => {
+    if (sessionCode) {
+      return ref(firebaseServices.db, `sessions/${sessionCode}`);
+    }
+    return null;
+  }, [sessionCode, firebaseServices.db]);
+
+  const isActionAllowed = (action: keyof typeof ACTION_COOLDOWNS) => {
+    const now = Date.now();
+    const lastActionTime = lastActionTimestamps.current[action] || 0;
+    if (now - lastActionTime < ACTION_COOLDOWNS[action]) {
+        return false;
+    }
+    lastActionTimestamps.current[action] = now;
+    return true;
+  };
+
+  const clearAlertTimeouts = useCallback(() => {
+    alertTimeouts.current.forEach(clearTimeout);
+    alertTimeouts.current = [];
+  }, []);
+  
+  const logAudit = useCallback((action: string, metadata: Record<string, any> = {}) => {
+    if (!sessionCode || !currentUser) return;
+    const auditLogRef = ref(firebaseServices.db, `audit_logs/${sessionCode}`);
+    const logEntry = {
+        action,
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        timestamp: serverTimestamp(),
+        ...metadata,
+    };
+    push(auditLogRef, logEntry);
+  }, [sessionCode, currentUser, firebaseServices.db]);
+
+  const sendAdminMessage = useCallback(async (text: string) => {
+    if (!dbRef) throw new Error("Database connection not available.");
+    if (!isActionAllowed('send_message')) throw new Error("Please wait before sending another message.");
+    
+    const canUseAi = plan === "Professional" || plan === "Enterprise";
+    if (canUseAi) {
+        logAudit('message_moderation_started', { message: text });
+        const moderationResult = await moderateMessage({ message: text });
+        if (!moderationResult.isSafe) {
+            logAudit('message_blocked', { message: text, reason: moderationResult.reason });
+            toast({
+                variant: "destructive",
+                title: "Message Blocked",
+                description: `Reason: ${moderationResult.reason}`,
+            });
+            throw new Error(`Message blocked: ${moderationResult.reason}`);
+        }
+    }
+    
+    const newMessage = { id: Date.now(), text };
+    setAdminMessage(newMessage);
+    await update(dbRef, { adminMessage: newMessage });
+    logAudit('admin_message_sent', { message: text });
+
+    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
+    setAnalytics(newAnalytics);
+    if(currentUser) {
+      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+      setInStorage(analyticsKey, newAnalytics);
+    }
+  }, [dbRef, plan, analytics, currentUser, logAudit, toast]);
+
 
   useEffect(() => {
     if (sessionCodeFromProps) {
         setSessionCode(sessionCodeFromProps);
     } else if (!sessionCode) {
-        // This now runs only on the client, after the initial render, preventing hydration mismatch
         const getOrCreateCode = (key: string) => {
             let code = localStorage.getItem(key);
             if (!code) {
@@ -171,14 +250,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
   }, [sessionCodeFromProps, sessionCode]);
 
-  const dbRef = useMemo(() => {
-    if (sessionCode) {
-      return ref(firebaseServices.db, `sessions/${sessionCode}`);
-    }
-    return null;
-  }, [sessionCode, firebaseServices.db]);
-
-  // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseServices.auth, (user) => {
       setCurrentUser(user);
@@ -187,13 +258,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     return () => unsubscribe();
   }, [firebaseServices.auth]);
 
-  const isUpdatingFromDb = useRef(false);
-
-  // Firebase session listener
   useEffect(() => {
     if (!dbRef) return;
     
-    // If we are the host, ensure the session exists.
     if (!sessionCodeFromProps) {
         get(dbRef).then(snapshot => {
             if (!snapshot.exists()) {
@@ -222,7 +289,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const listener = onValue(dbRef, (snapshot) => {
         if (!snapshot.exists()) {
             if(sessionCodeFromProps) {
-                // If it's a client and session disappears, mark as not found.
                 setIsSessionFound(false);
             }
             return;
@@ -245,7 +311,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         setSpeakerDevices(data.connections?.speakers || 0);
         setParticipantDevices(data.connections?.participants || 0);
         
-        // Use a short timeout to allow state to propagate before unlocking
         setTimeout(() => {
             isUpdatingFromDb.current = false;
         }, 10);
@@ -259,7 +324,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [dbRef, sessionCodeFromProps, initialDuration]);
 
 
-  // Update DB on state change from admin
   useEffect(() => {
     if (isUpdatingFromDb.current || !dbRef || sessionCodeFromProps) return;
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard')) return;
@@ -280,15 +344,11 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
       setPlanState(newPlan);
-      // We don't write to DB here because usePlanSync now handles reading,
-      // and webhooks/server actions should handle writing.
   }, []);
 
   useEffect(() => {
     if (!currentUser) return;
     
-    // The usePlanSync hook now handles setting the plan from the DB.
-    // However, we still need to set the initial team member (the user themself).
     const userAsTeamMember: TeamMember = {
         name: "You",
         email: currentUser.email!,
@@ -304,7 +364,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   }, [currentUser]);
 
-  // Load user-specific data from storage
    useEffect(() => {
     if (loadingAuth || !currentUser) return;
 
@@ -326,33 +385,24 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const baseTimerLimit = PLAN_LIMITS[plan] ?? 3;
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const clearAlertTimeouts = () => {
-    alertTimeouts.current.forEach(clearTimeout);
-    alertTimeouts.current = [];
-  };
-
-  // Timer and alert logic
   useEffect(() => {
     clearAlertTimeouts();
 
     if (isActive && time > 0) {
-      // Main countdown timer
       intervalRef.current = setInterval(() => {
-        if (!sessionCodeFromProps) { // Only admin dashboard updates time
+        if (!sessionCodeFromProps) { 
             setTime((prevTime) => prevTime - 1);
         }
       }, 1000);
       
-      // Schedule the smart alerts
       if (scheduledAlerts && !sessionCodeFromProps) {
         const remainingTime = time;
         scheduledAlerts.forEach(alert => {
             const timeUntilAlert = remainingTime - (initialDuration - alert.time);
             if (timeUntilAlert > 0) {
-                const timeoutId = setTimeout(() => {
-                    sendAdminMessage(alert.message);
+                const timeoutId = setTimeout(async () => {
+                   await sendAdminMessage(`(AUTO) ${alert.message}`);
                 }, timeUntilAlert * 1000);
                 alertTimeouts.current.push(timeoutId);
             }
@@ -368,7 +418,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         if (intervalRef.current) clearInterval(intervalRef.current);
         clearAlertTimeouts();
     };
-  }, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration]);
+  }, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration, sendAdminMessage, clearAlertTimeouts]);
 
   const consumeTimerCredit = () => {
     if (!currentUser || (timerLimit !== -1 && timersUsed >= timerLimit)) {
@@ -406,6 +456,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!isActive) {
       if (timerLimit !== -1 && timersUsed >= timerLimit) return;
       consumeTimerCredit();
+      logAudit('timer_started', { duration: initialDuration });
+    } else {
+      logAudit('timer_paused', { time_remaining: time });
     }
     const newIsActive = !isActive;
     setIsActive(newIsActive);
@@ -417,6 +470,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setIsActive(false);
     setTime(initialDuration);
     update(dbRef, { time: initialDuration, isActive: false });
+    logAudit('timer_reset');
   };
 
   const setDuration = (duration: number) => {
@@ -426,39 +480,59 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     update(dbRef, { time: duration, initialDuration: duration });
   };
 
-  const sendAdminMessage = (text: string) => {
-    if (!dbRef) throw new Error("Database connection not available.");
-    const newMessage = { id: Date.now(), text };
-    setAdminMessage(newMessage);
-    update(dbRef, { adminMessage: newMessage });
-
-    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
-    setAnalytics(newAnalytics);
-    if(currentUser) {
-      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
-      setInStorage(analyticsKey, newAnalytics);
-    }
-  };
-
   const dismissAdminMessage = () => {
     if (!dbRef) return;
     setAdminMessage(null);
     update(dbRef, { adminMessage: null });
   };
 
-  const sendAudienceQuestionMessage = (text: string) => {
-    if (!dbRef) throw new Error("Database connection not available.");
-    const newMessage = { id: Date.now(), text };
-    setAudienceQuestionMessage(newMessage);
-    update(dbRef, { audienceQuestionMessage: newMessage });
+  const updateAudienceQuestionStatus = useCallback((id: number, status: AudienceQuestion['status']) => {
+    if (!dbRef) return;
+    const updatedQuestions = audienceQuestions.map(q => q.id === id ? { ...q, status } : q);
+    setAudienceQuestions(updatedQuestions);
+    update(dbRef, { audienceQuestions: updatedQuestions });
+    logAudit('question_status_updated', { questionId: id, status: status });
+  }, [dbRef, audienceQuestions, logAudit]);
 
-    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
+  const sendAudienceQuestionMessage = useCallback(async (question: AudienceQuestion, resend: boolean = false) => {
+    if (!dbRef) throw new Error("Database connection not available.");
+    if (!isActionAllowed('approve_question')) throw new Error("Please wait before approving another question.");
+
+    const canUseAi = plan === "Professional" || plan === "Enterprise";
+    if (canUseAi && !resend) {
+        logAudit('question_moderation_started', { questionId: question.id, questionText: question.text });
+        const moderationResult = await moderateMessage({ message: question.text });
+        if (!moderationResult.isSafe) {
+            updateAudienceQuestionStatus(question.id, 'dismissed');
+            logAudit('question_blocked', { questionId: question.id, reason: moderationResult.reason });
+            toast({
+                variant: "destructive",
+                title: "Question Blocked",
+                description: `Reason: ${moderationResult.reason}`,
+            });
+            throw new Error(`Question blocked: ${moderationResult.reason}`);
+        }
+    }
+
+    const newMessage = { id: question.id, text: question.text };
+    setAudienceQuestionMessage(newMessage);
+    await update(dbRef, { audienceQuestionMessage: newMessage });
+    
+    if (!resend) {
+        updateAudienceQuestionStatus(question.id, 'approved');
+        logAudit('question_approved_sent', { questionId: question.id, questionText: question.text });
+    } else {
+        logAudit('question_resent', { questionId: question.id, questionText: question.text });
+    }
+
+    const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1 };
     setAnalytics(newAnalytics);
-     if(currentUser) {
+    if(currentUser) {
       const analyticsKey = `timerAnalytics_${currentUser.uid}`;
       setInStorage(analyticsKey, newAnalytics);
     }
-  };
+  }, [dbRef, plan, analytics, currentUser, logAudit, toast, updateAudienceQuestionStatus]);
+
 
   const dismissAudienceQuestionMessage = () => {
     if (!dbRef) return;
@@ -488,14 +562,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         const currentQuestions = snapshot.val() || [];
         const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
         update(dbRef, { audienceQuestions: [...currentQuestions, newQuestion] });
+        logAudit('question_submitted', { questionText: text });
     });
-  };
-
-  const updateAudienceQuestionStatus = (id: number, status: AudienceQuestion['status']) => {
-    if (!dbRef) return;
-    const updatedQuestions = audienceQuestions.map(q => q.id === id ? { ...q, status } : q);
-    setAudienceQuestions(updatedQuestions);
-    update(dbRef, { audienceQuestions: updatedQuestions });
   };
 
   const inviteTeamMember = (email: string, role: TeamMember['role']) => {
@@ -504,6 +572,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const newTeam = [...teamMembers, newMember];
     setTeamMembers(newTeam);
     update(dbRef, { teamMembers: newTeam });
+    logAudit('team_member_invited', { invitedEmail: email, role: role });
   };
 
   const updateMemberStatus = (email: string, status: TeamMember['status']) => {
@@ -543,7 +612,19 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       const analyticsKey = `timerAnalytics_${currentUser.uid}`;
       setInStorage(analyticsKey, initialAnalytics);
     }
+    logAudit('analytics_reset');
   }
+
+  const generateAndLoadAlerts = useCallback(async (input: GenerateAlertsInput): Promise<GenerateAlertsOutput> => {
+    if (!isActionAllowed('generate_alerts')) {
+        throw new Error("Please wait before generating another schedule.");
+    }
+    logAudit('alerts_generation_started', { input });
+    const result = await generateAlerts(input);
+    setScheduledAlerts(result.alerts);
+    logAudit('alerts_generation_finished', { alertCount: result.alerts.length });
+    return result;
+  }, [logAudit]);
   
   const logout = async () => {
     try {
@@ -584,7 +665,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
     updateAudienceQuestionStatus, teamMembers, inviteTeamMember, updateMemberStatus,
     currentUser, loadingAuth, customLogo, setCustomLogo, isSessionFound,
-    firebaseServices, scheduledAlerts, setScheduledAlerts, logout
+    firebaseServices, generateAndLoadAlerts, logout
   };
 
   return (
