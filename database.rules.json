@@ -1,0 +1,29 @@
+{
+  "rules": {
+    // Default to denying all read/write access.
+    ".read": false,
+    ".write": false,
+    "sessions": {
+      // Any user can create a new session.
+      "$sessionId": {
+        ".read": true, // Allow anyone with the link to read session data (for speaker/participant views)
+        // Only authenticated users can write to a session they belong to.
+        ".write": "auth != null && root.child('sessions/' + $sessionId + '/teamMembers').hasChild(auth.uid)"
+      }
+    },
+    "users": {
+      "$uid": {
+        // A user can only read and write to their own data.
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "auditLogs": {
+      "$uid": {
+         // Users can only write to their own audit log. Logs are not readable by clients.
+        ".write": "auth != null && auth.uid === $uid",
+        ".read": false
+      }
+    }
+  }
+}
