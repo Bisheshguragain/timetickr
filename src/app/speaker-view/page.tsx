@@ -29,7 +29,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
   const { setTeamId } = useTeam();
   const { isSessionFound } = useTimer();
   const searchParams = useSearchParams();
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -41,12 +41,11 @@ function PairingGate({ children }: { children: React.ReactNode }) {
     }
   }, [urlCode, setTeamId]);
   
-  const rateLimit = () => {
-    if (debounceRef.current) return false;
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
+  const handleRateLimit = () => {
+    setIsRateLimited(true);
+    setTimeout(() => {
+      setIsRateLimited(false);
     }, 5000);
-    return true;
   };
 
   if (urlCode && isSessionFound) return <>{children}</>;
@@ -78,7 +77,9 @@ function PairingGate({ children }: { children: React.ReactNode }) {
 
   const handlePair = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rateLimit()) return;
+    if (isRateLimited) return;
+    handleRateLimit();
+    
     if (code.trim()) {
       router.push(`${pathname}?code=${code.trim().toUpperCase()}`);
     } else {
@@ -103,7 +104,7 @@ function PairingGate({ children }: { children: React.ReactNode }) {
               autoCapitalize="characters"
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full">Connect Display</Button>
+            <Button type="submit" className="w-full" disabled={isRateLimited}>Connect Display</Button>
           </form>
           <p className="text-xs text-muted-foreground mt-4">
             Note: This display requires the admin dashboard to be active.

@@ -24,15 +24,15 @@ import { useFirebase } from "@/hooks/use-firebase";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
 import { ref, set } from "firebase/database";
 
+const testPlans: Record<string, SubscriptionPlan> = {
+    "forfree@gmail.com": "Freemium",
+    "starter@gmail.com": "Starter",
+    "pro@gmail.com": "Professional",
+    "enterprise@gmail.com": "Enterprise",
+};
+
 // Function to seed test user data
 const seedTestUserData = async (user: User, db: any) => {
-    const testPlans: Record<string, SubscriptionPlan> = {
-        "forfree@gmail.com": "Freemium",
-        "starter@gmail.com": "Starter",
-        "pro@gmail.com": "Professional",
-        "enterprise@gmail.com": "Enterprise",
-    };
-
     const userPlan = testPlans[user.email!];
 
     if (userPlan) {
@@ -126,7 +126,6 @@ function LoginContent() {
   };
 
   const currentTab = isSignUp ? "signup" : "signin";
-  const testPlans = ["forfree@gmail.com", "starter@gmail.com", "pro@gmail.com", "enterprise@gmail.com"];
 
   return (
     <Tabs value={currentTab} onValueChange={(value) => setIsSignUp(value === 'signup')} className="w-full max-w-sm">
@@ -162,7 +161,7 @@ function LoginContent() {
               <Button onClick={handleAuth} className="w-full" disabled={loading}>
                 {loading && <Loader className="mr-2 animate-spin" />}
                 {isSignUp
-                  ? selectedPlan && selectedPlan !== "Freemium" && !testPlans.includes(email)
+                  ? selectedPlan && selectedPlan !== "Freemium" && !Object.keys(testPlans).includes(email)
                     ? "Proceed to Payment"
                     : "Sign Up"
                   : "Sign In"}
