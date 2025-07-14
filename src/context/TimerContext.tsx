@@ -59,6 +59,11 @@ interface AnalyticsData {
   };
 }
 
+interface FeatureFlags {
+    showDashboardRollup: boolean;
+    // Add other flags here
+}
+
 interface TimerContextProps {
   time: number;
   setTime: (time: number) => void;
@@ -86,7 +91,6 @@ interface TimerContextProps {
   addTimers: (quantity: number) => void;
   analytics: AnalyticsData;
   resetAnalytics: () => void;
-  sessionCode: string | null;
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
   updateAudienceQuestionStatus: (id: number, status: AudienceQuestion['status']) => void;
@@ -96,6 +100,8 @@ interface TimerContextProps {
   firebaseServices: FirebaseServices;
   generateAndLoadAlerts: (input: GenerateAlertsInput) => Promise<GenerateAlertsOutput>;
   logout: () => Promise<void>;
+  featureFlags: FeatureFlags;
+  setFeatureFlag: (flag: keyof FeatureFlags, value: boolean) => void;
 }
 
 const TimerContext = createContext<TimerContextProps | undefined>(undefined);
@@ -109,6 +115,10 @@ const initialAnalytics: AnalyticsData = {
     durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
 };
 
+const initialFeatureFlags: FeatureFlags = {
+    showDashboardRollup: false,
+};
+
 type TimerProviderProps = {
   children: React.ReactNode;
   sessionCode?: string | null;
@@ -116,7 +126,7 @@ type TimerProviderProps = {
 
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
   const firebaseServices = useFirebase();
-  const { customLogo, teamId: sessionCode } = useTeam();
+  const { teamId: sessionCode } = useTeam();
   
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
@@ -135,6 +145,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
+  const [featureFlags, setFeatureFlagsState] = useState<FeatureFlags>(initialFeatureFlags);
   
   const { toast } = useToast();
   
@@ -281,6 +292,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
                     audienceQuestions: [],
                     scheduledAlerts: null,
                     connections: { speakers: 0, participants: 0 },
+                    featureFlags: initialFeatureFlags,
                 };
                 set(dbRef, initialData).then(() => {
                    setIsSessionFound(true);
@@ -311,6 +323,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         setThemeState(data.theme || "Classic");
         setAudienceQuestions(data.audienceQuestions || []);
         setScheduledAlerts(data.scheduledAlerts || null);
+        setFeatureFlagsState(data.featureFlags || initialFeatureFlags);
         setSpeakerDevices(data.connections?.speakers || 0);
         setParticipantDevices(data.connections?.participants || 0);
         
@@ -340,8 +353,9 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         theme,
         audienceQuestions,
         scheduledAlerts,
+        featureFlags,
     });
-  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, scheduledAlerts, dbRef, sessionCodeFromProps]);
+  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, scheduledAlerts, featureFlags, dbRef, sessionCodeFromProps]);
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
       setPlanState(newPlan);
@@ -562,6 +576,11 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     return result;
   }, [logAudit]);
   
+  const setFeatureFlag = (flag: keyof FeatureFlags, value: boolean) => {
+    setFeatureFlagsState(prev => ({ ...prev, [flag]: value }));
+    logAudit({ action: 'feature_flag_toggled', metadata: { flag, value } });
+  }
+  
   const logout = async () => {
     try {
       const uid = currentUser?.uid;
@@ -576,6 +595,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       setAnalytics(initialAnalytics);
       setTimersUsed(0);
       setExtraTimers(0);
+      setFeatureFlagsState(initialFeatureFlags);
       
       // Clear local storage for the logged-out user
       if (typeof window !== "undefined" && uid) {
@@ -596,10 +616,11 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     audienceQuestionMessage, sendAudienceQuestionMessage, dismissAudienceQuestionMessage,
     theme, setTheme, plan, setPlan, speakerDevices, participantDevices,
     timersUsed, timerLimit, consumeTimerCredit, resetUsage, addTimers,
-    analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
+    analytics, resetAnalytics, audienceQuestions, submitAudienceQuestion,
     updateAudienceQuestionStatus,
     currentUser, loadingAuth, isSessionFound,
-    firebaseServices, generateAndLoadAlerts, logout
+    firebaseServices, generateAndLoadAlerts, logout,
+    featureFlags, setFeatureFlag
   };
 
   return (

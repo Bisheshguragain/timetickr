@@ -94,8 +94,9 @@ import {
   Clock,
   Volume2,
   ListPlus,
+  FlaskConical,
 } from "lucide-react";
-import { useTimer, TimerTheme, AudienceQuestion, SubscriptionPlan } from "@/context/TimerContext";
+import { useTimer } from "@/context/TimerContext";
 import { useTeam, TeamMember } from "@/context/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -121,6 +122,9 @@ import { usePlanSync } from "@/hooks/use-plan-sync";
 import { useTimerPersistence } from "@/hooks/use-timer-persistence";
 import { useStripeRecovery } from "@/hooks/use-stripe-recovery";
 import DashboardRollupCard from "@/components/dashboard/DashboardRollupCard";
+import { useFeatureFlag } from "@/hooks/use-feature-flag";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 
 const formatTime = (seconds: number) => {
@@ -314,8 +318,8 @@ function ThemeSelectorCard() {
 }
 
 function DeviceConnectionCard() {
+  const { sessionCode } = useTeam();
   const {
-    sessionCode,
     speakerDevices,
     participantDevices,
   } = useTimer();
@@ -1638,6 +1642,46 @@ function AiAssistantCard() {
   );
 }
 
+function FeatureFlagsCard() {
+    const { currentUser } = useTeam();
+    const { featureFlags, setFeatureFlag } = useTimer();
+
+    // Only owners can see this card
+    if (currentUser?.email !== "owner@example.com") {
+        const isOwner = false; /* In a real app, you'd check a user's role from useTeam() */
+        if(!isOwner) return null;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <FlaskConical />
+                    Experimental Features
+                </CardTitle>
+                <CardDescription>
+                    Toggle experimental features for this session. (Visible to admins only).
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
+                    <Label htmlFor="show-dashboard-rollup" className="flex flex-col space-y-1">
+                        <span>Show Dashboard Rollup</span>
+                        <span className="font-normal leading-snug text-muted-foreground">
+                            Display the new analytics rollup card.
+                        </span>
+                    </Label>
+                    <Switch
+                        id="show-dashboard-rollup"
+                        checked={featureFlags.showDashboardRollup}
+                        onCheckedChange={(checked) => setFeatureFlag('showDashboardRollup', checked)}
+                    />
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function DashboardContent() {
   useUsageReset();
   usePlanSync();
@@ -1656,6 +1700,9 @@ function DashboardContent() {
     currentUser,
     logout,
   } = useTimer();
+
+  const { teamMembers } = useTeam();
+  const showDashboardRollup = useFeatureFlag('showDashboardRollup');
 
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
@@ -1704,6 +1751,7 @@ function DashboardContent() {
   const currentThemeClass = themeClasses[theme] || themeClasses.Classic;
 
   const isAtLimit = timerLimit !== -1 && timersUsed >= timerLimit;
+  const currentUserRole = teamMembers.find(m => m.email === currentUser?.email)?.role;
 
   return (
     <>
@@ -1791,7 +1839,7 @@ function DashboardContent() {
                     </div>
                 </CardContent>
                 </Card>
-                <DashboardRollupCard />
+                {showDashboardRollup && <DashboardRollupCard />}
                 <AiAssistantCard />
                 <LiveMessagingCard />
                 <AudienceQuestionsCard data-testid="audience-questions-card" />
@@ -1801,6 +1849,7 @@ function DashboardContent() {
 
             <div className="space-y-8 lg:col-span-1">
                 <CurrentPlanCard />
+                {currentUserRole === 'Admin' && <FeatureFlagsCard />}
                 <CustomBrandingCard />
                 <Card>
                 <CardHeader>
@@ -1896,8 +1945,3 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
-
-
-
-
-
