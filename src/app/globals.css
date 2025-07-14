@@ -2,31 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 140 70% 50%; /* Green */
-    --accent-foreground: 210 40% 98%;
+    --background: 210 20% 98%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 210 20% 98%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 210 20% 98%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 225 73% 57%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 195 89% 48%;
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 225 73% 57%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
@@ -36,21 +32,21 @@ body {
   }
 
   .dark {
-    --background: 225 21% 4%; /* Dark Navy */
+    --background: 225 21% 9%;
     --foreground: 210 20% 98%;
     --card: 225 21% 9%;
     --card-foreground: 210 20% 98%;
-    --popover: 225 21% 4%;
+    --popover: 225 21% 9%;
     --popover-foreground: 210 20% 98%;
-    --primary: 225 73% 57%; /* Deep Blue */
+    --primary: 225 73% 57%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 28% 17%;
     --secondary-foreground: 210 20% 98%;
     --muted: 215 28% 17%;
-    --muted-foreground: 218 11% 65%;
-    --accent: 140 70% 50%; /* Green */
-    --accent-foreground: 225 21% 4%;
-    --destructive: 0 63% 31%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 195 89% 48%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
     --border: 215 28% 17%;
     --input: 215 28% 17%;
@@ -69,5 +65,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
   }
 }
