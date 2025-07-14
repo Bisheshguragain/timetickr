@@ -22,7 +22,7 @@ interface TeamContextProps {
   customLogo: string | null;
   setCustomLogo: (logo: string | null) => void;
   currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
+  loadingAuth: boolean;
   teamId: string | null;
   setTeamId: (teamId: string | null) => void;
 }
@@ -43,7 +43,29 @@ export const TeamProvider = ({ children }: TeamProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [customLogo, setCustomLogoState] = useState<string | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
+  // This effect runs once to determine the teamId, either from localStorage or by generating a new one.
+  useEffect(() => {
+    const storedTeamId = getFromStorage('sessionCode', null);
+    if (storedTeamId) {
+      setTeamId(storedTeamId);
+    } else {
+      const newTeamId = generateSessionCode();
+      setTeamId(newTeamId);
+      setInStorage('sessionCode', newTeamId);
+    }
+  }, []);
+
+  // This effect handles user authentication state changes.
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(firebaseServices.auth, (user) => {
+      setCurrentUser(user);
+      setLoadingAuth(false);
+    });
+    return () => unsubscribe();
+  }, [firebaseServices.auth]);
+  
   const teamDbRef = useMemo(() => {
     if (teamId) {
       return ref(firebaseServices.db, `sessions/${teamId}`);
@@ -51,39 +73,7 @@ export const TeamProvider = ({ children }: TeamProviderProps) => {
     return null;
   }, [teamId, firebaseServices.db]);
   
-  useEffect(() => {
-    if (!teamId) {
-        const getOrCreateCode = (key: string) => {
-            let code = localStorage.getItem(key);
-            if (!code) {
-                code = generateSessionCode();
-                localStorage.setItem(key, code);
-            }
-            return code;
-        }
-        setTeamId(getOrCreateCode('sessionCode'));
-    }
-  }, [teamId]);
-
-  useEffect(() => {
-    if (!currentUser) {
-        setTeamMembers([]);
-        return;
-    };
-    const userAsTeamMember: TeamMember = {
-        name: "You",
-        email: currentUser.email!,
-        role: "Admin",
-        status: "Active",
-        avatar: `https://i.pravatar.cc/40?u=${currentUser.email}`
-    };
-    setTeamMembers(prev => {
-        const userExists = prev.some(m => m.email === currentUser.email);
-        if (!userExists) return [userAsTeamMember, ...prev.filter(m => m.email !== currentUser.email)];
-        return prev.map(m => m.email === currentUser.email ? userAsTeamMember : m);
-    });
-  }, [currentUser]);
-
+  // This effect syncs team data from Firebase when the teamId changes.
   useEffect(() => {
     if (!teamDbRef) return;
 
@@ -97,13 +87,18 @@ export const TeamProvider = ({ children }: TeamProviderProps) => {
     return () => off(teamDbRef, 'value', listener);
   }, [teamDbRef]);
 
+  // This effect writes local team state changes back to Firebase.
   useEffect(() => {
-    if (!teamDbRef) return;
-    update(teamDbRef, {
+    if (!teamDbRef || !currentUser) return; // Only write if a user is logged in
+    
+    // Avoid overwriting db on initial load before local state is synced
+    if(teamMembers.length > 0 || customLogo) {
+      update(teamDbRef, {
         teamMembers,
         customLogo,
-    });
-  }, [teamMembers, customLogo, teamDbRef]);
+      });
+    }
+  }, [teamMembers, customLogo, teamDbRef, currentUser]);
   
   const logAudit = useCallback((event: { action: string; metadata?: Record<string, any> }) => {
     if (!currentUser || !firebaseServices?.db) return;
@@ -149,7 +144,7 @@ export const TeamProvider = ({ children }: TeamProviderProps) => {
     customLogo,
     setCustomLogo,
     currentUser,
-    setCurrentUser,
+    loadingAuth,
     teamId,
     setTeamId,
   };

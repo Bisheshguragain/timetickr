@@ -10,7 +10,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { signOut, type User } from "firebase/auth";
 import { ref, onValue, set, update, off, get, type Database, push, serverTimestamp } from "firebase/database";
 import { useFirebase } from "@/hooks/use-firebase";
 import type { FirebaseServices } from "@/lib/firebase-types";
@@ -95,7 +95,6 @@ interface TimerContextProps {
   submitAudienceQuestion: (text: string) => void;
   updateAudienceQuestionStatus: (id: number, status: AudienceQuestion['status']) => void;
   currentUser: User | null;
-  loadingAuth: boolean;
   isSessionFound: boolean | null;
   firebaseServices: FirebaseServices;
   generateAndLoadAlerts: (input: GenerateAlertsInput) => Promise<GenerateAlertsOutput>;
@@ -126,7 +125,15 @@ type TimerProviderProps = {
 
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
   const firebaseServices = useFirebase();
-  const { teamId: sessionCode, currentUser, setCurrentUser } = useTeam();
+  const { teamId: sessionCodeFromTeam, currentUser, setTeamId, loadingAuth } = useTeam();
+  
+  const sessionCode = sessionCodeFromProps || sessionCodeFromTeam;
+
+  useEffect(() => {
+      if (sessionCodeFromProps && sessionCodeFromProps !== sessionCodeFromTeam) {
+          setTeamId(sessionCodeFromProps);
+      }
+  }, [sessionCodeFromProps, sessionCodeFromTeam, setTeamId]);
   
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
@@ -141,7 +148,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
-  const [loadingAuth, setLoadingAuth] = useState(true);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
   const [featureFlags, setFeatureFlagsState] = useState<FeatureFlags>(initialFeatureFlags);
@@ -169,12 +175,13 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       set(logRef, {
         actor: currentUser.email,
         timestamp: serverTimestamp(),
+        eventId: sessionCode,
         ...event,
       });
     } catch (error) {
       console.error("Failed to write to audit log:", error);
     }
-  }, [currentUser, firebaseServices]);
+  }, [currentUser, firebaseServices, sessionCode]);
   
   const ACTION_COOLDOWNS = {
     send_message: 3000,
@@ -268,27 +275,22 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(firebaseServices.auth, async (user) => {
-        if (user) {
-            // User is signed in, now fetch their plan.
-            const planRef = ref(firebaseServices.db, `users/${user.uid}/plan`);
-            const snapshot = await get(planRef);
-            setPlanState(snapshot.val() || "Freemium");
-            setCurrentUser(user);
-        } else {
-            // User is signed out.
-            setCurrentUser(null);
-            setPlanState("Freemium");
-        }
-        setLoadingAuth(false);
+    if (loadingAuth || !currentUser) {
+        setPlanState("Freemium");
+        return;
+    }
+    const planRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
+    const unsub = onValue(planRef, (snapshot) => {
+        setPlanState(snapshot.val() || "Freemium");
     });
-    return () => unsubscribe();
-  }, [firebaseServices.auth, firebaseServices.db, setCurrentUser]);
+    return () => unsub();
+  }, [currentUser, firebaseServices.db, loadingAuth]);
 
   useEffect(() => {
     if (!dbRef) return;
     
-    if (!sessionCodeFromProps) {
+    const isDashboard = typeof window !== 'undefined' && window.location.pathname.includes('/dashboard');
+    if (isDashboard) {
         get(dbRef).then(snapshot => {
             if (!snapshot.exists()) {
                  const initialData = {
@@ -338,7 +340,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         
         setTimeout(() => {
             isUpdatingFromDb.current = false;
-        }, 10);
+        }, 100);
     });
 
     return () => {
@@ -351,20 +353,17 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   useEffect(() => {
     if (isUpdatingFromDb.current || !dbRef || sessionCodeFromProps) return;
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard')) return;
+    
+    // Only dashboard should be writing timer state back to Firebase
+    const isDashboard = typeof window !== 'undefined' && window.location.pathname.includes('/dashboard');
+    if (!isDashboard) return;
 
     update(dbRef, {
         time,
         isActive,
         initialDuration,
-        adminMessage,
-        audienceQuestionMessage,
-        theme,
-        audienceQuestions,
-        scheduledAlerts,
-        featureFlags,
     });
-  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, scheduledAlerts, featureFlags, dbRef, sessionCodeFromProps]);
+  }, [time, isActive, initialDuration, dbRef, sessionCodeFromProps]);
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
       setPlanState(newPlan);
@@ -407,7 +406,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (durationMins <= 5) newBrackets["0-5"]++;
     else if (durationMins <= 15) newBrackets["5-15"]++;
     else if (durationMins <= 30) newBrackets["15-30"]++;
-    else if (durationMins <= 60) newBrackets["30-60"]++;
+    else if (durationMins <= 60) newBrackets["60+"]++;
     else newBrackets["60+"]++;
 
     const newAnalytics = { ...analytics, totalTimers: newTotalTimers, avgDuration: newAvgDuration, durationBrackets: newBrackets };
@@ -626,7 +625,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     timersUsed, timerLimit, consumeTimerCredit, resetUsage, addTimers,
     analytics, resetAnalytics, audienceQuestions, submitAudienceQuestion,
     updateAudienceQuestionStatus,
-    currentUser, loadingAuth, isSessionFound,
+    currentUser, isSessionFound,
     firebaseServices, generateAndLoadAlerts, logout,
     featureFlags, setFeatureFlag
   };
