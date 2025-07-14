@@ -119,7 +119,6 @@ import ProtectedLayout from "@/components/layouts/ProtectedLayout";
 import { usePlanGate } from "@/hooks/use-plan-gate";
 import { useUsageReset } from "@/hooks/use-usage-reset";
 import { usePlanSync } from "@/hooks/use-plan-sync";
-import { useTimerPersistence } from "@/hooks/use-timer-persistence";
 import { useStripeRecovery } from "@/hooks/use-stripe-recovery";
 import DashboardRollupCard from "@/components/dashboard/DashboardRollupCard";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
@@ -318,7 +317,7 @@ function ThemeSelectorCard() {
 }
 
 function DeviceConnectionCard() {
-  const { sessionCode } = useTeam();
+  const { teamId: sessionCode } = useTeam();
   const {
     speakerDevices,
     participantDevices,
@@ -1685,7 +1684,6 @@ function FeatureFlagsCard() {
 function DashboardContent() {
   useUsageReset();
   usePlanSync();
-  useTimerPersistence();
   useStripeRecovery();
   
   const {
