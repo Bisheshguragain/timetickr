@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, TimerIcon, LogOut } from "lucide-react";
 import { useTimer } from "@/context/TimerContext";
-import { ThemeToggle } from "../ui/theme-toggle";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -66,8 +65,6 @@ export function Header() {
                 )}
               </>
             )}
-
-            <ThemeToggle />
 
             <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>

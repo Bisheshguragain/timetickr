@@ -104,7 +104,6 @@ import { Bar as BarRechart, BarChart as BarChartRechart, ResponsiveContainer, XA
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { generateAlerts, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -1757,7 +1756,6 @@ function DashboardContent() {
           <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
             <div className="flex items-center gap-4">
-                <ThemeToggle />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
