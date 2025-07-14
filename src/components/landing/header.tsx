@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, TimerIcon, LogOut } from "lucide-react";
 import { useTimer } from "@/context/TimerContext";
 
@@ -77,33 +77,36 @@ export function Header() {
                 </Button>
                 </SheetTrigger>
                 <SheetContent side="left" className="pr-0">
-                <Link href="/" className="flex items-center gap-2 font-bold" onClick={() => setMenuOpen(false)}>
-                    <TimerIcon className="h-6 w-6 text-primary" />
-                    <span className="font-headline text-xl">TimeTickR</span>
-                </Link>
-                <div className="my-4 h-[calc(100vh-8rem)] pb-10 pl-6">
-                    <div className="flex flex-col space-y-3">
-                    {navLinks.map((link) => (
-                        <Link
-                        key={link.href}
-                        href={link.href}
-                        className="text-foreground"
-                        onClick={() => setMenuOpen(false)}
-                        >
-                        {link.label}
-                        </Link>
-                    ))}
-                     {isClient && !loadingAuth && (
-                      <>
-                        {currentUser ? (
-                          <Link href="/dashboard" className="text-foreground" onClick={() => setMenuOpen(false)}>Dashboard</Link>
-                        ) : (
-                          <Link href="/login" className="text-foreground" onClick={() => setMenuOpen(false)}>Login</Link>
-                        )}
-                      </>
-                    )}
-                    </div>
-                </div>
+                  <SheetHeader className="p-4">
+                      <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                  </SheetHeader>
+                  <Link href="/" className="flex items-center gap-2 font-bold px-4" onClick={() => setMenuOpen(false)}>
+                      <TimerIcon className="h-6 w-6 text-primary" />
+                      <span className="font-headline text-xl">TimeTickR</span>
+                  </Link>
+                  <div className="my-4 h-[calc(100vh-8rem)] pb-10 pl-6">
+                      <div className="flex flex-col space-y-3">
+                      {navLinks.map((link) => (
+                          <Link
+                          key={link.href}
+                          href={link.href}
+                          className="text-foreground"
+                          onClick={() => setMenuOpen(false)}
+                          >
+                          {link.label}
+                          </Link>
+                      ))}
+                      {isClient && !loadingAuth && (
+                        <>
+                          {currentUser ? (
+                            <Link href="/dashboard" className="text-foreground" onClick={() => setMenuOpen(false)}>Dashboard</Link>
+                          ) : (
+                            <Link href="/login" className="text-foreground" onClick={() => setMenuOpen(false)}>Login</Link>
+                          )}
+                        </>
+                      )}
+                      </div>
+                  </div>
                 </SheetContent>
             </Sheet>
             </div>
