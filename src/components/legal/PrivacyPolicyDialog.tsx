@@ -15,7 +15,7 @@ export function PrivacyPolicyDialog({ open, onOpenChange }: { open: boolean, onO
 
   useEffect(() => {
     // This ensures the date is only rendered on the client, avoiding hydration mismatch.
-    setLastUpdated(new Date().toLocaleDateString());
+    setLastUpdated(new Date().toLocaleDateString('en-US'));
   }, []);
 
   return (

@@ -14,7 +14,7 @@ export function TermsOfServiceDialog({ open, onOpenChange }: { open: boolean, on
 
   useEffect(() => {
     // This ensures the date is only rendered on the client, avoiding hydration mismatch.
-    setLastUpdated(new Date().toLocaleDateString());
+    setLastUpdated(new Date().toLocaleDateString('en-US'));
   }, []);
 
   return (
