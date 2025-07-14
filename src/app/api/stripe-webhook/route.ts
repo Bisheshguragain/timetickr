@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { db } from '@/lib/firebase';
-import { ref, update, get, serverTimestamp } from 'firebase/database';
+import { ref, update, get, set, serverTimestamp } from 'firebase/database';
 
 // Note: This webhook is a simplified example. For hardened production use, it's
 // best practice to run fulfillment logic in a secure serverless environment
@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
       
       try {
         const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
-        
+        const userRef = ref(db, `users/${userId}`);
+
         for (const item of lineItems.data) {
           const priceId = item.price?.id;
           
@@ -57,28 +58,33 @@ export async function POST(req: NextRequest) {
               [process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID!]: 'Professional',
               [process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID!]: 'Enterprise',
           };
-          const TIMER_ADDON_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID!;
 
           if (priceId && PLAN_MAP[priceId]) {
               const newPlan = PLAN_MAP[priceId];
               console.log(`Updating user ${userId} to plan: ${newPlan}`);
               
-              const userPlanRef = ref(db, `users/${userId}/plan`);
-              await set(userPlanRef, newPlan);
+              await update(userRef, {
+                plan: newPlan,
+                subscriptionId: session.subscription, // Store subscription ID for future management
+                planUpdatedAt: serverTimestamp(),
+              });
               
-              // Optional: Reset timer usage when a new subscription is created
-              const userUsageRef = ref(db, `users/${userId}/usage`);
-              await set(userUsageRef, { used: 0, extra: 0, month: new Date().getMonth() });
+              // When a new subscription is created, also reset their usage for the new plan
+              const usageRef = ref(db, `users/${userId}/usage`);
+              await set(usageRef, { 
+                used: 0, 
+                extra: 0, 
+                lastResetMonth: new Date().getMonth() 
+              });
 
-
-          } else if (priceId === TIMER_ADDON_PRICE_ID) {
+          } else if (priceId === process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID!) {
               const quantity = item.quantity || 0;
               console.log(`Adding ${quantity} timer credits to user ${userId}`);
               
-              const userUsageRef = ref(db, `users/${userId}/usage`);
-              const snapshot = await get(userUsageRef);
+              const usageRef = ref(db, `users/${userId}/usage`);
+              const snapshot = await get(usageRef);
               const currentExtra = snapshot.val()?.extra || 0;
-              await update(userUsageRef, { extra: currentExtra + quantity });
+              await update(usageRef, { extra: currentExtra + quantity });
           }
         }
       } catch (dbError: any) {

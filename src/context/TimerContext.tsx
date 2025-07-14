@@ -304,28 +304,24 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
 
   }, [currentUser]);
 
-  const getUsageFromStorage = useCallback(() => {
-    if (loadingAuth || !currentUser) return { used: 0, extra: 0, month: new Date().getMonth() };
+  // Load user-specific data from storage
+   useEffect(() => {
+    if (loadingAuth || !currentUser) return;
+
     const usageKey = `timerUsage_${currentUser.uid}`;
-    return getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
+    const usageData = getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
+    setTimersUsed(usageData.used);
+    setExtraTimers(usageData.extra);
+
+    const analyticsKey = `timerAnalytics_${currentUser.uid}`;
+    const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
+    setAnalytics(savedAnalytics);
+
+    const logoKey = `customLogo_${currentUser.uid}`;
+    const savedLogo = getFromStorage(logoKey, null);
+    if (savedLogo) setCustomLogoState(savedLogo);
   }, [currentUser, loadingAuth]);
 
-
-  useEffect(() => {
-    if (loadingAuth) return;
-    const { used, extra } = getUsageFromStorage();
-    setTimersUsed(used);
-    setExtraTimers(extra);
-    
-    if (currentUser) {
-      const analyticsKey = `timerAnalytics_${currentUser.uid}`;
-      const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
-      setAnalytics(savedAnalytics);
-      const logoKey = `customLogo_${currentUser.uid}`;
-      const savedLogo = getFromStorage(logoKey, null);
-      if(savedLogo) setCustomLogoState(savedLogo);
-    }
-  }, [currentUser, loadingAuth, getUsageFromStorage]);
 
   const baseTimerLimit = PLAN_LIMITS[plan] ?? 3;
   const timerLimit = baseTimerLimit === -1 ? -1 : baseTimerLimit + extraTimers;
@@ -383,6 +379,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setTimersUsed(newUsage);
     const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: newUsage, extra: extraTimers, month: new Date().getMonth() });
+    update(ref(firebaseServices.db, `users/${currentUser.uid}/usage`), { used: newUsage });
+
 
     const newTotalTimers = analytics.totalTimers + 1;
     const totalDuration = (analytics.avgDuration * analytics.totalTimers) + initialDuration;
@@ -521,15 +519,21 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setExtraTimers(newExtraTimers);
     const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
+    update(ref(firebaseServices.db, `users/${currentUser.uid}/usage`), { extra: newExtraTimers });
   };
   
   const resetUsage = useCallback(() => {
     if (!currentUser) return;
+    const usageKey = `timerUsage_${currentUser.uid}`;
     setTimersUsed(0);
     setExtraTimers(0);
-    const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
-  }, [currentUser]);
+    update(ref(firebaseServices.db, `users/${currentUser.uid}/usage`), {
+        used: 0,
+        extra: 0,
+        month: new Date().getMonth(),
+     });
+  }, [currentUser, firebaseServices.db]);
 
   
   const resetAnalytics = () => {
@@ -540,11 +544,12 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       setInStorage(analyticsKey, initialAnalytics);
     }
   }
-
+  
   const logout = async () => {
     try {
-      const uid = currentUser?.uid; // Capture uid before user becomes null
+      const uid = currentUser?.uid;
       await signOut(firebaseServices.auth);
+      // Clear all local state
       setCurrentUser(null);
       setPlanState("Freemium");
       setTeamMembers([]);
@@ -554,16 +559,21 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       setAdminMessage(null);
       setAudienceQuestionMessage(null);
       setAnalytics(initialAnalytics);
-      resetUsage();
+      setTimersUsed(0);
+      setExtraTimers(0);
+      
+      // Clear local storage for the logged-out user
       if (typeof window !== "undefined" && uid) {
         localStorage.removeItem(`timerAnalytics_${uid}`);
         localStorage.removeItem(`timerUsage_${uid}`);
         localStorage.removeItem(`customLogo_${uid}`);
+        localStorage.removeItem('sessionCode');
       }
     } catch (err) {
       console.error("Logout failed:", err);
     }
   };
+
 
   const value = {
     time, setTime, isActive, isFinished, toggleTimer, resetTimer, setDuration,

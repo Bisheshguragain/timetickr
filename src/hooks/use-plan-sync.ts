@@ -8,7 +8,11 @@ export function usePlanSync() {
   const { currentUser, firebaseServices, setPlan } = useTimer();
 
   useEffect(() => {
-    if (!currentUser || !firebaseServices?.db) return;
+    if (!currentUser || !firebaseServices?.db) {
+        // If there's no user, ensure the plan is reset to Freemium
+        setPlan("Freemium");
+        return;
+    };
 
     const planRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
 
@@ -17,5 +21,11 @@ export function usePlanSync() {
       if (planValue) {
         setPlan(planValue);
       } else {
-        // If no plan is set in DB, default to Freemium
-        setPlan("Freem
+        // If no plan is set in DB for a logged-in user, default to Freemium
+        setPlan("Freemium");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, firebaseServices?.db, setPlan]);
+}
