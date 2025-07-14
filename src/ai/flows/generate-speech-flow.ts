@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -10,6 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { sanitizeInput } from '@/lib/profanity-filter';
 
 const GenerateSpeechInputSchema = z.object({
   topic: z.string().describe('The topic of the presentation.'),
@@ -54,7 +56,8 @@ const generateSpeechFlow = ai.defineFlow(
     outputSchema: GenerateSpeechOutputSchema,
   },
   async (input) => {
-    const { output } = await generateSpeechPrompt(input);
+    const safeTopic = sanitizeInput(input.topic, 100);
+    const { output } = await generateSpeechPrompt({ topic: safeTopic });
     return output!;
   }
 );

@@ -12,12 +12,13 @@ import React, {
 } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { ref, onValue, set, update, off, get, type Database, push, serverTimestamp } from "firebase/database";
-import { useFirebase } from "@/hooks/use-firebase"; // Import the new hook
+import { useFirebase } from "@/hooks/use-firebase";
 import type { FirebaseServices } from "@/lib/firebase-types";
 import { generateAlerts, GenerateAlertsInput, GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
 import { moderateMessage } from "@/ai/flows/moderate-message";
 import { getFromStorage, setInStorage } from "@/lib/storage-utils";
 import { useToast } from "@/hooks/use-toast";
+import { containsProfanity, sanitizeInput } from "@/lib/profanity-filter";
 
 
 interface Message {
@@ -155,39 +156,39 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   
   const { toast } = useToast();
   
-  const isFinished = time === 0;
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isUpdatingFromDb = useRef(false);
   const alertTimeouts = useRef<NodeJS.Timeout[]>([]);
   const lastActionTimestamps = useRef<Record<string, number>>({});
-  const isUpdatingFromDb = useRef(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   
+  const isFinished = time === 0;
+
   const dbRef = useMemo(() => {
     if (sessionCode) {
       return ref(firebaseServices.db, `sessions/${sessionCode}`);
     }
     return null;
   }, [sessionCode, firebaseServices.db]);
-  
+
   const logAudit = useCallback((event: { action: string; metadata?: Record<string, any> }) => {
     if (!currentUser || !firebaseServices?.db) return;
-    
     try {
       const logRef = push(ref(firebaseServices.db, `auditLogs/${currentUser.uid}`));
       set(logRef, {
         actor: currentUser.email,
-        timestamp: Date.now(),
+        timestamp: serverTimestamp(),
         ...event,
       });
     } catch (error) {
       console.error("Failed to write to audit log:", error);
     }
   }, [currentUser, firebaseServices]);
-
+  
   const ACTION_COOLDOWNS = {
-    send_message: 3000, // 3 seconds
-    generate_alerts: 10000, // 10 seconds
-    approve_question: 3000, // 3 seconds
-    submit_question: 5000, // 5 seconds
+    send_message: 3000,
+    generate_alerts: 10000,
+    approve_question: 3000,
+    submit_question: 5000,
   };
 
   const isActionAllowed = (action: keyof typeof ACTION_COOLDOWNS) => {
@@ -199,30 +200,38 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     lastActionTimestamps.current[action] = now;
     return true;
   };
+  
+  const clearAlertTimeouts = useCallback(() => {
+    alertTimeouts.current.forEach(clearTimeout);
+    alertTimeouts.current = [];
+  }, []);
 
   const sendAdminMessage = useCallback(async (text: string) => {
     if (!dbRef) throw new Error("Database connection not available.");
     if (!isActionAllowed('send_message')) throw new Error("Please wait before sending another message.");
     
+    const sanitizedText = sanitizeInput(text);
+    if (containsProfanity(sanitizedText)) {
+      logAudit({ action: 'admin_message_blocked', metadata: { reason: 'profanity', text: sanitizedText } });
+      toast({ variant: 'destructive', title: 'Message Blocked', description: 'Your message contains inappropriate language.' });
+      throw new Error("Message contains profanity.");
+    }
+    
     const canUseAi = plan === "Professional" || plan === "Enterprise";
     if (canUseAi) {
-        logAudit({ action: 'message_moderation_started', metadata: { message: text }});
-        const moderationResult = await moderateMessage({ message: text });
+        logAudit({ action: 'message_moderation_started', metadata: { message: sanitizedText }});
+        const moderationResult = await moderateMessage({ message: sanitizedText });
         if (!moderationResult.isSafe) {
-            logAudit({ action: 'message_blocked', metadata: { message: text, reason: moderationResult.reason }});
-            toast({
-                variant: "destructive",
-                title: "Message Blocked",
-                description: `Reason: ${moderationResult.reason}`,
-            });
+            logAudit({ action: 'message_blocked_by_ai', metadata: { message: sanitizedText, reason: moderationResult.reason }});
+            toast({ variant: "destructive", title: "Message Blocked by AI", description: `Reason: ${moderationResult.reason}` });
             throw new Error(`Message blocked: ${moderationResult.reason}`);
         }
     }
     
-    const newMessage = { id: Date.now(), text };
+    const newMessage = { id: Date.now(), text: sanitizedText };
     setAdminMessage(newMessage);
     await update(dbRef, { adminMessage: newMessage });
-    logAudit({ action: 'admin_message_sent', metadata: { message: text }});
+    logAudit({ action: 'admin_message_sent', metadata: { message: sanitizedText }});
 
     const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1, };
     setAnalytics(newAnalytics);
@@ -231,11 +240,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       setInStorage(analyticsKey, newAnalytics);
     }
   }, [dbRef, plan, analytics, currentUser, logAudit, toast]);
-
-  const clearAlertTimeouts = useCallback(() => {
-    alertTimeouts.current.forEach(clearTimeout);
-    alertTimeouts.current = [];
-  }, []);
 
   useEffect(() => {
     if (isActive && time > 0) {
@@ -246,7 +250,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         }, 1000);
 
         if (scheduledAlerts && !sessionCodeFromProps) {
-            clearAlertTimeouts(); // Clear any old timeouts before setting new ones
+            clearAlertTimeouts();
             const remainingTime = time;
             scheduledAlerts.forEach(alert => {
                 const timeUntilAlert = remainingTime - (initialDuration - alert.time);
@@ -260,7 +264,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         }
     } else if (time === 0) {
         setIsActive(false);
-        clearInterval(intervalRef.current as NodeJS.Timeout);
+        if (intervalRef.current) clearInterval(intervalRef.current);
     }
 
     return () => {
@@ -500,31 +504,35 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     if (!dbRef) throw new Error("Database connection not available.");
     if (!isActionAllowed('approve_question')) throw new Error("Please wait before approving another question.");
 
+    const sanitizedText = sanitizeInput(question.text);
+    if (containsProfanity(sanitizedText)) {
+      updateAudienceQuestionStatus(question.id, 'dismissed');
+      logAudit({ action: 'question_blocked_by_profanity', metadata: { questionId: question.id, text: sanitizedText } });
+      toast({ variant: 'destructive', title: 'Question Blocked', description: 'This question contains inappropriate language and has been dismissed.' });
+      throw new Error("Question contains profanity.");
+    }
+
     const canUseAi = plan === "Professional" || plan === "Enterprise";
     if (canUseAi && !resend) {
-        logAudit({ action: 'question_moderation_started', metadata: { questionId: question.id, text: question.text }});
-        const moderationResult = await moderateMessage({ message: question.text });
+        logAudit({ action: 'question_moderation_started', metadata: { questionId: question.id, text: sanitizedText }});
+        const moderationResult = await moderateMessage({ message: sanitizedText });
         if (!moderationResult.isSafe) {
             updateAudienceQuestionStatus(question.id, 'dismissed');
             logAudit({ action: 'question_blocked_by_ai', metadata: { questionId: question.id, reason: moderationResult.reason }});
-            toast({
-                variant: "destructive",
-                title: "Question Blocked",
-                description: `Reason: ${moderationResult.reason}`,
-            });
-            throw new Error(`Question blocked: ${moderationResult.reason}`);
+            toast({ variant: "destructive", title: "Question Blocked by AI", description: `Reason: ${moderationResult.reason}` });
+            throw new Error(`Question blocked by AI: ${moderationResult.reason}`);
         }
     }
 
-    const newMessage = { id: question.id, text: question.text };
+    const newMessage = { id: question.id, text: sanitizedText };
     setAudienceQuestionMessage(newMessage);
     await update(dbRef, { audienceQuestionMessage: newMessage });
     
     if (!resend) {
         updateAudienceQuestionStatus(question.id, 'approved');
-        logAudit({ action: 'question_approved_and_sent', metadata: { questionId: question.id, text: question.text }});
+        logAudit({ action: 'question_approved_and_sent', metadata: { questionId: question.id, text: sanitizedText }});
     } else {
-        logAudit({ action: 'question_resent', metadata: { questionId: question.id, text: question.text }});
+        logAudit({ action: 'question_resent', metadata: { questionId: question.id, text: sanitizedText }});
     }
 
     const newAnalytics = { ...analytics, messagesSent: analytics.messagesSent + 1 };
@@ -565,17 +573,19 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         toast({ variant: "destructive", title: "Slow down!", description: "Please wait a moment before submitting another question."});
         return;
     }
-
-    if (text.length > 300) {
-        toast({ variant: "destructive", title: "Question too long", description: "Please keep questions under 300 characters."});
-        return;
+    
+    const sanitizedText = sanitizeInput(text, 300);
+    if (containsProfanity(sanitizedText)) {
+      toast({ variant: "destructive", title: "Inappropriate Language", description: "Your question could not be submitted."});
+      logAudit({ action: 'audience_question_blocked', metadata: { reason: 'profanity', text: sanitizedText }});
+      return;
     }
 
     get(ref(firebaseServices.db, `sessions/${sessionCode}/audienceQuestions`)).then(snapshot => {
         const currentQuestions = snapshot.val() || [];
-        const newQuestion: AudienceQuestion = { id: Date.now(), text, status: 'pending' };
+        const newQuestion: AudienceQuestion = { id: Date.now(), text: sanitizedText, status: 'pending' };
         update(dbRef, { audienceQuestions: [...currentQuestions, newQuestion] });
-        logAudit({ action: 'question_submitted_by_audience', metadata: { text: text }});
+        logAudit({ action: 'question_submitted_by_audience', metadata: { text: sanitizedText }});
     });
   };
 
@@ -613,7 +623,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     update(ref(firebaseServices.db, `users/${currentUser.uid}/usage`), {
         used: 0,
         extra: 0,
-        month: new Date().getMonth(),
+        lastResetMonth: new Date().getMonth(),
      });
   }, [currentUser, firebaseServices.db]);
 

@@ -11,6 +11,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { sanitizeInput } from '@/lib/profanity-filter';
 
 const GenerateImageInputSchema = z.object({
   topic: z.string().describe('The topic of the presentation to generate an image for.'),
@@ -35,9 +36,11 @@ const generateImageFlow = ai.defineFlow(
     outputSchema: GenerateImageOutputSchema,
   },
   async (input) => {
+    const safeTopic = sanitizeInput(input.topic, 100);
+
     const { media } = await ai.generate({
       model: 'googleai/gemini-2.0-flash-preview-image-generation',
-      prompt: `Generate a professional, high-quality, visually appealing background image for a presentation on the topic: "${input.topic}". The image should be abstract or conceptual, suitable for a corporate or educational setting. Avoid text and clutter.`,
+      prompt: `Generate a professional, high-quality, visually appealing background image for a presentation on the topic: "${safeTopic}". The image should be abstract or conceptual, suitable for a corporate or educational setting. Avoid text and clutter.`,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
       },
