@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
 import { TimerProvider, useTimer } from "@/context/TimerContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,12 +36,16 @@ function ParticipantForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Spam prevention debounce
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (debounceRef.current) return;
+    if (isSubmitting) return;
     if (!question.trim()) {
       setError("Please enter a question.");
       return;
@@ -49,9 +53,7 @@ function ParticipantForm() {
 
     setError("");
     setIsLoading(true);
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-    }, 5000); // Prevent rapid re-submission
+    setIsSubmitting(true);
 
     try {
       submitAudienceQuestion(question); // Backend call
@@ -59,16 +61,31 @@ function ParticipantForm() {
         logQuestionSubmission(question, sessionCode);
       }
       setIsSubmitted(true);
-    } catch {
+    } catch(e: any) {
       toast({
         variant: 'destructive',
         title: 'Submission Error',
-        description: 'Could not submit your question. Please try again.',
+        description: e.message || 'Could not submit your question. Please try again.',
       });
+       setIsSubmitting(false); // Allow retry on error
     } finally {
       setIsLoading(false);
+      // Don't reset isSubmitting here on success, as we show the success message.
+      // Set a timeout to prevent spamming
+      setTimeout(() => {
+        setIsSubmitting(false);
+      }, 5000);
     }
   };
+
+  if (!isMounted) {
+    return (
+        <div className="flex flex-col items-center gap-4 text-foreground">
+            <Loader className="h-8 w-8 animate-spin" />
+            <p>Loading...</p>
+        </div>
+    );
+  }
 
   if (isSessionFound === false) {
     return (
@@ -140,12 +157,12 @@ function ParticipantForm() {
               rows={5}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || isSubmitting}>
               {isLoading ? <Loader className="mr-2 animate-spin" /> : <Send className="mr-2" />}
               Send Question
             </Button>
