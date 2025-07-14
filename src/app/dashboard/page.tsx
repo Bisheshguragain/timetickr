@@ -772,7 +772,7 @@ function SmartAlertsCard() {
 
   if (!hasSmartAlerts) {
     return (
-        <Card>
+        <Card data-testid="smart-alerts-card">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <FileClock />
@@ -828,7 +828,7 @@ function SmartAlertsCard() {
   }
 
   return (
-    <Card>
+    <Card data-testid="smart-alerts-card">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
             <FileClock />
@@ -986,7 +986,7 @@ function AudienceQuestionsCard() {
     );
 
     return (
-        <Card>
+        <Card data-testid="audience-questions-card">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Users />
@@ -1932,4 +1932,5 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
+
 
