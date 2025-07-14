@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -33,7 +34,7 @@ type SidebarContext = {
   setOpen: (open: boolean) => void
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
-  isMobile: boolean
+  isMobile: boolean | undefined
   toggleSidebar: () => void
 }
 
@@ -217,6 +218,11 @@ const Sidebar = React.forwardRef<
           </SheetContent>
         </Sheet>
       )
+    }
+
+    // Render nothing on initial server render if mobile state is unknown
+    if (isMobile === undefined) {
+      return null;
     }
 
     return (
@@ -590,7 +596,7 @@ const SidebarMenuButton = React.forwardRef<
         <TooltipContent
           side="right"
           align="center"
-          hidden={state !== "collapsed" || isMobile}
+          hidden={state !== "collapsed" || !!isMobile}
           {...tooltip}
         />
       </Tooltip>
