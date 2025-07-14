@@ -1,8 +1,7 @@
 
-
 "use client";
 
-import React, a { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from 'next/link';
 import {
   Card,
@@ -1840,7 +1839,7 @@ function DashboardContent() {
                 {showDashboardRollup && <DashboardRollupCard />}
                 <AiAssistantCard />
                 <LiveMessagingCard />
-                <AudienceQuestionsCard data-testid="audience-questions-card" />
+                <AudienceQuestionsCard />
                 <TeamManagementCard />
                 <AnalyticsCard />
             </div>
@@ -1917,7 +1916,7 @@ function DashboardContent() {
                     </div>
                 </CardContent>
                 </Card>
-                <SmartAlertsCard data-testid="smart-alerts-card" />
+                <SmartAlertsCard />
                 <ThemeSelectorCard />
                 <DeviceConnectionCard />
             </div>
@@ -1943,3 +1942,5 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
+
+    
