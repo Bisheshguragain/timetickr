@@ -1,7 +1,8 @@
+
 "use client";
 
-import React, { useState, useRef, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import React, { useState, useRef, Suspense } from "react";
+import { useSearchParams, useRouter } from 'next/navigation';
 import { TimerProvider, useTimer } from "@/context/TimerContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +11,7 @@ import { Loader, Send, CheckCircle, MessageSquareQuote } from "lucide-react";
 import { Logo } from "@/components/landing/logo";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { useTeam, TeamProvider } from "@/context/TeamContext";
 
 // Optional analytics stub
 const logQuestionSubmission = async (question: string, sessionCode: string) => {
@@ -25,10 +27,10 @@ const logQuestionSubmission = async (question: string, sessionCode: string) => {
 };
 
 function ParticipantForm() {
-  const { submitAudienceQuestion, isSessionFound, sessionCode, plan, customLogo } = useTimer();
+  const { submitAudienceQuestion, isSessionFound } = useTimer();
+  const { customLogo, teamId: sessionCode } = useTeam();
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname();
 
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -151,7 +153,7 @@ function ParticipantForm() {
         </form>
       </Card>
       <div className="flex justify-center mt-8">
-        {customLogo && plan === "Enterprise" && typeof customLogo === "string" && customLogo.startsWith("data:image") ? (
+        {customLogo && typeof customLogo === "string" && customLogo.startsWith("data:image") ? (
           <Image src={customLogo} alt="Event Logo" width={100} height={40} className="object-contain" />
         ) : (
           <Logo className="text-muted-foreground" />
@@ -179,13 +181,14 @@ function ParticipantPageWrapper() {
       </div>
     );
   }
-
+  
+  // The TeamProvider now manages the sessionCode/teamId
   return (
-    <TimerProvider sessionCode={sessionCode}>
-      <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
-        <ParticipantForm />
-      </div>
-    </TimerProvider>
+      <TimerProvider sessionCode={sessionCode}>
+        <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
+          <ParticipantForm />
+        </div>
+      </TimerProvider>
   );
 }
 
@@ -196,7 +199,9 @@ export default function ParticipantPage() {
         <Loader className="h-12 w-12 animate-spin text-foreground" />
       </div>
     }>
-      <ParticipantPageWrapper />
+      <TeamProvider>
+        <ParticipantPageWrapper />
+      </TeamProvider>
     </Suspense>
   );
 }

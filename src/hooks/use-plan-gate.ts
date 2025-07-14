@@ -2,22 +2,32 @@
 "use client";
 
 import { useTimer } from "@/context/TimerContext";
+import { useTeam } from "@/context/TeamContext";
 
 export function usePlanGate() {
   const { plan } = useTimer();
+  const { teamMembers } = useTeam();
+
+  const isFreemium = plan === "Freemium";
+  const isStarter = plan === "Starter";
+  const isProfessional = plan === "Professional";
+  const isEnterprise = plan === "Enterprise";
+
+  const memberLimit = isStarter ? 3 : isFreemium ? 1 : -1;
+  const canInviteMoreMembers = memberLimit === -1 || teamMembers.length < memberLimit;
 
   return {
-    isFreemium: plan === "Freemium",
-    isStarter: plan === "Starter",
-    isProfessional: plan === "Professional",
-    isEnterprise: plan === "Enterprise",
-
-    canUseAi: plan === "Professional" || plan === "Enterprise",
-    canUseTts: plan === "Enterprise",
-    canInviteAdmins: plan === "Professional" || plan === "Enterprise",
-    canUploadLogo: plan === "Enterprise",
-    hasAnalyticsExport: plan === "Enterprise",
-    hasSmartAlerts: plan === "Professional" || plan === "Enterprise",
-    memberLimit: plan === "Starter" ? 3 : plan === "Freemium" ? 1 : -1,
+    isFreemium,
+    isStarter,
+    isProfessional,
+    isEnterprise,
+    canUseAi: isProfessional || isEnterprise,
+    canUseTts: isEnterprise,
+    canInviteAdmins: isProfessional || isEnterprise,
+    canUploadLogo: isEnterprise,
+    hasAnalyticsExport: isEnterprise,
+    hasSmartAlerts: isProfessional || isEnterprise,
+    memberLimit,
+    canInviteMoreMembers,
   };
 }

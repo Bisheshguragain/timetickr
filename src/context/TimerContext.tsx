@@ -19,6 +19,7 @@ import { moderateMessage } from "@/ai/flows/moderate-message";
 import { getFromStorage, setInStorage } from "@/lib/storage-utils";
 import { useToast } from "@/hooks/use-toast";
 import { containsProfanity, sanitizeInput } from "@/lib/profanity-filter";
+import { useTeam } from "@/context/TeamContext";
 
 
 interface Message {
@@ -30,14 +31,6 @@ export interface AudienceQuestion {
     id: number;
     text: string;
     status: 'pending' | 'approved' | 'dismissed';
-}
-
-export interface TeamMember {
-    name: string;
-    email: string;
-    role: "Admin" | "Speaker" | "Viewer";
-    status: "Active" | "Pending" | "Inactive";
-    avatar: string;
 }
 
 export type TimerTheme = "Classic" | "Modern" | "Minimalist" | "Industrial";
@@ -97,13 +90,8 @@ interface TimerContextProps {
   audienceQuestions: AudienceQuestion[];
   submitAudienceQuestion: (text: string) => void;
   updateAudienceQuestionStatus: (id: number, status: AudienceQuestion['status']) => void;
-  teamMembers: TeamMember[];
-  inviteTeamMember: (email: string, role: TeamMember['role']) => void;
-  updateMemberStatus: (email: string, status: TeamMember['status']) => void;
   currentUser: User | null;
   loadingAuth: boolean;
-  customLogo: string | null;
-  setCustomLogo: (logo: string | null) => void;
   isSessionFound: boolean | null;
   firebaseServices: FirebaseServices;
   generateAndLoadAlerts: (input: GenerateAlertsInput) => Promise<GenerateAlertsOutput>;
@@ -121,18 +109,15 @@ const initialAnalytics: AnalyticsData = {
     durationBrackets: { "0-5": 0, "5-15": 0, "15-30": 0, "30-60": 0, "60+": 0 },
 };
 
-const generateSessionCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
 type TimerProviderProps = {
   children: React.ReactNode;
   sessionCode?: string | null;
 };
 
-
 export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: TimerProviderProps) => {
   const firebaseServices = useFirebase();
+  const { customLogo, teamId: sessionCode } = useTeam();
+  
   const [initialDuration, setInitialDuration] = useState(900);
   const [time, setTime] = useState(initialDuration);
   const [isActive, setIsActive] = useState(false);
@@ -146,11 +131,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   const [extraTimers, setExtraTimers] = useState(0);
   const [analytics, setAnalytics] = useState<AnalyticsData>(initialAnalytics);
   const [audienceQuestions, setAudienceQuestions] = useState<AudienceQuestion[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
-  const [customLogo, setCustomLogoState] = useState<string | null>(null);
-  const [sessionCode, setSessionCode] = useState<string | null>(sessionCodeFromProps || null);
   const [isSessionFound, setIsSessionFound] = useState<boolean | null>(null);
   const [scheduledAlerts, setScheduledAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
   
@@ -169,7 +151,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
     return null;
   }, [sessionCode, firebaseServices.db]);
-
+  
   const logAudit = useCallback((event: { action: string; metadata?: Record<string, any> }) => {
     if (!currentUser || !firebaseServices?.db) return;
     try {
@@ -241,6 +223,7 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     }
   }, [dbRef, plan, analytics, currentUser, logAudit, toast]);
 
+
   useEffect(() => {
     if (isActive && time > 0) {
         intervalRef.current = setInterval(() => {
@@ -271,24 +254,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         if (intervalRef.current) clearInterval(intervalRef.current);
         clearAlertTimeouts();
     };
-}, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration, sendAdminMessage, clearAlertTimeouts]);
+  }, [isActive, time, sessionCodeFromProps, scheduledAlerts, initialDuration, sendAdminMessage, clearAlertTimeouts]);
 
-
-  useEffect(() => {
-    if (sessionCodeFromProps) {
-        setSessionCode(sessionCodeFromProps);
-    } else if (!sessionCode) {
-        const getOrCreateCode = (key: string) => {
-            let code = localStorage.getItem(key);
-            if (!code) {
-                code = generateSessionCode();
-                localStorage.setItem(key, code);
-            }
-            return code;
-        }
-        setSessionCode(getOrCreateCode('sessionCode'));
-    }
-  }, [sessionCodeFromProps, sessionCode]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseServices.auth, (user) => {
@@ -312,8 +279,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
                     audienceQuestionMessage: null,
                     theme: "Classic",
                     audienceQuestions: [],
-                    teamMembers: [],
-                    customLogo: null,
                     scheduledAlerts: null,
                     connections: { speakers: 0, participants: 0 },
                 };
@@ -345,8 +310,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         setAudienceQuestionMessage(data.audienceQuestionMessage || null);
         setThemeState(data.theme || "Classic");
         setAudienceQuestions(data.audienceQuestions || []);
-        setTeamMembers(data.teamMembers || []);
-        setCustomLogoState(data.customLogo || null);
         setScheduledAlerts(data.scheduledAlerts || null);
         setSpeakerDevices(data.connections?.speakers || 0);
         setParticipantDevices(data.connections?.participants || 0);
@@ -376,33 +339,13 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         audienceQuestionMessage,
         theme,
         audienceQuestions,
-        teamMembers,
-        customLogo,
         scheduledAlerts,
     });
-  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, teamMembers, customLogo, scheduledAlerts, dbRef, sessionCodeFromProps]);
+  }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, scheduledAlerts, dbRef, sessionCodeFromProps]);
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
       setPlanState(newPlan);
   }, []);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    
-    const userAsTeamMember: TeamMember = {
-        name: "You",
-        email: currentUser.email!,
-        role: "Admin",
-        status: "Active",
-        avatar: `https://i.pravatar.cc/40?u=${currentUser.email}`
-    };
-    setTeamMembers(prev => {
-        const userExists = prev.some(m => m.email === currentUser.email);
-        if (!userExists) return [userAsTeamMember, ...prev.filter(m => m.email !== currentUser.email)];
-        return prev.map(m => m.email === currentUser.email ? userAsTeamMember : m);
-    });
-
-  }, [currentUser]);
 
    useEffect(() => {
     if (loadingAuth || !currentUser) return;
@@ -415,10 +358,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     const analyticsKey = `timerAnalytics_${currentUser.uid}`;
     const savedAnalytics = getFromStorage(analyticsKey, initialAnalytics);
     setAnalytics(savedAnalytics);
-
-    const logoKey = `customLogo_${currentUser.uid}`;
-    const savedLogo = getFromStorage(logoKey, null);
-    if (savedLogo) setCustomLogoState(savedLogo);
   }, [currentUser, loadingAuth]);
 
 
@@ -557,16 +496,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     update(dbRef, { theme: newTheme });
   };
 
-  const setCustomLogo = (logo: string | null) => {
-    if (!dbRef || !currentUser) return;
-    setCustomLogoState(logo);
-    if(currentUser) {
-      const logoKey = `customLogo_${currentUser.uid}`;
-      setInStorage(logoKey, logo);
-    }
-    update(dbRef, { customLogo: logo });
-  }
-
   const submitAudienceQuestion = (text: string) => {
     if (!dbRef) return;
     if (!isActionAllowed('submit_question')) {
@@ -587,22 +516,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         update(dbRef, { audienceQuestions: [...currentQuestions, newQuestion] });
         logAudit({ action: 'question_submitted_by_audience', metadata: { text: sanitizedText }});
     });
-  };
-
-  const inviteTeamMember = (email: string, role: TeamMember['role']) => {
-    if (!dbRef) return;
-    const newMember: TeamMember = { name: 'Invited User', email, role, status: 'Pending', avatar: `https://i.pravatar.cc/40?u=${email}` };
-    const newTeam = [...teamMembers, newMember];
-    setTeamMembers(newTeam);
-    update(dbRef, { teamMembers: newTeam });
-    logAudit({ action: 'team_member_invited', metadata: { invitedEmail: email, role: role }});
-  };
-
-  const updateMemberStatus = (email: string, status: TeamMember['status']) => {
-    if (!dbRef) return;
-    const newTeam = teamMembers.map(member => member.email === email ? { ...member, status } : member);
-    setTeamMembers(newTeam);
-    update(dbRef, { teamMembers: newTeam });
   };
   
   const addTimers = (quantity: number) => {
@@ -656,8 +569,6 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
       // Clear all local state
       setCurrentUser(null);
       setPlanState("Freemium");
-      setTeamMembers([]);
-      setCustomLogoState(null);
       setScheduledAlerts(null);
       setAudienceQuestions([]);
       setAdminMessage(null);
@@ -686,8 +597,8 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     theme, setTheme, plan, setPlan, speakerDevices, participantDevices,
     timersUsed, timerLimit, consumeTimerCredit, resetUsage, addTimers,
     analytics, resetAnalytics, sessionCode, audienceQuestions, submitAudienceQuestion,
-    updateAudienceQuestionStatus, teamMembers, inviteTeamMember, updateMemberStatus,
-    currentUser, loadingAuth, customLogo, setCustomLogo, isSessionFound,
+    updateAudienceQuestionStatus,
+    currentUser, loadingAuth, isSessionFound,
     firebaseServices, generateAndLoadAlerts, logout
   };
 

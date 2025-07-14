@@ -12,6 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { TeamProvider, useTeam } from "@/context/TeamContext";
+import { usePlanGate } from "@/hooks/use-plan-gate";
 
 const formatTime = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
@@ -24,14 +26,21 @@ const formatTime = (seconds: number) => {
 function PairingGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { setTeamId } = useTeam();
+  const { isSessionFound } = useTimer();
   const searchParams = useSearchParams();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
-  const { isSessionFound } = useTimer();
   const urlCode = searchParams.get('code');
 
+  useEffect(() => {
+    if (urlCode) {
+      setTeamId(urlCode);
+    }
+  }, [urlCode, setTeamId]);
+  
   const rateLimit = () => {
     if (debounceRef.current) return false;
     debounceRef.current = setTimeout(() => {
@@ -111,12 +120,13 @@ function SpeakerDisplay() {
     isFinished,
     theme,
     plan,
-    customLogo,
     adminMessage,
     audienceQuestionMessage,
     dismissAdminMessage,
     dismissAudienceQuestionMessage,
   } = useTimer();
+  const { customLogo } = useTeam();
+  const { isEnterprise } = usePlanGate();
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -174,9 +184,9 @@ function SpeakerDisplay() {
       )}
 
       <div className="absolute top-4 right-5 z-20">
-        {customLogo && plan === 'Enterprise' && safeLogo ? (
+        {customLogo && isEnterprise && safeLogo ? (
              <Image src={customLogo} alt="Custom Event Logo" width={120} height={50} className="object-contain" />
-        ) : plan !== "Enterprise" ? (
+        ) : !isEnterprise ? (
             <Logo className={currentTheme.logo}/>
         ) : null}
       </div>
@@ -200,7 +210,9 @@ function SpeakerViewWrapper() {
 export default function SpeakerViewPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
-            <SpeakerViewWrapper />
+            <TeamProvider>
+                <SpeakerViewWrapper />
+            </TeamProvider>
         </Suspense>
     )
 }
