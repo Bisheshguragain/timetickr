@@ -130,7 +130,8 @@ const SidebarProvider = React.forwardRef<
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
 
-    // Render nothing on initial server render if mobile state is unknown to avoid hydration mismatch
+    // Guard against hydration mismatch by not rendering on the server
+    // if the mobile state is unknown.
     if (isMobile === undefined) {
         return null;
     }

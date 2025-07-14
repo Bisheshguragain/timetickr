@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import Link from 'next/link';
 import {
   Card,
@@ -122,6 +122,7 @@ import DashboardRollupCard from "@/components/dashboard/DashboardRollupCard";
 import { useFeatureFlag } from "@/hooks/use-feature-flag";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import DashboardClientLayout from "@/components/layouts/DashboardClientLayout";
 
 
 const formatTime = (seconds: number) => {
@@ -325,7 +326,7 @@ function DeviceConnectionCard() {
   const [speakerViewUrl, setSpeakerViewUrl] = useState('');
   const [participantUrl, setParticipantUrl] = useState('');
 
-  useEffect(() => {
+  React.useEffect(() => {
     setIsClient(true);
     if (typeof window !== 'undefined' && sessionCode) {
         setSpeakerViewUrl(`${window.location.origin}/speaker-view?code=${sessionCode}`);
@@ -1343,7 +1344,7 @@ function CustomBrandingCard() {
     const { customLogo, setCustomLogo } = useTeam();
     const { canUploadLogo } = usePlanGate();
     const { toast } = useToast();
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     if (!canUploadLogo) {
         return (
@@ -1751,176 +1752,175 @@ function DashboardContent() {
 
   return (
     <>
-      <main className="flex-1 p-4 md:p-8">
-        <div className="container mx-auto">
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-            <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
-            <div className="flex items-center gap-4">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                            <Avatar className="h-10 w-10">
-                                <AvatarImage src={currentUser!.photoURL || undefined} data-ai-hint="person face" />
-                                <AvatarFallback>{currentUser!.email?.charAt(0).toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                        <DropdownMenuLabel className="font-normal">
-                            <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium leading-none">My Account</p>
-                                <p className="text-xs leading-none text-muted-foreground truncate">
-                                    {currentUser!.email}
-                                </p>
-                            </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => setShowSettingsDialog(true)}>
-                            <KeyRound className="mr-2" />
-                            <span>Change Password</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={handleSignOut}>
-                            <LogOut className="mr-2" />
-                            <span>Log out</span>
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start">
-            <div className="lg:col-span-2 space-y-8">
-                <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                    <Timer />
-                    Live Timer Control
-                    </CardTitle>
-                    <CardDescription>
-                    Manage the countdown timer that your speaker sees in real-time.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center space-y-6 pt-6">
-                    <div className={cn(
-                    "text-8xl font-bold tracking-tighter md:text-9xl",
-                    currentThemeClass
-                    )}>
-                    {formatTime(time)}
-                    </div>
-                    <div className="flex w-full max-w-sm items-center justify-center space-x-4">
-                    <Button
-                        onClick={handleToggleTimer}
-                        size="lg"
-                        className="w-full"
-                        disabled={isAtLimit && !isActive}
-                    >
-                        {isActive ? (
-                        <Pause className="mr-2" />
-                        ) : (
-                        <Play className="mr-2" />
-                        )}
-                        {isActive ? "Pause" : "Start"}
-                    </Button>
-                    <Button
-                        onClick={() => resetTimer()}
-                        size="lg"
-                        variant="secondary"
-                        className="w-full"
-                    >
-                        <RotateCcw className="mr-2" />
-                        Reset
-                    </Button>
-                    </div>
-                </CardContent>
-                </Card>
-                {showDashboardRollup && <DashboardRollupCard />}
-                <AiAssistantCard />
-                <LiveMessagingCard />
-                <AudienceQuestionsCard />
-                <TeamManagementCard />
-                <AnalyticsCard />
-            </div>
-
-            <div className="space-y-8 lg:col-span-1">
-                <CurrentPlanCard />
-                {currentUserRole === 'Admin' && <FeatureFlagsCard />}
-                <CustomBrandingCard />
-                <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                    <Settings />
-                    Timer Settings
-                    </CardTitle>
-                    <CardDescription>
-                    Configure the timer duration before starting.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div>
-                    <label
-                        htmlFor="custom-time"
-                        className="mb-2 block text-sm font-medium text-muted-foreground"
-                    >
-                        Custom Duration (in minutes)
-                    </label>
-                    <div className="flex items-center gap-2">
-                        <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSetTime(time - 60)}
-                        disabled={isActive}
-                        >
-                        <Minus />
-                        </Button>
-                        <Input
-                        id="custom-time"
-                        type="number"
-                        className="text-center"
-                        value={Math.floor(time / 60)}
-                        onChange={(e) =>
-                            handleSetTime(parseInt(e.target.value) * 60)
-                        }
-                        onFocus={(e) => e.target.select()}
-                        disabled={isActive}
-                        />
-                        <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleSetTime(time + 60)}
-                        disabled={isActive}
-                        >
-                        <Plus />
-                        </Button>
-                    </div>
-                    </div>
-
-                    <div>
-                    <p className="mb-2 text-sm font-medium text-muted-foreground">
-                        Preset Durations
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {presetDurations.map((duration) => (
-                        <Button
-                            key={duration}
-                            variant="outline"
-                            onClick={() => handleSetTime(duration)}
-                            disabled={isActive}
-                        >
-                            {duration / 60} min
-                        </Button>
-                        ))}
-                    </div>
-                    </div>
-                </CardContent>
-                </Card>
-                <SmartAlertsCard />
-                <ThemeSelectorCard />
-                <DeviceConnectionCard />
-            </div>
+      <DashboardClientLayout>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-headline text-3xl font-bold">Admin Dashboard</h1>
+          <div className="flex items-center gap-4">
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                          <Avatar className="h-10 w-10">
+                              <AvatarImage src={currentUser!.photoURL || undefined} data-ai-hint="person face" />
+                              <AvatarFallback>{currentUser!.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                      <DropdownMenuLabel className="font-normal">
+                          <div className="flex flex-col space-y-1">
+                              <p className="text-sm font-medium leading-none">My Account</p>
+                              <p className="text-xs leading-none text-muted-foreground truncate">
+                                  {currentUser!.email}
+                              </p>
+                          </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => setShowSettingsDialog(true)}>
+                          <KeyRound className="mr-2" />
+                          <span>Change Password</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={handleSignOut}>
+                          <LogOut className="mr-2" />
+                          <span>Log out</span>
+                      </DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
           </div>
         </div>
-      </main>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-start">
+          <div className="lg:col-span-2 space-y-8">
+              <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                  <Timer />
+                  Live Timer Control
+                  </CardTitle>
+                  <CardDescription>
+                  Manage the countdown timer that your speaker sees in real-time.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center space-y-6 pt-6">
+                  <div className={cn(
+                  "text-8xl font-bold tracking-tighter md:text-9xl",
+                  currentThemeClass
+                  )}>
+                  {formatTime(time)}
+                  </div>
+                  <div className="flex w-full max-w-sm items-center justify-center space-x-4">
+                  <Button
+                      onClick={handleToggleTimer}
+                      size="lg"
+                      className="w-full"
+                      disabled={isAtLimit && !isActive}
+                  >
+                      {isActive ? (
+                      <Pause className="mr-2" />
+                      ) : (
+                      <Play className="mr-2" />
+                      )}
+                      {isActive ? "Pause" : "Start"}
+                  </Button>
+                  <Button
+                      onClick={() => resetTimer()}
+                      size="lg"
+                      variant="secondary"
+                      className="w-full"
+                  >
+                      <RotateCcw className="mr-2" />
+                      Reset
+                  </Button>
+                  </div>
+              </CardContent>
+              </Card>
+              {showDashboardRollup && <DashboardRollupCard />}
+              <AiAssistantCard />
+              <LiveMessagingCard />
+              <AudienceQuestionsCard />
+              <TeamManagementCard />
+              <AnalyticsCard />
+          </div>
+
+          <div className="space-y-8 lg:col-span-1">
+              <CurrentPlanCard />
+              {currentUserRole === 'Admin' && <FeatureFlagsCard />}
+              <CustomBrandingCard />
+              <Card>
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                  <Settings />
+                  Timer Settings
+                  </CardTitle>
+                  <CardDescription>
+                  Configure the timer duration before starting.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                  <div>
+                  <label
+                      htmlFor="custom-time"
+                      className="mb-2 block text-sm font-medium text-muted-foreground"
+                  >
+                      Custom Duration (in minutes)
+                  </label>
+                  <div className="flex items-center gap-2">
+                      <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleSetTime(time - 60)}
+                      disabled={isActive}
+                      >
+                      <Minus />
+                      </Button>
+                      <Input
+                      id="custom-time"
+                      type="number"
+                      className="text-center"
+                      value={Math.floor(time / 60)}
+                      onChange={(e) =>
+                          handleSetTime(parseInt(e.target.value) * 60)
+                      }
+                      onFocus={(e) => e.target.select()}
+                      disabled={isActive}
+                      />
+                      <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleSetTime(time + 60)}
+                      disabled={isActive}
+                      >
+                      <Plus />
+                      </Button>
+                  </div>
+                  </div>
+
+                  <div>
+                  <p className="mb-2 text-sm font-medium text-muted-foreground">
+                      Preset Durations
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {presetDurations.map((duration) => (
+                      <Button
+                          key={duration}
+                          variant="outline"
+                          onClick={() => handleSetTime(duration)}
+                          disabled={isActive}
+                      >
+                          {duration / 60} min
+                      </Button>
+                      ))}
+                  </div>
+                  </div>
+              </CardContent>
+              </Card>
+              <SmartAlertsCard />
+              <ThemeSelectorCard />
+              <DeviceConnectionCard />
+          </div>
+        </div>
+      </DashboardClientLayout>
+
       <PurchaseTimersDialog
         open={showPurchaseDialog}
         onOpenChange={setShowPurchaseDialog}
