@@ -212,6 +212,11 @@ const Sidebar = React.forwardRef<
         </div>
       )
     }
+    
+    // Render nothing on initial server render if mobile state is unknown
+    if (isMobile === null) {
+        return null;
+    }
 
     if (isMobile) {
       return (
@@ -231,11 +236,6 @@ const Sidebar = React.forwardRef<
           </SheetContent>
         </Sheet>
       )
-    }
-
-    // Render a skeleton on initial server render if mobile state is unknown
-    if (isMobile === null) {
-      return <Skeleton className={cn("hidden h-full w-[--sidebar-width-icon] md:block", className)} />;
     }
 
     return (
