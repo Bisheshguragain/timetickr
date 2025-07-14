@@ -6,26 +6,28 @@ import { Moon, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 export function ThemeToggle() {
-  // Start with a default state, and update it on the client.
-  const [isDarkMode, setIsDarkMode] = React.useState(true);
+  // To avoid hydration mismatch, we'll render a placeholder first,
+  // and then determine the theme on the client.
   const [isClient, setIsClient] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(true);
 
+  // This effect runs only once on the client to set the initial state
   React.useEffect(() => {
-    // This effect runs only on the client, after the initial render.
     setIsClient(true);
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme) {
       setIsDarkMode(savedTheme === "dark");
     } else {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
+      // If no theme is saved, respect the user's system preference
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       setIsDarkMode(prefersDark);
     }
   }, []);
 
+  // This effect runs whenever isDarkMode changes, but only on the client
   React.useEffect(() => {
-    if (!isClient) return; // Don't run this logic on the server or during the initial render.
+    if (!isClient) return; // Guard against running on the server
+    
     const root = window.document.documentElement;
     if (isDarkMode) {
       root.classList.add("dark");
@@ -36,9 +38,16 @@ export function ThemeToggle() {
     }
   }, [isDarkMode, isClient]);
 
-  // Avoid rendering the switch until we know the correct client-side state
+  // Don't render the switch on the server or during the initial client render
+  // to prevent the hydration mismatch.
   if (!isClient) {
-    return null; 
+    return (
+        <div className="flex items-center gap-2">
+            <Sun className="h-5 w-5 text-foreground/60" />
+            <div className="h-6 w-11 rounded-full bg-input"></div>
+            <Moon className="h-5 w-5 text-foreground/60" />
+        </div>
+    );
   }
 
   return (
