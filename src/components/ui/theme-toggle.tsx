@@ -4,22 +4,14 @@
 import * as React from "react";
 import { Moon, Sun } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useTheme } from "@/context/ThemeContext";
+import { useSafeThemeToggle } from "@/hooks/use-safe-theme-toggle";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const { actualTheme, toggleTheme, isReady } = useSafeThemeToggle();
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
-  };
-
-  if (!mounted) {
+  if (!isReady) {
     // Render a placeholder on the server and during initial client render
+    // to avoid layout shift and hydration errors.
     return (
         <div className="flex items-center gap-2">
             <Sun className="h-5 w-5 text-foreground/60" />
@@ -33,7 +25,7 @@ export function ThemeToggle() {
     <div className="flex items-center gap-2">
       <Sun className="h-5 w-5 text-foreground/60" />
       <Switch
-        checked={theme === 'dark'}
+        checked={actualTheme === 'dark'}
         onCheckedChange={toggleTheme}
         aria-label="Toggle theme"
       />
