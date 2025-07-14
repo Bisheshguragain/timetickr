@@ -14,11 +14,11 @@ export function ThemeToggle() {
     // to avoid layout shift and hydration errors. This matches the default dark theme.
     return (
         <div className="flex items-center gap-2">
-            <Sun className="h-5 w-5 text-foreground/60" />
-            <div className="h-6 w-11 rounded-full bg-input inline-flex items-center">
-                <span className="h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform translate-x-5"></span>
+            <Sun className="h-5 w-5 text-muted-foreground" />
+            <div className="h-6 w-11 rounded-full bg-input inline-flex items-center p-0.5">
+                <div className="h-5 w-5 rounded-full bg-muted shadow-lg ring-0" />
             </div>
-            <Moon className="h-5 w-5 text-foreground/60" />
+            <Moon className="h-5 w-5 text-muted-foreground" />
         </div>
     );
   }
