@@ -1,6 +1,6 @@
 import type { Config } from "tailwindcss"
 
-const config: Config = {
+const config = {
   darkMode: ["class"],
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
@@ -16,9 +16,8 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'sans-serif'],
-        headline: ['var(--font-space-grotesk)', 'sans-serif'],
-        mono: ['var(--font-space-grotesk)', 'monospace'],
+        sans: ["var(--font-inter)"],
+        headline: ["var(--font-space-grotesk)"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -76,7 +75,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
-}
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config
 
-export default config;
+export default config

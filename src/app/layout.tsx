@@ -2,6 +2,19 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { AppProviders } from '@/context/AppProviders';
+import { Inter, Space_Grotesk } from 'next/font/google';
+import { cn } from '@/lib/utils';
+
+
+const fontSans = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
+
+const fontHeadline = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+});
 
 
 export const metadata: Metadata = {
@@ -16,12 +29,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"></link>
-      </head>
-      <body>
+      <body className={cn(
+        "min-h-screen bg-background font-sans antialiased",
+        fontSans.variable,
+        fontHeadline.variable
+      )}>
         <AppProviders>
           {children}
         </AppProviders>
