@@ -42,4 +42,3 @@ export function useStripeRecovery() {
     }
   }, [currentUser, plan, searchParams, toast]);
 }
-
