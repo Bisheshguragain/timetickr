@@ -201,11 +201,13 @@ function ParticipantPageWrapper() {
   
   // The TeamProvider now manages the sessionCode/teamId
   return (
+    <TeamProvider>
       <TimerProvider sessionCode={sessionCode}>
         <div className="flex min-h-screen flex-col items-center justify-center bg-secondary p-4">
           <ParticipantForm />
         </div>
       </TimerProvider>
+    </TeamProvider>
   );
 }
 
@@ -216,9 +218,7 @@ export default function ParticipantPage() {
         <Loader className="h-12 w-12 animate-spin text-foreground" />
       </div>
     }>
-      <TeamProvider>
         <ParticipantPageWrapper />
-      </TeamProvider>
     </Suspense>
   );
 }

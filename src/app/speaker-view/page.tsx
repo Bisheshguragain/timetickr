@@ -200,20 +200,20 @@ function SpeakerViewWrapper() {
     const sessionCode = searchParams.get('code');
 
     return (
-        <TimerProvider sessionCode={sessionCode}>
-            <PairingGate>
-                <SpeakerDisplay />
-            </PairingGate>
-        </TimerProvider>
+        <TeamProvider>
+            <TimerProvider sessionCode={sessionCode}>
+                <PairingGate>
+                    <SpeakerDisplay />
+                </PairingGate>
+            </TimerProvider>
+        </TeamProvider>
     )
 }
 
 export default function SpeakerViewPage() {
     return (
         <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center bg-gray-900"><Loader className="h-12 w-12 animate-spin text-white" /></div>}>
-            <TeamProvider>
-                <SpeakerViewWrapper />
-            </TeamProvider>
+            <SpeakerViewWrapper />
         </Suspense>
     )
 }
