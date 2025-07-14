@@ -119,6 +119,7 @@ import { useUsageReset } from "@/hooks/use-usage-reset";
 import { usePlanSync } from "@/hooks/use-plan-sync";
 import { useTimerPersistence } from "@/hooks/use-timer-persistence";
 import { useStripeRecovery } from "@/hooks/use-stripe-recovery";
+import DashboardRollupCard from "@/components/dashboard/DashboardRollupCard";
 
 
 const formatTime = (seconds: number) => {
@@ -1789,6 +1790,7 @@ function DashboardContent() {
                     </div>
                 </CardContent>
                 </Card>
+                <DashboardRollupCard />
                 <AiAssistantCard />
                 <LiveMessagingCard />
                 <AudienceQuestionsCard data-testid="audience-questions-card" />
@@ -1893,6 +1895,7 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
+
 
 
 
