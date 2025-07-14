@@ -4,10 +4,10 @@
 import { Stripe } from 'stripe';
 
 // Define a type for the plan names for type safety
-type SubscriptionPlan = 'Starter' | 'Professional' | 'Enterprise';
+type PlanName = 'Starter' | 'Professional' | 'Enterprise' | 'TimerAddon';
 
 interface CreateCheckoutSessionArgs {
-    plan: SubscriptionPlan;
+    plan: PlanName;
     userId: string;
     userEmail: string;
 }
@@ -33,10 +33,11 @@ export async function createStripeCheckoutSession(
         return { error: 'Server configuration error. Please contact support.' };
     }
 
-    const PLAN_TO_PRICE_ID_MAP: Record<SubscriptionPlan, string | undefined> = {
+    const PLAN_TO_PRICE_ID_MAP: Record<PlanName, string | undefined> = {
         Starter: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID,
         Professional: process.env.NEXT_PUBLIC_STRIPE_PROFESSIONAL_PRICE_ID,
         Enterprise: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
+        TimerAddon: process.env.NEXT_PUBLIC_STRIPE_TIMER_ADDON_PRICE_ID,
     };
 
     const priceId = PLAN_TO_PRICE_ID_MAP[args.plan];
@@ -60,7 +61,8 @@ export async function createStripeCheckoutSession(
                     quantity: 1,
                 },
             ],
-            mode: 'subscription',
+            // Use 'payment' mode for one-time purchases and 'subscription' for recurring plans.
+            mode: args.plan === 'TimerAddon' ? 'payment' : 'subscription',
             success_url: successUrl,
             cancel_url: cancelUrl,
             customer_email: args.userEmail,
