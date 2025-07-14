@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import * as React from "react"
@@ -136,6 +135,11 @@ const SidebarProvider = React.forwardRef<
       }),
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
+
+    // Render nothing on initial server render if mobile state is unknown to avoid hydration mismatch
+    if (isMobile === undefined && isClient) {
+        return null;
+    }
 
     return (
       <SidebarContext.Provider value={contextValue}>
