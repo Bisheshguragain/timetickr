@@ -20,7 +20,7 @@ export function useSafeThemeToggle() {
   }
 
   return {
-    actualTheme: mounted ? actualTheme : "dark", // safe fallback to dark
+    actualTheme: mounted ? actualTheme : undefined, // Return undefined on server/initial render
     toggleTheme,
     isReady: mounted
   };

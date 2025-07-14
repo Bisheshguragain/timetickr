@@ -15,9 +15,9 @@ export function ThemeToggle() {
     // to avoid layout shift and hydration errors.
     return (
         <div className="flex items-center gap-2">
-            <Skeleton className="h-5 w-5" />
-            <Skeleton className="h-6 w-11" />
-            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <Skeleton className="h-6 w-11 rounded-full" />
+            <Skeleton className="h-5 w-5 rounded-full" />
         </div>
     );
   }
