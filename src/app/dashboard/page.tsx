@@ -116,6 +116,8 @@ import { generateImage, GenerateImageOutput } from "@/ai/flows/generate-image-fl
 import { generateSpeechAudio, GenerateSpeechAudioOutput } from "@/ai/flows/generate-speech-audio-flow";
 import ProtectedLayout from "@/components/layouts/ProtectedLayout";
 import { usePlanGate } from "@/hooks/use-plan-gate";
+import { useUsageReset } from "@/hooks/use-usage-reset";
+import { usePlanSync } from "@/hooks/use-plan-sync";
 
 
 const formatTime = (seconds: number) => {
@@ -1672,6 +1674,9 @@ function AiAssistantCard() {
 }
 
 function DashboardContent() {
+  useUsageReset();
+  usePlanSync();
+  
   const {
     time,
     isActive,

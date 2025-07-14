@@ -14,6 +14,8 @@ import { ref, onValue, set, update, off, get, type Database } from "firebase/dat
 import { useFirebase } from "@/hooks/use-firebase"; // Import the new hook
 import type { FirebaseServices } from "@/lib/firebase-types";
 import type { GenerateAlertsOutput } from "@/ai/flows/generate-alerts-flow";
+import { getFromStorage, setInStorage } from "@/lib/storage-utils";
+
 
 interface Message {
   id: number;
@@ -277,34 +279,16 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
   }, [time, isActive, initialDuration, adminMessage, audienceQuestionMessage, theme, audienceQuestions, teamMembers, customLogo, scheduledAlerts, dbRef, sessionCodeFromProps]);
 
   const setPlan = useCallback((newPlan: SubscriptionPlan) => {
-    setPlanState(newPlan);
-    if (!currentUser) return;
-    const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
-    set(userDbRef, newPlan);
-  }, [currentUser, firebaseServices.db]);
+      setPlanState(newPlan);
+      // We don't write to DB here because usePlanSync now handles reading,
+      // and webhooks/server actions should handle writing.
+  }, []);
 
   useEffect(() => {
     if (!currentUser) return;
-
-    // Special override for the enterprise user for testing purposes
-    if (currentUser.email === 'enterprise@gmail.com') {
-      const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
-      set(userDbRef, 'Enterprise');
-      setPlanState('Enterprise');
-    } else {
-        const userDbRef = ref(firebaseServices.db, `users/${currentUser.uid}/plan`);
-        get(userDbRef).then(snapshot => {
-          if (snapshot.exists()) {
-            setPlanState(snapshot.val());
-          } else {
-            // New user, assign Freemium by default
-            const newPlan = "Freemium";
-            set(userDbRef, newPlan);
-            setPlanState(newPlan);
-          }
-        });
-    }
-
+    
+    // The usePlanSync hook now handles setting the plan from the DB.
+    // However, we still need to set the initial team member (the user themself).
     const userAsTeamMember: TeamMember = {
         name: "You",
         email: currentUser.email!,
@@ -318,34 +302,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
         return prev.map(m => m.email === currentUser.email ? userAsTeamMember : m);
     });
 
-  }, [currentUser, firebaseServices.db]);
-
-  const getFromStorage = (key: string, defaultValue: any) => {
-    if (typeof window === 'undefined') return defaultValue;
-    const saved = localStorage.getItem(key);
-    try {
-        return saved ? JSON.parse(saved) : defaultValue;
-    } catch (e) {
-        return defaultValue;
-    }
-  }
-
-  const setInStorage = (key: string, value: any) => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-  
-  const getUsageFromStorage = useCallback(() => {
-    const usageKey = currentUser ? `timerUsage_${currentUser.uid}` : 'timerUsage_guest';
-    const usage = getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
-    const currentMonth = new Date().getMonth();
-    if (usage.month === currentMonth) {
-      return usage;
-    }
-    const newUsage = { used: 0, extra: 0, month: currentMonth };
-    setInStorage(usageKey, newUsage);
-    return newUsage;
   }, [currentUser]);
+
+  const getUsageFromStorage = useCallback(() => {
+    if (loadingAuth || !currentUser) return { used: 0, extra: 0, month: new Date().getMonth() };
+    const usageKey = `timerUsage_${currentUser.uid}`;
+    return getFromStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
+  }, [currentUser, loadingAuth]);
+
 
   useEffect(() => {
     if (loadingAuth) return;
@@ -559,13 +523,14 @@ export const TimerProvider = ({ children, sessionCode: sessionCodeFromProps }: T
     setInStorage(usageKey, { used: timersUsed, extra: newExtraTimers, month: new Date().getMonth() });
   };
   
-  const resetUsage = () => {
+  const resetUsage = useCallback(() => {
     if (!currentUser) return;
     setTimersUsed(0);
     setExtraTimers(0);
     const usageKey = `timerUsage_${currentUser.uid}`;
     setInStorage(usageKey, { used: 0, extra: 0, month: new Date().getMonth() });
-  };
+  }, [currentUser]);
+
   
   const resetAnalytics = () => {
     if (!currentUser || (plan !== 'Professional' && plan !== 'Enterprise')) return;
