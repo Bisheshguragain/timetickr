@@ -3,14 +3,14 @@
 
 import { SidebarProvider, Sidebar, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset } from "@/components/ui/sidebar";
 import { Timer, Users, BarChart, Settings, Home, Sparkles } from "lucide-react";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import ThemeToggleButton from "../ui/ThemeToggleButton";
 
 export default function DashboardClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <ThemeToggle />
+          <ThemeToggleButton />
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>

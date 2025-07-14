@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, TimerIcon, LogOut } from "lucide-react";
 import { useTimer } from "@/context/TimerContext";
+import ThemeToggleButton from "../ui/ThemeToggleButton";
 
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -33,7 +34,7 @@ export function Header() {
           </Link>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
             <nav className="hidden items-center gap-6 text-sm md:flex">
             {navLinks.map((link) => (
                 <Link
@@ -45,7 +46,7 @@ export function Header() {
                 </Link>
             ))}
             </nav>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
             
             {isClient && !loadingAuth && (
               <>
@@ -65,6 +66,8 @@ export function Header() {
                 )}
               </>
             )}
+
+            <ThemeToggleButton />
 
             <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>
