@@ -130,10 +130,22 @@ const SidebarProvider = React.forwardRef<
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
 
-    // Guard against hydration mismatch by not rendering on the server
+    // Guard against hydration mismatch by rendering a skeleton
     // if the mobile state is unknown.
     if (isMobile === undefined) {
-        return null;
+      return (
+        <div className="group/sidebar-wrapper flex min-h-svh w-full">
+            <div className="peer hidden md:block">
+                <div className="h-svh w-[--sidebar-width-icon]" style={{ "--sidebar-width-icon": SIDEBAR_WIDTH_ICON } as React.CSSProperties}></div>
+            </div>
+            <main className="flex min-h-svh flex-1 flex-col bg-background p-4">
+              <Skeleton className="h-8 w-8" />
+              <div className="mt-4">
+                  <Skeleton className="h-96 w-full" />
+              </div>
+            </main>
+        </div>
+      );
     }
 
     return (
@@ -219,9 +231,9 @@ const Sidebar = React.forwardRef<
       )
     }
 
-    // Render nothing on initial server render if mobile state is unknown
+    // Render a skeleton on initial server render if mobile state is unknown
     if (isMobile === undefined) {
-      return null;
+      return <Skeleton className={cn("hidden h-full w-[--sidebar-width-icon] md:block", className)} />;
     }
 
     return (
