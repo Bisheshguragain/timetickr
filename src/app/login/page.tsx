@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, Suspense } from "react";
@@ -18,12 +19,35 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader } from "lucide-react";
 import Link from "next/link";
 import { SubscriptionPlan, useTimer } from "@/context/TimerContext";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, type User } from "firebase/auth";
 import { useFirebase } from "@/hooks/use-firebase";
 import { createStripeCheckoutSession } from "@/app/actions/stripe";
+import { ref, set } from "firebase/database";
+
+// Function to seed test user data
+const seedTestUserData = async (user: User, db: any) => {
+    const testPlans: Record<string, SubscriptionPlan> = {
+        "forfree@gmail.com": "Freemium",
+        "starter@gmail.com": "Starter",
+        "pro@gmail.com": "Professional",
+        "enterprise@gmail.com": "Enterprise",
+    };
+
+    const userPlan = testPlans[user.email!];
+
+    if (userPlan) {
+        const userRef = ref(db, `users/${user.uid}`);
+        await set(userRef, {
+            plan: userPlan,
+            email: user.email
+        });
+        console.log(`Seeded plan '${userPlan}' for test user: ${user.email}`);
+    }
+}
+
 
 function LoginContent() {
-  const { app, auth, db } = useFirebase();
+  const { auth, db } = useFirebase();
   const { setPlan } = useTimer();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,27 +63,34 @@ function LoginContent() {
     setLoading(true);
     setErrorMsg(null);
 
-    if (!auth) {
+    if (!auth || !db) {
       setLoading(false);
-      setErrorMsg("Firebase is not configured.");
+      setErrorMsg("Firebase is not configured correctly.");
       return;
     }
 
     try {
-      let user;
+      let userCredential;
       if (isSignUp) {
-        if (password.length < 8 || !/[0-9!@#$%^&*]/.test(password)) {
+        if (password.length < 6) {
+          setErrorMsg("Password must be at least 6 characters long.");
           setLoading(false);
-          setErrorMsg("Password must be at least 8 characters with a number or symbol.");
           return;
         }
-
-        const credential = await createUserWithEmailAndPassword(auth, email, password);
-        user = credential.user;
-
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await seedTestUserData(userCredential.user, db);
         toast({ title: "Account Created!", description: "You're successfully signed up." });
 
-        if (selectedPlan && selectedPlan !== "Freemium") {
+      } else {
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await seedTestUserData(userCredential.user, db);
+        toast({ title: "Signed In!", description: "Welcome back." });
+      }
+
+      const user = userCredential.user;
+
+      // For new sign-ups, handle Stripe checkout if a paid plan is selected
+      if (isSignUp && selectedPlan && selectedPlan !== "Freemium" && !Object.keys(testPlans).includes(email)) {
           const { sessionId, error: sessionError } = await createStripeCheckoutSession({
             plan: selectedPlan,
             userId: user.uid,
@@ -73,25 +104,21 @@ function LoginContent() {
           
           const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
           if (stripeError) throw stripeError;
-        } else {
-          if (selectedPlan) setPlan(selectedPlan);
-          router.push("/dashboard");
-        }
-      } else {
-        const credential = await signInWithEmailAndPassword(auth, email, password);
-        user = credential.user;
-
-        toast({ title: "Signed In!", description: "Welcome back." });
-        router.push("/dashboard");
+          return;
       }
+      
+      // For all other cases, redirect to dashboard
+      router.push("/dashboard");
+
     } catch (err: any) {
       const code = err.code || "";
       if (code.includes("email-already-in-use")) {
         setErrorMsg("Email already in use. Try signing in.");
-      } else if (code.includes("invalid-credential") || code.includes("user-not-found")) {
+      } else if (code.includes("invalid-credential") || code.includes("user-not-found") || code.includes('wrong-password')) {
         setErrorMsg("Invalid email or password.");
       } else {
-        setErrorMsg(err.message);
+        console.error("Authentication error:", err);
+        setErrorMsg(err.message || "An unexpected error occurred.");
       }
     } finally {
       setLoading(false);
@@ -99,6 +126,7 @@ function LoginContent() {
   };
 
   const currentTab = isSignUp ? "signup" : "signin";
+  const testPlans = ["forfree@gmail.com", "starter@gmail.com", "pro@gmail.com", "enterprise@gmail.com"];
 
   return (
     <Tabs value={currentTab} onValueChange={(value) => setIsSignUp(value === 'signup')} className="w-full max-w-sm">
@@ -134,7 +162,7 @@ function LoginContent() {
               <Button onClick={handleAuth} className="w-full" disabled={loading}>
                 {loading && <Loader className="mr-2 animate-spin" />}
                 {isSignUp
-                  ? selectedPlan && selectedPlan !== "Freemium"
+                  ? selectedPlan && selectedPlan !== "Freemium" && !testPlans.includes(email)
                     ? "Proceed to Payment"
                     : "Sign Up"
                   : "Sign In"}
