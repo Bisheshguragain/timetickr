@@ -11,11 +11,13 @@ export function ThemeToggle() {
 
   if (!isReady) {
     // Render a placeholder on the server and during initial client render
-    // to avoid layout shift and hydration errors.
+    // to avoid layout shift and hydration errors. This matches the default dark theme.
     return (
         <div className="flex items-center gap-2">
             <Sun className="h-5 w-5 text-foreground/60" />
-            <div className="h-6 w-11 rounded-full bg-input"></div>
+            <div className="h-6 w-11 rounded-full bg-input inline-flex items-center">
+                <span className="h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform translate-x-5"></span>
+            </div>
             <Moon className="h-5 w-5 text-foreground/60" />
         </div>
     );
