@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -11,12 +12,12 @@ export function useUsageReset() {
   useEffect(() => {
     if (!currentUser || !firebaseServices?.db) return;
 
-    const uid = currentUser.uid;
-    const usageKey = `timerUsage_${uid}`;
-    const currentMonth = new Date().getMonth();
-
     const checkReset = async () => {
-      // It's better to get a fresh read of storage data inside the async function
+      const uid = currentUser.uid;
+      const usageKey = `timerUsage_${uid}`;
+      const currentMonth = new Date().getMonth();
+
+      // Get a fresh read of storage data inside the async function
       const storageData = getFromStorage(usageKey, { used: 0, extra: 0, month: -1 });
       
       const lastResetRef = ref(firebaseServices.db, `users/${uid}/usage/lastResetMonth`);
@@ -40,7 +41,12 @@ export function useUsageReset() {
         });
 
         // Also update the server's record of the last reset.
-        await set(lastResetRef, currentMonth);
+        const userUsageRef = ref(firebaseServices.db, `users/${uid}/usage`);
+        await set(userUsageRef, { 
+            used: 0, 
+            extra: 0, 
+            lastResetMonth: currentMonth 
+        });
       }
     };
 
