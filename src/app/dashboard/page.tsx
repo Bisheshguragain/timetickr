@@ -1942,5 +1942,3 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
-
-    
