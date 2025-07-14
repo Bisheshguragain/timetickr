@@ -15,7 +15,7 @@ export function Hero() {
         className="absolute inset-0 -z-10"
       >
         <div className="absolute inset-0 bg-background" />
-        <div className="absolute inset-x-0 top-0 h-[800px] bg-[radial-gradient(circle_800px_at_50%_200px,hsl(var(--primary)/0.1),transparent)]"></div>
+        <div className="absolute inset-x-0 top-0 h-[800px] bg-[radial-gradient(circle_800px_at_50%_200px,hsl(var(--primary)/0.08),transparent)]"></div>
       </div>
       <div className="container">
         <div className="flex flex-col items-center">
@@ -30,7 +30,7 @@ export function Hero() {
                 <Button asChild size="lg" className="font-semibold w-full sm:w-auto">
                   <Link href="/dashboard">Get Started Free <ArrowRight className="ml-2 h-5 w-5" /></Link>
                 </Button>
-                 <Button asChild size="lg" variant="outline" className="font-semibold w-full sm:w-auto">
+                 <Button asChild size="lg" variant="secondary" className="font-semibold w-full sm:w-auto">
                   <Link href="#features">Learn More</Link>
                 </Button>
               </div>

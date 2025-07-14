@@ -12,7 +12,7 @@ import { ThemeToggle } from "../ui/theme-toggle";
 export function Header() {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const { currentUser, loadingAuth, firebaseServices } = useTimer();
+  const { currentUser, loadingAuth, logout } = useTimer();
 
   useEffect(() => {
     setIsClient(true);
@@ -21,19 +21,8 @@ export function Header() {
   const navLinks = [
     { href: "#features", label: "Features" },
     { href: "#pricing", label: "Pricing" },
-    { href: "#", label: "Company" },
     { href: "#contact", label: "Contact" },
   ];
-
-  const handleSignOut = () => {
-    try {
-      if (firebaseServices?.auth) {
-        firebaseServices.auth.signOut();
-      }
-    } catch(e) {
-      console.error("Error signing out:", e);
-    }
-  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -66,7 +55,7 @@ export function Header() {
                     <Button variant="secondary" size="sm" asChild>
                       <Link href="/dashboard">Dashboard</Link>
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign Out">
+                    <Button variant="ghost" size="icon" onClick={logout} title="Sign Out">
                       <LogOut className="h-5 w-5" />
                     </Button>
                   </>
@@ -78,7 +67,7 @@ export function Header() {
               </>
             )}
 
-            {isClient ? <ThemeToggle /> : <div className="w-[100px] h-6" /> }
+            <ThemeToggle />
 
             <Sheet open={isMenuOpen} onOpenChange={setMenuOpen}>
                 <SheetTrigger asChild>

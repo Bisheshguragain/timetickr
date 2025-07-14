@@ -13,7 +13,7 @@ export function Footer() {
 
   return (
     <>
-      <footer className="border-t">
+      <footer className="border-t bg-secondary/50">
         <div className="container py-8">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <div className="flex items-center gap-2">

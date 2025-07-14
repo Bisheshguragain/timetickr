@@ -12,13 +12,13 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
-        <section id="features" className="py-20 md:py-28 bg-card/20">
+        <section id="features" className="py-20 md:py-28 bg-secondary/50">
           <Features />
         </section>
         <section className="py-20 md:py-28 ">
           <AiDemo />
         </section>
-        <section id="pricing" className="py-20 md:py-28 bg-card/20">
+        <section id="pricing" className="py-20 md:py-28 bg-secondary/50">
           <Pricing />
         </section>
         <section id="contact" className="py-20 md:py-28">

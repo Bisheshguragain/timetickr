@@ -161,9 +161,9 @@ export function Pricing() {
       </div>
       <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
-          <Card key={plan.name} className={`flex flex-col bg-card/50 hover:bg-card transition-all duration-300 ${plan.popular ? "border-primary shadow-primary/20 shadow-lg transform-gpu hover:-translate-y-2" : ""}`}>
+          <Card key={plan.name} className={`flex flex-col bg-card/50 hover:bg-card transition-all duration-300 ${plan.popular ? "border-accent shadow-accent/20 shadow-lg transform-gpu hover:-translate-y-2" : ""}`}>
             <CardHeader className="relative pb-4">
-              {plan.popular && <div className="absolute top-0 -translate-y-1/2 w-full flex justify-center"><div className="bg-primary text-primary-foreground px-3 py-1 text-sm font-semibold rounded-full">Most Popular</div></div>}
+              {plan.popular && <div className="absolute top-0 -translate-y-1/2 w-full flex justify-center"><div className="bg-accent text-accent-foreground px-3 py-1 text-sm font-semibold rounded-full">Most Popular</div></div>}
               <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
               <CardDescription>
                 <span className="text-3xl font-bold text-foreground">{plan.price}</span>
@@ -175,7 +175,7 @@ export function Pricing() {
               <ul className="space-y-3">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-center">
-                    <Check className="mr-2 h-5 w-5 text-primary" />
+                    <Check className="mr-2 h-5 w-5 text-accent" />
                     <span>{feature}</span>
                   </li>
                 ))}

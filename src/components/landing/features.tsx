@@ -14,7 +14,7 @@ import {
 
 const features = [
   {
-    icon: <RadioTower className="h-8 w-8 text-primary" />,
+    icon: <RadioTower className="h-8 w-8 text-accent" />,
     title: "Remote Stage Timer",
     description: "Control countdowns from any device while your speakers see a clean, distraction-free display.",
     subFeatures: [
@@ -25,7 +25,7 @@ const features = [
     ]
   },
   {
-    icon: <MessageSquare className="h-8 w-8 text-primary" />,
+    icon: <MessageSquare className="h-8 w-8 text-accent" />,
     title: "Live Admin Messaging",
     description: "Send instant messages from your admin panel directly to speaker screens for real-time cues.",
      subFeatures: [
@@ -36,7 +36,7 @@ const features = [
     ]
   },
   {
-    icon: <Users className="h-8 w-8 text-primary" />,
+    icon: <Users className="h-8 w-8 text-accent" />,
     title: "Team & Role Management",
     description: "Invite team members and assign specific roles and permissions for collaborative event management.",
      subFeatures: [
@@ -47,7 +47,7 @@ const features = [
     ]
   },
   {
-    icon: <Bell className="h-8 w-8 text-primary" />,
+    icon: <Bell className="h-8 w-8 text-accent" />,
     title: "Smart Auto-Alerts",
     description: "Intelligent alerts automatically notify speakers of key time milestones, keeping them on track.",
      subFeatures: [
@@ -58,7 +58,7 @@ const features = [
     ]
   },
   {
-    icon: <Monitor className="h-8 w-8 text-primary" />,
+    icon: <Monitor className="h-8 w-8 text-accent" />,
     title: "Multi-Device Projection",
     description: "Display timers on any screen size with our dedicated projection mode for ultimate flexibility.",
      subFeatures: [
@@ -69,7 +69,7 @@ const features = [
     ]
   },
   {
-    icon: <ShieldCheck className="h-8 w-8 text-primary" />,
+    icon: <ShieldCheck className="h-8 w-8 text-accent" />,
     title: "AI-Powered Moderation",
     description: "Ensure all on-screen messages are professional with our built-in AI content moderator.",
      subFeatures: [
@@ -80,7 +80,7 @@ const features = [
     ]
   },
   {
-    icon: <BarChartBig className="h-8 w-8 text-primary" />,
+    icon: <BarChartBig className="h-8 w-8 text-accent" />,
     title: "Analytics & Export",
     description: "Track event performance with detailed analytics and export data for post-event analysis.",
      subFeatures: [
@@ -91,7 +91,7 @@ const features = [
     ]
   },
    {
-    icon: <Volume2 className="h-8 w-8 text-primary" />,
+    icon: <Volume2 className="h-8 w-8 text-accent" />,
     title: "AI-Powered Text-to-Speech",
     description: "Convert your generated presentation script into natural-sounding audio for practice or accessibility.",
      subFeatures: [
@@ -116,8 +116,8 @@ export function Features() {
       </div>
       <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
         {features.map((feature) => (
-          <Card key={feature.title} className="flex flex-col bg-card/50 hover:bg-card transition-colors duration-300 transform-gpu hover:-translate-y-1 group border-transparent hover:border-primary/20">
-             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <Card key={feature.title} className="flex flex-col bg-card/50 hover:bg-card transition-colors duration-300 transform-gpu hover:-translate-y-1 group border-transparent hover:border-accent/20">
+             <div className="absolute inset-0 bg-gradient-to-r from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <CardHeader className="flex flex-row items-center gap-4 pb-2 z-10">
               {feature.icon}
               <CardTitle className="font-headline text-xl">{feature.title}</CardTitle>
@@ -127,7 +127,7 @@ export function Features() {
               <ul className="mt-6 space-y-3 flex-1">
                 {feature.subFeatures.map((subFeature) => (
                   <li key={subFeature} className="flex items-start">
-                    <Check className="mr-3 h-5 w-5 flex-shrink-0 text-primary" />
+                    <Check className="mr-3 h-5 w-5 flex-shrink-0 text-accent" />
                     <span className="text-foreground/80">{subFeature}</span>
                   </li>
                 ))}

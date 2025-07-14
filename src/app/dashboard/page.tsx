@@ -95,7 +95,8 @@ import {
   Volume2,
   ListPlus,
 } from "lucide-react";
-import { useTimer, TimerTheme, AudienceQuestion, TeamMember, SubscriptionPlan } from "@/context/TimerContext";
+import { useTimer, TimerTheme, AudienceQuestion, SubscriptionPlan } from "@/context/TimerContext";
+import { useTeam, TeamMember } from "@/context/TeamContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
@@ -1030,7 +1031,7 @@ function AudienceQuestionsCard() {
 }
 
 function TeamManagementCard() {
-    const { teamMembers, inviteTeamMember, updateMemberStatus, currentUser } = useTimer();
+    const { teamMembers, inviteTeamMember, updateMemberStatus, currentUser } = useTeam();
     const { canInviteAdmins, memberLimit, isStarter, isFreemium, isProfessional, isEnterprise } = usePlanGate();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
@@ -1338,7 +1339,7 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 }
 
 function CustomBrandingCard() {
-    const { customLogo, setCustomLogo } = useTimer();
+    const { customLogo, setCustomLogo } = useTeam();
     const { canUploadLogo } = usePlanGate();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1895,6 +1896,7 @@ export default function DashboardPage() {
     </ProtectedLayout>
   )
 }
+
 
 
 
