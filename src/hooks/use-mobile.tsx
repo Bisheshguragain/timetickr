@@ -20,7 +20,7 @@ export function useIsMobile() {
     window.addEventListener("resize", checkIsMobile);
     
     // Cleanup the event listener on unmount
-    return () => window.removeEventListener("resize", checkIsMobile);
+    return () => window.removeEventListener("resize", checkIsiMobile);
   }, []);
 
   return isMobile;
