@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { TimerProvider } from '@/context/TimerContext';
 import { TeamProvider } from '@/context/TeamContext';
-import { ThemeProvider } from '@/context/ThemeContext';
+import { ThemeProvider } from 'next-themes';
 
 export const metadata: Metadata = {
   title: 'TimeTickR - Professional Event Timers',
@@ -23,12 +23,11 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet"></link>
       </head>
-      <body className="font-body antialiased">
+      <body>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
+          defaultTheme="dark"
+          enableSystem={false}
         >
           <TeamProvider>
             <TimerProvider>
