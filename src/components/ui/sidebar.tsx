@@ -70,12 +70,6 @@ const SidebarProvider = React.forwardRef<
   ) => {
     const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
-    const [isClient, setIsClient] = React.useState(false);
-
-    React.useEffect(() => {
-        setIsClient(true);
-    }, []);
-
 
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
@@ -137,7 +131,7 @@ const SidebarProvider = React.forwardRef<
     )
 
     // Render nothing on initial server render if mobile state is unknown to avoid hydration mismatch
-    if (isMobile === undefined && isClient) {
+    if (isMobile === undefined) {
         return null;
     }
 
@@ -159,7 +153,7 @@ const SidebarProvider = React.forwardRef<
             ref={ref}
             {...props}
           >
-            {isClient ? children : null}
+            {children}
           </div>
         </TooltipProvider>
       </SidebarContext.Provider>

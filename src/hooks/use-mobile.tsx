@@ -13,14 +13,11 @@ export function useIsMobile() {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     }
     
-    // Set the initial value after the component mounts
     checkIsMobile();
     
-    // Add event listener for future changes
     window.addEventListener("resize", checkIsMobile);
     
-    // Cleanup the event listener on unmount
-    return () => window.removeEventListener("resize", checkIsiMobile);
+    return () => window.removeEventListener("resize", checkIsMobile);
   }, []);
 
   return isMobile;
