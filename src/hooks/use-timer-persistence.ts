@@ -39,7 +39,7 @@ export function useTimerPersistence() {
         persistedAt: Date.now()
       });
     };
-  }, [isActive, currentUser, firebaseServices]);
+  }, [isActive, currentUser, firebaseServices, time]);
 
   // This effect runs only once when the component mounts and the user is available
   useEffect(() => {
@@ -58,11 +58,18 @@ export function useTimerPersistence() {
 
         if (newTime > 0) {
             setDuration(newTime);
-            // We don't call toggleTimer() here as the main context will handle the state from DB
+            // The main context will handle syncing state from the DB,
+            // so we don't need to call toggleTimer() here.
         }
       }
     };
 
-    restoreTimer();
-  }, [currentUser, firebaseServices, setDuration]);
+    if (currentUser) {
+        restoreTimer();
+    }
+    
+  // We only want this to run once on initial load for a user.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, firebaseServices]);
 }
+
