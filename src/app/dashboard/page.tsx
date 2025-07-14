@@ -3,7 +3,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from 'next/link';
 import {
   Card,
@@ -115,6 +114,8 @@ import { createStripeCheckoutSession } from "@/app/actions/stripe";
 import { updatePassword } from "firebase/auth";
 import { generateImage, GenerateImageOutput } from "@/ai/flows/generate-image-flow";
 import { generateSpeechAudio, GenerateSpeechAudioOutput } from "@/ai/flows/generate-speech-audio-flow";
+import ProtectedLayout from "@/components/layouts/ProtectedLayout";
+import { usePlanGate } from "@/hooks/use-plan-gate";
 
 
 const formatTime = (seconds: number) => {
@@ -126,13 +127,12 @@ const formatTime = (seconds: number) => {
 };
 
 function LiveMessagingCard() {
-    const { sendAdminMessage, plan } = useTimer();
+    const { sendAdminMessage } = useTimer();
+    const { canUseAi } = usePlanGate();
     const { toast } = useToast();
     const [message, setMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
-
-    const canUseAi = plan === 'Professional' || plan === 'Enterprise';
 
     const presetMessages = [
         "5 minutes remaining",
@@ -461,16 +461,18 @@ function DeviceConnectionCard() {
 
 function CurrentPlanCard() {
   const { plan, timersUsed, timerLimit } = useTimer();
+  const { isEnterprise } = usePlanGate();
 
   const planDetails: Record<SubscriptionPlan, { name: string; description: string }> = {
     Freemium: { name: "Freemium", description: "Get started with our basic features." },
     Starter: { name: "Starter", description: "Unlock more features for small teams." },
     Professional: { name: "Professional", description: "Power features for growing businesses." },
     Enterprise: { name: "Enterprise", description: "You have access to all our top-tier features." },
+    TimerAddon: { name: "Add-on", description: "Additional timers purchased." },
   };
 
   const currentPlanDetails = planDetails[plan];
-  const usagePercentage = timerLimit > 0 ? (timersUsed / timerLimit) * 100 : (plan === 'Enterprise' ? 0 : 100);
+  const usagePercentage = timerLimit > 0 ? (timersUsed / timerLimit) * 100 : (isEnterprise ? 0 : 100);
 
   return (
     <Card>
@@ -490,7 +492,7 @@ function CurrentPlanCard() {
          <div>
             <div className="flex justify-between items-center mb-2 text-sm font-medium text-muted-foreground">
                 <span>Monthly Usage</span>
-                {plan === 'Enterprise' ? (
+                {isEnterprise ? (
                     <span>Unlimited Timers</span>
                 ) : (
                     <span>
@@ -501,7 +503,7 @@ function CurrentPlanCard() {
             <Progress value={usagePercentage} />
          </div>
       </CardContent>
-      {plan !== 'Enterprise' && (
+      {!isEnterprise && (
         <CardFooter>
           <Button asChild className="w-full">
             <Link href="/#pricing">Upgrade Plan <ArrowRight className="ml-2" /></Link>
@@ -543,7 +545,6 @@ function PurchaseTimersDialog({
           plan: 'TimerAddon', // Special plan name for this action
           userId: currentUser.uid,
           userEmail: currentUser.email!,
-          quantity: quantity,
        });
 
       if (sessionError) throw new Error(sessionError);
@@ -620,9 +621,9 @@ function PurchaseTimersDialog({
 }
 
 function AnalyticsCard() {
-    const { analytics, resetAnalytics, plan } = useTimer();
+    const { analytics, resetAnalytics } = useTimer();
+    const { hasAnalyticsExport, isEnterprise } = usePlanGate();
     const { toast } = useToast();
-    const isEnterprise = plan === 'Enterprise';
     const { totalTimers, avgDuration, messagesSent, durationBrackets, maxAudience, maxSpeakers } = analytics;
 
     const chartData = [
@@ -737,7 +738,7 @@ function AnalyticsCard() {
                   </div>
                 )}
 
-                 {isEnterprise ? (
+                 {hasAnalyticsExport ? (
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button onClick={resetAnalytics} variant="link" size="sm" className="p-0 h-auto text-muted-foreground">
                             <RefreshCcw className="mr-2" /> Reset analytics
@@ -758,15 +759,14 @@ function AnalyticsCard() {
 
 function SmartAlertsCard() {
   const { toast } = useToast();
-  const { plan, setScheduledAlerts } = useTimer();
+  const { setScheduledAlerts } = useTimer();
+  const { hasSmartAlerts } = usePlanGate();
   const [duration, setDuration] = useState(30);
   const [speakers, setSpeakers] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedAlerts, setGeneratedAlerts] = useState<GenerateAlertsOutput['alerts'] | null>(null);
-  
-  const isProOrEnterprise = plan === 'Professional' || plan === 'Enterprise';
 
-  if (!isProOrEnterprise) {
+  if (!hasSmartAlerts) {
     return (
         <Card>
             <CardHeader>
@@ -898,10 +898,10 @@ function SmartAlertsCard() {
 }
 
 function AudienceQuestionsCard() {
-    const { audienceQuestions, updateAudienceQuestionStatus, sendAudienceQuestionMessage, plan } = useTimer();
+    const { audienceQuestions, updateAudienceQuestionStatus, sendAudienceQuestionMessage } = useTimer();
+    const { canUseAi } = usePlanGate();
     const { toast } = useToast();
     const [approving, setApproving] = useState<number | null>(null);
-    const canUseAi = plan === 'Professional' || plan === 'Enterprise';
 
     const handleApprove = async (question: AudienceQuestion) => {
         setApproving(question.id);
@@ -1064,26 +1064,20 @@ function AudienceQuestionsCard() {
 }
 
 function TeamManagementCard() {
-    const { teamMembers, inviteTeamMember, updateMemberStatus, plan, currentUser } = useTimer();
+    const { teamMembers, inviteTeamMember, updateMemberStatus, currentUser } = useTimer();
+    const { canInviteAdmins, memberLimit, isStarter, isFreemium, isProfessional, isEnterprise } = usePlanGate();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState("");
 
-    const isFreemium = plan === 'Freemium';
-    const isStarter = plan === 'Starter';
-    const canInviteAdmins = plan === 'Professional' || plan === 'Enterprise';
-
-    // Freemium: 1 Admin (owner)
-    // Starter: 3 members total
-    const memberLimit = isStarter ? 3 : -1; // -1 for unlimited
     const canInviteMoreMembers = (memberLimit === -1) || (teamMembers.length < memberLimit);
 
     const handleInvite = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (isStarter && !canInviteMoreMembers) {
-            setAlertMessage("You have reached the 3-member limit for the Starter plan.");
+            setAlertMessage(`You have reached the ${memberLimit}-member limit for the Starter plan.`);
             setShowAlert(true);
             return;
         }
@@ -1198,11 +1192,11 @@ function TeamManagementCard() {
                                  <Alert variant="default" className="col-span-4">
                                     <Info className="h-4 w-4" />
                                     <AlertDescription>
-                                        Your Starter plan includes up to 3 team members. ({teamMembers.length} / 3)
+                                        Your Starter plan includes up to {memberLimit} team members. ({teamMembers.length} / {memberLimit})
                                     </AlertDescription>
                                 </Alert>
                             )}
-                            {(plan === 'Professional' || plan === 'Enterprise') && (
+                            {(isProfessional || isEnterprise) && (
                                  <Alert variant="default" className="col-span-4">
                                     <Info className="h-4 w-4" />
                                     <AlertDescription>
@@ -1378,12 +1372,12 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean, onOpenCha
 }
 
 function CustomBrandingCard() {
-    const { customLogo, setCustomLogo, plan } = useTimer();
+    const { customLogo, setCustomLogo } = useTimer();
+    const { canUploadLogo } = usePlanGate();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const isEnterprise = plan === 'Enterprise';
 
-    if (!isEnterprise) {
+    if (!canUploadLogo) {
         return (
             <Card>
                 <CardHeader>
@@ -1479,16 +1473,13 @@ function CustomBrandingCard() {
 
 function AiAssistantCard() {
   const { toast } = useToast();
-  const { plan } = useTimer();
+  const { canUseAi, canUseTts } = usePlanGate();
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [speechResult, setSpeechResult] = useState<GenerateSpeechOutput | null>(null);
   const [imageResult, setImageResult] = useState<GenerateImageOutput | null>(null);
   const [audioResult, setAudioResult] = useState<GenerateSpeechAudioOutput | null>(null);
-
-  const canUseAi = plan === 'Professional' || plan === 'Enterprise';
-  const canUseTts = plan === 'Enterprise';
 
   if (!canUseAi) {
     return (
@@ -1680,8 +1671,7 @@ function AiAssistantCard() {
   );
 }
 
-
-export default function DashboardPage() {
+function DashboardContent() {
   const {
     time,
     isActive,
@@ -1692,34 +1682,16 @@ export default function DashboardPage() {
     timersUsed,
     timerLimit,
     currentUser,
-    loadingAuth,
-    plan,
-    firebaseServices,
     logout,
   } = useTimer();
 
-  const router = useRouter();
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (!loadingAuth && !currentUser) {
-      router.push('/login');
-    }
-  }, [currentUser, loadingAuth, router]);
-
   const handleSignOut = async () => {
     await logout();
-    router.push('/');
-  }
-
-  if (loadingAuth || !currentUser || !firebaseServices) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <Loader className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    // The ProtectedLayout will handle the redirect.
   }
 
   const handleToggleTimer = () => {
@@ -1773,8 +1745,8 @@ export default function DashboardPage() {
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                             <Avatar className="h-10 w-10">
-                                <AvatarImage src={currentUser.photoURL || undefined} data-ai-hint="person face" />
-                                <AvatarFallback>{currentUser.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                                <AvatarImage src={currentUser!.photoURL || undefined} data-ai-hint="person face" />
+                                <AvatarFallback>{currentUser!.email?.charAt(0).toUpperCase()}</AvatarFallback>
                             </Avatar>
                         </Button>
                     </DropdownMenuTrigger>
@@ -1783,7 +1755,7 @@ export default function DashboardPage() {
                             <div className="flex flex-col space-y-1">
                                 <p className="text-sm font-medium leading-none">My Account</p>
                                 <p className="text-xs leading-none text-muted-foreground truncate">
-                                    {currentUser.email}
+                                    {currentUser!.email}
                                 </p>
                             </div>
                         </DropdownMenuLabel>
@@ -1942,4 +1914,12 @@ export default function DashboardPage() {
       />
     </>
   );
+}
+
+export default function DashboardPage() {
+  return (
+    <ProtectedLayout>
+      <DashboardContent />
+    </ProtectedLayout>
+  )
 }
