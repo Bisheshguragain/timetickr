@@ -6,7 +6,7 @@ import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
 
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useHydrationGuard } from "@/hooks/useHydrationGuard"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +33,7 @@ type SidebarContext = {
   setOpen: (open: boolean) => void
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
-  isMobile: boolean | null
+  isMobile: boolean
   toggleSidebar: () => void
 }
 
@@ -68,7 +68,9 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-    const isMobile = useIsMobile()
+    const { isHydrated, viewportWidth } = useHydrationGuard("Sidebar")
+    const isMobile = isHydrated && viewportWidth ? viewportWidth < 768 : false
+
     const [openMobile, setOpenMobile] = React.useState(false)
 
     // This is the internal state of the sidebar.
@@ -129,6 +131,24 @@ const SidebarProvider = React.forwardRef<
       }),
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
+
+    if (!isHydrated) {
+       return (
+         <div className="group/sidebar-wrapper flex min-h-svh w-full">
+            <div className="peer hidden md:block">
+                <Skeleton className="h-full w-[3rem]" />
+            </div>
+            <main className="flex min-h-svh flex-1 flex-col bg-background p-4">
+              <header className="flex h-14 items-center justify-end gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+                 <Skeleton className="h-8 w-8 sm:hidden" />
+              </header>
+              <div className="mt-4">
+                  <Skeleton className="h-[calc(100vh-8rem)] w-full" />
+              </div>
+            </main>
+        </div>
+       )
+    }
 
     return (
       <SidebarContext.Provider value={contextValue}>
